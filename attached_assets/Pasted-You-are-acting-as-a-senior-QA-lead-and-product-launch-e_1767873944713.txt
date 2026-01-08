@@ -1,0 +1,102 @@
+You are acting as a senior QA lead and product launch engineer.
+
+Your task is to assess how close this project (SwapRunn) is to FULL, REAL-WORLD usability if it were rolled out TODAY with real dealerships, sales staff, and drivers.
+
+Context:
+- SwapRunn is a job marketplace connecting dealerships with independent drivers
+- Supabase has been removed
+- Frontend uses src/lib/api.ts
+- Dashboards and registration flows are migrated
+- PRODUCT_SPEC.md defines intended behavior and must be treated as authoritative
+
+DO NOT add features.
+DO NOT refactor code.
+DO NOT rewrite architecture.
+
+---
+
+### AUDIT OBJECTIVE
+
+Assume:
+- Real users
+- Real data
+- No developer supervision
+- Multiple concurrent users
+
+Answer the following EXACTLY in this format:
+
+---
+
+## 1. LAUNCH READINESS SCORE (0–100%)
+Give a single percentage and one-sentence justification.
+
+---
+
+## 2. BLOCKERS TO SAME-DAY LAUNCH
+List ALL issues that would cause:
+- User confusion
+- Data corruption
+- Failed workflows
+- Support tickets
+- Trust loss
+
+For each blocker:
+- Describe the real user experience
+- Name the file(s) involved
+- Mark severity:
+  🔴 Critical (must fix before launch)
+  🟠 High (can launch but painful)
+  🟡 Medium (annoying but tolerable)
+
+---
+
+## 3. CORE FLOWS VERIFICATION
+For EACH flow below, mark:
+✅ Works
+⚠️ Partially works
+❌ Broken
+
+And explain briefly WHY.
+
+- Dealer signup → dashboard
+- Sales signup → dashboard
+- Driver signup → dashboard
+- Dealer creates job
+- Driver sees job
+- Driver accepts job
+- Job locks to one driver
+- Dealer & driver can communicate
+- Job completion updates state
+- App survives refresh/log out/in
+
+---
+
+## 4. SILENT FAILURES (MOST IMPORTANT)
+List anything that:
+- Appears to work
+- But will fail under load, refresh, or edge cases
+- Would not throw obvious errors
+
+These are highest risk.
+
+---
+
+## 5. IF THIS LAUNCHED TODAY…
+Answer plainly:
+- Who would get stuck?
+- Who would be confused?
+- Who would generate support tickets?
+- What would break first?
+
+No hedging. Be honest.
+
+---
+
+## 6. MINIMUM FIX LIST TO LAUNCH (NO SCOPE CREEP)
+Provide a SHORT, ordered list of fixes required to safely launch an MVP TODAY.
+Max 10 items.
+Only fixes — no enhancements.
+
+---
+
+If something is unclear, ask ONE clarification question before proceeding.

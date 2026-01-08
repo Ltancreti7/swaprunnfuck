@@ -3,19 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, MessageCircle, AlertCircle, RefreshCw, Calendar, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { supabase, Delivery, Message, Sales } from '../lib/supabase';
 import { Badge } from '../components/ui/Badge';
 import { formatMessageDate, formatTime } from '../lib/dateUtils';
 import { retryWithBackoff, isNetworkError } from '../lib/retry';
 import { ScheduleConfirmationModal } from '../components/sales/ScheduleConfirmationModal';
 import { getTimeframeDisplay } from '../lib/deliveryUtils';
+import api from '../lib/api';
+import type { Delivery, Message, Sales, Driver } from '../../shared/schema';
 
-type PresenceEntry = {
-  typing?: boolean;
-  user_id?: string;
-};
-
-type PresenceState = Record<string, PresenceEntry[]>;
+const POLLING_INTERVAL = 5000;
 
 export function Chat() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
@@ -26,139 +22,73 @@ export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState<boolean>(false);
-  const [retrying, setRetrying] = useState(false);
   const [salesPerson, setSalesPerson] = useState<Sales | null>(null);
-  const [driverName, setDriverName] = useState<string>('');
+  const [driver, setDriver] = useState<Driver | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadDelivery = useCallback(async () => {
+  const loadDeliveryWithRelations = useCallback(async () => {
     if (!deliveryId) return;
-    const { data } = await supabase
-      .from('deliveries')
-      .select('*, sales:sales!sales_id(*), driver:drivers(name)')
-      .eq('id', deliveryId)
-      .maybeSingle();
-
-    if (data) {
-      setDelivery(data);
-      if (data.sales) setSalesPerson(data.sales as unknown as Sales);
-      if (data.driver) setDriverName((data.driver as { name: string }).name);
+    try {
+      const result = await api.deliveries.getWithRelations(deliveryId);
+      if (result) {
+        setDelivery(result.delivery);
+        if (result.sales) setSalesPerson(result.sales);
+        if (result.driver) setDriver(result.driver);
+      }
+    } catch (error) {
+      console.error('Failed to load delivery:', error);
     }
   }, [deliveryId]);
 
   const loadMessages = useCallback(async () => {
     if (!deliveryId) return;
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('delivery_id', deliveryId)
-      .order('created_at', { ascending: true });
-
-    if (data) setMessages(data);
+    try {
+      const data = await api.messages.list(deliveryId);
+      if (data) {
+        setMessages(data);
+      }
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+    }
   }, [deliveryId]);
 
-  const subscribeToMessages = useCallback(() => {
+  const markMessagesAsRead = useCallback(async () => {
+    if (!deliveryId || !user?.id) return;
     try {
-      const channel = supabase
-        .channel(`delivery-${deliveryId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `delivery_id=eq.${deliveryId}`,
-          },
-          (payload) => {
-            const newMessage = payload.new as Message;
-            setMessages((current) => {
-              // Prevent duplicates
-              if (current.some(m => m.id === newMessage.id)) {
-                return current;
-              }
-              return [...current, newMessage];
-            });
-            setConnectionError(false);
-          }
-        )
-        .on('presence', { event: 'sync' }, () => {
-          const state = channel.presenceState() as PresenceState;
-          const presenceLists = Object.values(state);
-          const currentUserId = user?.id;
-          const isOtherUserTyping = presenceLists.some((entries) =>
-            entries.some((entry) => Boolean(entry.typing) && entry.user_id !== currentUserId)
-          );
-          setIsTyping(isOtherUserTyping);
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            setConnectionError(false);
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            setConnectionError(true);
-            showToast('Connection lost. Messages may not sync in real-time.', 'warning');
-          }
-        });
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      await api.messages.markRead(deliveryId);
     } catch (error) {
-      console.error('Failed to subscribe to messages:', error);
-      setConnectionError(true);
-      showToast('Failed to connect to chat. Please refresh the page.', 'error');
-      return () => {};
+      console.error('Failed to mark messages as read:', error);
     }
-  }, [deliveryId, user?.id, showToast]);
+  }, [deliveryId, user?.id]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   useEffect(() => {
-    if (!deliveryId) return undefined;
+    if (!deliveryId) return;
 
-    loadDelivery();
+    loadDeliveryWithRelations();
     loadMessages();
-    const cleanup = subscribeToMessages();
+    markMessagesAsRead();
 
-    if (user?.id) {
-      supabase
-        .from('messages')
-        .update({ read: true })
-        .eq('delivery_id', deliveryId)
-        .eq('recipient_id', user.id)
-        .eq('read', false)
-        .then(({ error }) => {
-          if (error) {
-            console.error('Failed to mark messages as read:', error);
-          }
-        });
-    }
+    pollingRef.current = setInterval(() => {
+      loadMessages();
+    }, POLLING_INTERVAL);
 
-    return cleanup;
-  }, [deliveryId, loadDelivery, loadMessages, subscribeToMessages, user?.id]);
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [deliveryId, loadDeliveryWithRelations, loadMessages, markMessagesAsRead]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
-
-  const handleTyping = () => {
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    const channel = supabase.channel(`delivery-${deliveryId}`);
-    channel.track({ typing: true, user_id: user?.id });
-
-    typingTimeoutRef.current = setTimeout(() => {
-      channel.track({ typing: false, user_id: user?.id });
-    }, 2000);
-  };
 
   const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -173,39 +103,22 @@ export function Chat() {
     try {
       let recipientUserId: string | null = null;
 
-      if (delivery.driver_id) {
-        const { data: driverData } = await supabase
-          .from('drivers')
-          .select('user_id')
-          .eq('id', delivery.driver_id)
-          .maybeSingle();
-
-        if (driverData?.user_id && user.id !== driverData.user_id) {
-          recipientUserId = driverData.user_id;
-        }
+      if (driver && user.id !== driver.userId) {
+        recipientUserId = driver.userId;
       }
 
-      if (!recipientUserId && delivery.sales_id) {
-        const { data: salesData } = await supabase
-          .from('sales')
-          .select('user_id')
-          .eq('id', delivery.sales_id)
-          .maybeSingle();
-
-        if (salesData?.user_id && user.id !== salesData.user_id) {
-          recipientUserId = salesData.user_id;
-        }
+      if (!recipientUserId && salesPerson && user.id !== salesPerson.userId) {
+        recipientUserId = salesPerson.userId;
       }
 
-      if (!recipientUserId && delivery.dealer_id) {
-        const { data: dealerData } = await supabase
-          .from('dealers')
-          .select('user_id')
-          .eq('id', delivery.dealer_id)
-          .maybeSingle();
-
-        if (dealerData?.user_id && user.id !== dealerData.user_id) {
-          recipientUserId = dealerData.user_id;
+      if (!recipientUserId && delivery.dealerId) {
+        try {
+          const dealer = await api.dealers.get(delivery.dealerId);
+          if (dealer?.userId && user.id !== dealer.userId) {
+            recipientUserId = dealer.userId;
+          }
+        } catch {
+          console.error('Failed to get dealer');
         }
       }
 
@@ -216,24 +129,20 @@ export function Chat() {
       let insertedMessage: Message | null = null;
 
       await retryWithBackoff(async () => {
-        const { data, error } = await supabase.from('messages').insert({
-          delivery_id: deliveryId,
-          sender_id: user.id,
-          recipient_id: recipientUserId,
+        const data = await api.messages.create({
+          deliveryId: deliveryId,
+          senderId: user.id,
+          recipientId: recipientUserId,
           content: messageContent,
-        }).select().single();
+        });
 
-        if (error) {
-          throw error;
+        if (data) {
+          insertedMessage = data as Message;
         }
-
-        insertedMessage = data as Message;
       }, 3, 1000);
 
-      // Optimistically add the message to the UI immediately
       if (insertedMessage) {
         setMessages((current) => {
-          // Check if message already exists (from realtime subscription)
           if (current.some(m => m.id === insertedMessage!.id)) {
             return current;
           }
@@ -243,13 +152,6 @@ export function Chat() {
 
       setNewMessage('');
       setSendError(null);
-
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-
-      const channel = supabase.channel(`delivery-${deliveryId}`);
-      channel.track({ typing: false, user_id: user?.id });
     } catch (err: unknown) {
       console.error('Failed to send message:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
@@ -267,20 +169,14 @@ export function Chat() {
 
   const handleRetry = async () => {
     if (!sendError || !newMessage.trim()) return;
-
-    setRetrying(true);
-    try {
-      await handleSendMessage({ preventDefault: () => {} } as React.FormEvent);
-    } finally {
-      setRetrying(false);
-    }
+    await handleSendMessage({ preventDefault: () => {} } as React.FormEvent);
   };
 
   const groupMessagesByDate = () => {
     const groups: { [key: string]: Message[] } = {};
 
     messages.forEach((message) => {
-      const dateKey = formatMessageDate(message.created_at);
+      const dateKey = formatMessageDate(message.createdAt);
       if (!groups[dateKey]) {
         groups[dateKey] = [];
       }
@@ -297,80 +193,49 @@ export function Chat() {
     }
 
     try {
-      console.log('[ScheduleConfirm] Updating delivery with schedule:', { date, time, deliveryId });
-
-      const { error: updateError } = await supabase
-        .from('deliveries')
-        .update({
-          scheduled_date: date,
-          scheduled_time: time,
-          schedule_confirmed_by: salesPerson.id,
-          schedule_confirmed_at: new Date().toISOString(),
-          status: 'in_progress'
-        })
-        .eq('id', deliveryId);
-
-      if (updateError) {
-        console.error('[ScheduleConfirm] Error updating delivery:', updateError);
-        throw updateError;
-      }
-
-      console.log('[ScheduleConfirm] Delivery updated successfully');
-
-      // Get driver user_id for the message
-      let driverUserId: string | null = null;
-      if (delivery?.driver_id) {
-        const { data: driverData } = await supabase
-          .from('drivers')
-          .select('user_id')
-          .eq('id', delivery.driver_id)
-          .single();
-        driverUserId = driverData?.user_id || null;
-      }
-
-      // Send confirmation message
-      const confirmMessage = `Schedule confirmed! Delivery scheduled for ${new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${time}.`;
-
-      const { error: messageError } = await supabase.from('messages').insert({
-        delivery_id: deliveryId,
-        sender_id: user!.id,
-        recipient_id: driverUserId,
-        content: confirmMessage,
+      await api.deliveries.update(deliveryId, {
+        scheduledDate: date,
+        scheduledTime: time,
+        scheduleConfirmedBy: salesPerson.id,
+        scheduleConfirmedAt: new Date().toISOString(),
+        status: 'in_progress'
       });
 
-      if (messageError) {
-        console.error('[ScheduleConfirm] Error sending message:', messageError);
-      }
+      const driverUserId = driver?.userId || null;
 
-      // Send notification to driver
+      const confirmMessage = `Schedule confirmed! Delivery scheduled for ${new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${time}.`;
+
       if (driverUserId) {
-        const { error: notifError } = await supabase.from('notifications').insert({
-          user_id: driverUserId,
-          delivery_id: deliveryId,
+        await api.messages.create({
+          deliveryId: deliveryId,
+          senderId: user!.id,
+          recipientId: driverUserId,
+          content: confirmMessage,
+        });
+
+        await api.notifications.create({
+          userId: driverUserId,
+          deliveryId: deliveryId,
           type: 'schedule_confirmed',
           title: 'Schedule Confirmed',
           message: `Delivery schedule confirmed for ${new Date(date).toLocaleDateString()} at ${time}`,
           read: false,
         });
-
-        if (notifError) {
-          console.error('[ScheduleConfirm] Error sending notification:', notifError);
-        }
       }
 
       showToast('Schedule confirmed successfully!', 'success');
       setShowScheduleModal(false);
 
-      // Reload delivery to show updated schedule
-      await loadDelivery();
+      await loadDeliveryWithRelations();
+      await loadMessages();
 
     } catch (error) {
-      console.error('[ScheduleConfirm] Failed to confirm schedule:', error);
+      console.error('Failed to confirm schedule:', error);
       showToast('Failed to confirm schedule. Please try again.', 'error');
     }
   };
 
-  const canConfirmSchedule = role === 'sales' && (delivery?.status === 'accepted' || delivery?.status === 'assigned') && !delivery?.scheduled_date;
+  const canConfirmSchedule = role === 'sales' && (delivery?.status === 'accepted' || delivery?.status === 'assigned') && !delivery?.scheduledDate;
 
   if (!delivery) {
     return (
@@ -389,6 +254,7 @@ export function Chat() {
           <button
             onClick={() => navigate(-1)}
             className="touch-target flex items-center text-gray-600 hover:text-black mb-3 sm:mb-4 transition"
+            data-testid="button-back"
           >
             <ArrowLeft size={20} className="mr-2" />
             Back
@@ -397,26 +263,26 @@ export function Chat() {
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm sm:text-base truncate">VIN: {delivery.vin}</p>
-                <p className="text-xs sm:text-sm text-gray-600 break-words">
+                <p className="font-semibold text-sm sm:text-base truncate" data-testid="text-vin">VIN: {delivery.vin}</p>
+                <p className="text-xs sm:text-sm text-gray-600 break-words" data-testid="text-route">
                   {delivery.pickup} → {delivery.dropoff}
                 </p>
-                {delivery.required_timeframe && (
+                {delivery.requiredTimeframe && (
                   <p className="text-xs text-gray-500 mt-1">
                     <Calendar size={12} className="inline mr-1" />
-                    Required: {getTimeframeDisplay(delivery.required_timeframe, delivery.custom_date)}
+                    Required: {getTimeframeDisplay(delivery.requiredTimeframe, delivery.customDate)}
                   </p>
                 )}
               </div>
               <Badge status={delivery.status} />
             </div>
-            {delivery.scheduled_date && delivery.scheduled_time && (
+            {delivery.scheduledDate && delivery.scheduledTime && (
               <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 mb-3">
                 <CheckCircle2 size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-semibold text-green-900">Schedule Confirmed</p>
                   <p className="text-xs text-green-800 break-words">
-                    {new Date(delivery.scheduled_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at {delivery.scheduled_time}
+                    {new Date(delivery.scheduledDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at {delivery.scheduledTime}
                   </p>
                 </div>
               </div>
@@ -425,6 +291,7 @@ export function Chat() {
               <button
                 onClick={() => setShowScheduleModal(true)}
                 className="touch-target w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 sm:py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-sm sm:text-base"
+                data-testid="button-confirm-schedule"
               >
                 <Calendar size={18} />
                 Confirm Delivery Schedule
@@ -454,11 +321,12 @@ export function Chat() {
                   </span>
                 </div>
                 {dateMessages.map((message) => {
-                  const isSender = message.sender_id === user?.id;
+                  const isSender = message.senderId === user?.id;
                   return (
                     <div
                       key={message.id}
                       className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}
+                      data-testid={`message-${message.id}`}
                     >
                       <div
                         className={`max-w-[75%] sm:max-w-xs md:max-w-md px-4 py-3 rounded-lg shadow-sm ${
@@ -473,7 +341,7 @@ export function Chat() {
                             isSender ? 'text-red-100' : 'text-gray-500'
                           }`}
                         >
-                          {formatTime(message.created_at)}
+                          {formatTime(message.createdAt)}
                         </p>
                       </div>
                     </div>
@@ -482,38 +350,12 @@ export function Chat() {
               </div>
             ))
           )}
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg rounded-bl-none shadow-sm">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            </div>
-          )}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
       <div className="bg-white border-t border-gray-200 sticky bottom-0 safe-bottom">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          {connectionError && (
-            <div className="max-w-3xl mx-auto mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-3">
-              <AlertCircle size={20} className="text-yellow-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-yellow-800 font-medium">Connection issues detected</p>
-                <p className="text-xs text-yellow-700 mt-1">Messages may not sync in real-time. Try refreshing the page.</p>
-              </div>
-              <button
-                onClick={() => window.location.reload()}
-                className="text-yellow-600 hover:text-yellow-800 transition"
-              >
-                <RefreshCw size={18} />
-              </button>
-            </div>
-          )}
           {sendError && (
             <div className="max-w-3xl mx-auto mb-3 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-3">
               <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
@@ -523,14 +365,10 @@ export function Chat() {
               </div>
               <button
                 onClick={handleRetry}
-                disabled={retrying}
-                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1"
+                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition flex items-center gap-1"
+                data-testid="button-retry"
               >
-                {retrying ? (
-                  <RefreshCw size={14} className="animate-spin" />
-                ) : (
-                  <RefreshCw size={14} />
-                )}
+                <RefreshCw size={14} />
                 Retry
               </button>
             </div>
@@ -542,17 +380,18 @@ export function Chat() {
               onChange={(event) => {
                 setNewMessage(event.target.value);
                 setSendError(null);
-                handleTyping();
               }}
               placeholder="Type a message..."
               maxLength={500}
               className="flex-1 px-3 sm:px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent text-base"
+              data-testid="input-message"
             />
             <button
               type="submit"
               disabled={loading || !newMessage.trim()}
               className="touch-target bg-red-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:bg-gray-400 flex items-center justify-center"
               aria-label="Send message"
+              data-testid="button-send"
             >
               {loading ? (
                 <RefreshCw size={20} className="animate-spin" />
@@ -569,9 +408,9 @@ export function Chat() {
         onClose={() => setShowScheduleModal(false)}
         onConfirm={handleConfirmSchedule}
         deliveryVin={delivery.vin}
-        driverName={driverName}
-        requiredTimeframe={delivery.required_timeframe}
-        customDate={delivery.custom_date}
+        driverName={driver?.name || ''}
+        requiredTimeframe={delivery.requiredTimeframe}
+        customDate={delivery.customDate}
       />
     </div>
   );

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Star, TrendingUp, Clock, CheckCircle, Search, Award } from 'lucide-react';
-import { supabase, Driver, DriverStatistics, DriverPreference } from '../../lib/supabase';
 import { Card } from '../ui/Card';
+import api from '../../lib/api';
+import type { Driver, DriverStatistics, DriverPreference } from '../../../shared/schema';
 
 interface DriverWithDetails extends Driver {
   statistics?: DriverStatistics;
@@ -39,42 +40,24 @@ export function DriverSelectionModal({
   const loadDrivers = async () => {
     setLoading(true);
     try {
-      const { data: approvedDriverRelationships } = await supabase
-        .from('approved_driver_dealers')
-        .select(`
-          driver:drivers(*)
-        `)
-        .eq('dealer_id', dealerId);
+      const approvedDrivers = await api.drivers.approvedByDealer(dealerId);
 
-      if (!approvedDriverRelationships || approvedDriverRelationships.length === 0) {
+      if (!approvedDrivers || approvedDrivers.length === 0) {
         setDrivers([]);
         setLoading(false);
         return;
       }
 
-      const driversData = approvedDriverRelationships
-        .map((rel: any) => rel.driver as Driver)
-        .filter((driver: Driver) => driver && driver.status === 'active' && driver.is_available);
+      const driversData = approvedDrivers
+        .filter((driver: Driver) => driver && driver.status === 'active' && driver.isAvailable);
 
-      const driverIds = driversData.map(d => d.id);
+      const statisticsData = await api.drivers.statistics(dealerId);
+      const preferencesData = await api.drivers.preferences(dealerId);
 
-      const { data: statisticsData } = await supabase
-        .from('driver_statistics')
-        .select('*')
-        .in('driver_id', driverIds)
-        .eq('dealer_id', dealerId);
-
-      const { data: preferencesData } = await supabase
-        .from('driver_preferences')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .in('driver_id', driverIds)
-        .eq('dealer_id', dealerId);
-
-      const driversWithDetails: DriverWithDetails[] = driversData.map(driver => ({
+      const driversWithDetails: DriverWithDetails[] = driversData.map((driver: Driver) => ({
         ...driver,
-        statistics: statisticsData?.find(s => s.driver_id === driver.id),
-        preference: preferencesData?.find(p => p.driver_id === driver.id),
+        statistics: statisticsData?.find((s: DriverStatistics) => s.driverId === driver.id),
+        preference: preferencesData?.find((p: DriverPreference) => p.driverId === driver.id),
       }));
 
       setDrivers(driversWithDetails);
@@ -92,31 +75,31 @@ export function DriverSelectionModal({
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(d =>
         d.name.toLowerCase().includes(query) ||
-        d.vehicle_type.toLowerCase().includes(query)
+        d.vehicleType.toLowerCase().includes(query)
       );
     }
 
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'preference':
-          const prefA = a.preference?.preference_level || 0;
-          const prefB = b.preference?.preference_level || 0;
+          const prefA = a.preference?.preferenceLevel || 0;
+          const prefB = b.preference?.preferenceLevel || 0;
           if (prefA !== prefB) return prefB - prefA;
-          const useA = a.preference?.use_count || 0;
-          const useB = b.preference?.use_count || 0;
+          const useA = a.preference?.useCount || 0;
+          const useB = b.preference?.useCount || 0;
           return useB - useA;
 
         case 'performance':
-          const completedA = a.statistics?.completed_deliveries || 0;
-          const completedB = b.statistics?.completed_deliveries || 0;
+          const completedA = a.statistics?.completedDeliveries || 0;
+          const completedB = b.statistics?.completedDeliveries || 0;
           if (completedA !== completedB) return completedB - completedA;
-          const onTimeA = a.statistics?.on_time_percentage || 0;
-          const onTimeB = b.statistics?.on_time_percentage || 0;
+          const onTimeA = Number(a.statistics?.onTimePercentage) || 0;
+          const onTimeB = Number(b.statistics?.onTimePercentage) || 0;
           return onTimeB - onTimeA;
 
         case 'recent':
-          const lastUsedA = a.preference?.last_used_at || '1970-01-01';
-          const lastUsedB = b.preference?.last_used_at || '1970-01-01';
+          const lastUsedA = a.preference?.lastUsedAt || new Date('1970-01-01');
+          const lastUsedB = b.preference?.lastUsedAt || new Date('1970-01-01');
           return new Date(lastUsedB).getTime() - new Date(lastUsedA).getTime();
 
         case 'name':
@@ -133,7 +116,7 @@ export function DriverSelectionModal({
     onClose();
   };
 
-  const renderPreferenceStars = (level?: number) => {
+  const renderPreferenceStars = (level?: number | null) => {
     const stars = level || 0;
     return (
       <div className="flex items-center gap-1">
@@ -161,6 +144,7 @@ export function DriverSelectionModal({
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition"
+            data-testid="button-close-modal"
           >
             <X size={24} />
           </button>
@@ -176,12 +160,14 @@ export function DriverSelectionModal({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                data-testid="input-search-drivers"
               />
             </div>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'preference' | 'performance' | 'recent' | 'name')}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+              data-testid="select-sort-by"
             >
               <option value="preference">My Preferences</option>
               <option value="performance">Top Performers</option>
@@ -216,19 +202,20 @@ export function DriverSelectionModal({
                     selectedDriverId === driver.id ? 'ring-2 ring-red-600 bg-red-50' : ''
                   }`}
                   onClick={() => handleSelectDriver(driver.id)}
+                  data-testid={`card-driver-${driver.id}`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-gray-900">{driver.name}</h3>
-                        {driver.preference && driver.preference.preference_level >= 4 && (
+                        {driver.preference && (driver.preference.preferenceLevel ?? 0) >= 4 && (
                           <span className="px-2 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-semibold">Favorite</span>
                         )}
                       </div>
 
                       <div className="flex flex-wrap gap-4 mb-3">
                         <span className="px-3 py-1 bg-gray-100 text-xs rounded-full font-medium">
-                          {driver.vehicle_type}
+                          {driver.vehicleType}
                         </span>
                         <span className="px-3 py-1 bg-gray-100 text-xs rounded-full font-medium">
                           {driver.radius} mi radius
@@ -237,30 +224,30 @@ export function DriverSelectionModal({
 
                       {driver.preference && (
                         <div className="flex items-center gap-3 mb-2">
-                          {renderPreferenceStars(driver.preference.preference_level)}
+                          {renderPreferenceStars(driver.preference.preferenceLevel)}
                           <span className="text-xs text-gray-600">
-                            You've used this driver {driver.preference.use_count} {driver.preference.use_count === 1 ? 'time' : 'times'}
+                            You've used this driver {driver.preference.useCount} {driver.preference.useCount === 1 ? 'time' : 'times'}
                           </span>
                         </div>
                       )}
 
-                      {driver.statistics && driver.statistics.completed_deliveries > 0 && (
+                      {driver.statistics && (driver.statistics.completedDeliveries ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-4 text-sm">
                           <div className="flex items-center gap-2 text-green-700">
                             <CheckCircle size={16} />
-                            <span className="font-semibold">{driver.statistics.completed_deliveries}</span>
+                            <span className="font-semibold">{driver.statistics.completedDeliveries}</span>
                             <span className="text-gray-600">deliveries</span>
                           </div>
                           <div className="flex items-center gap-2 text-blue-700">
                             <TrendingUp size={16} />
-                            <span className="font-semibold">{driver.statistics.on_time_percentage.toFixed(0)}%</span>
+                            <span className="font-semibold">{Number(driver.statistics.onTimePercentage).toFixed(0)}%</span>
                             <span className="text-gray-600">success rate</span>
                           </div>
-                          {driver.statistics.last_delivery_at && (
+                          {driver.statistics.lastDeliveryAt && (
                             <div className="flex items-center gap-2 text-gray-700">
                               <Clock size={16} />
                               <span className="text-xs">
-                                Last: {new Date(driver.statistics.last_delivery_at).toLocaleDateString()}
+                                Last: {new Date(driver.statistics.lastDeliveryAt).toLocaleDateString()}
                               </span>
                             </div>
                           )}
@@ -286,12 +273,14 @@ export function DriverSelectionModal({
           <button
             onClick={onClose}
             className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition"
+            data-testid="button-cancel"
           >
             Cancel
           </button>
           <button
             onClick={() => handleSelectDriver('')}
             className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition"
+            data-testid="button-leave-unassigned"
           >
             Leave Unassigned
           </button>

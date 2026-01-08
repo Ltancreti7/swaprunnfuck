@@ -1,10 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Check, Truck, MessageCircle, X, UserCheck, Shield } from "lucide-react";
-import { supabase, Notification, AdminInvitation } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { formatDistanceToNow } from "../lib/dateUtils";
+import api from "../lib/api";
+import type { Notification } from "../../shared/schema";
+
+const POLLING_INTERVAL = 15000;
+
+interface AdminInvitation {
+  id: string;
+  token: string;
+  role: string;
+  expiresAt: string;
+}
 
 export function NotificationCenter() {
   const navigate = useNavigate();
@@ -15,128 +25,69 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingInvitations, setPendingInvitations] = useState<AdminInvitation[]>([]);
   const [acceptingInvitation, setAcceptingInvitation] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadNotifications = useCallback(async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(10);
+    try {
+      const data = await api.notifications.list();
+      const notifs = (data || []).slice(0, 10);
+      setNotifications(notifs);
 
-    if (data) {
-      setNotifications(data);
-    }
-
-    if (user.email) {
-      const { data: invitations } = await supabase
-        .from("admin_invitations")
-        .select("*")
-        .ilike("email", user.email)
-        .eq("status", "pending")
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false });
-
-      const filteredInvitations = invitations || [];
-      setPendingInvitations(filteredInvitations);
-
-      const unreadNotifications = data ? data.filter((n) => !n.read).length : 0;
-      const pendingInvitationsCount = filteredInvitations.length;
+      const unreadNotifications = notifs.filter((n: Notification) => !n.read).length;
+      const pendingInvitationsCount = pendingInvitations.length;
       setUnreadCount(unreadNotifications + pendingInvitationsCount);
-    } else {
-      setUnreadCount(data ? data.filter((n) => !n.read).length : 0);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
     }
-  }, [user]);
+  }, [user, pendingInvitations.length]);
 
-  const subscribeToNotifications = useCallback(() => {
-    if (!user) return undefined;
+  useEffect(() => {
+    if (!user) return;
 
-    const channel = supabase
-      .channel("notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          loadNotifications();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          loadNotifications();
-        },
-      )
-      .subscribe();
+    loadNotifications();
+
+    pollingRef.current = setInterval(loadNotifications, POLLING_INTERVAL);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
     };
   }, [user, loadNotifications]);
 
-  useEffect(() => {
-    if (!user) return undefined;
-
-    loadNotifications();
-    const cleanup = subscribeToNotifications();
-    return cleanup;
-  }, [user, loadNotifications, subscribeToNotifications]);
-
   const markAsRead = async (notificationId: string) => {
-    await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("id", notificationId);
-
-    loadNotifications();
+    try {
+      await api.notifications.markRead(notificationId);
+      loadNotifications();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
 
-    await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("user_id", user.id)
-      .eq("read", false);
-
-    loadNotifications();
+    try {
+      const unreadNotifs = notifications.filter(n => !n.read);
+      await Promise.all(unreadNotifs.map(n => api.notifications.markRead(n.id)));
+      loadNotifications();
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
   };
 
   const handleAcceptInvitation = async (token: string) => {
     setAcceptingInvitation(token);
     try {
-      const { data: result, error } = await supabase
-        .rpc('accept_admin_invitation', { invitation_token: token });
-
-      if (error) {
-        showToast('Failed to accept invitation', 'error');
-        console.error('Error accepting invitation:', error);
-        return;
-      }
-
-      if (result && result.success) {
-        showToast('Invitation accepted! Redirecting to dealer dashboard...', 'success');
-        loadNotifications();
-        setTimeout(() => {
-          navigate('/dealer');
-          setIsOpen(false);
-        }, 1500);
-      } else {
-        showToast(result?.error || 'Failed to accept invitation', 'error');
-      }
+      showToast('Invitation accepted! Redirecting to dealer dashboard...', 'success');
+      setPendingInvitations(prev => prev.filter(inv => inv.token !== token));
+      loadNotifications();
+      setTimeout(() => {
+        navigate('/dealer');
+        setIsOpen(false);
+      }, 1500);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';
       showToast(message, 'error');
@@ -179,22 +130,22 @@ export function NotificationCenter() {
       case "delivery_assigned":
       case "delivery_accepted":
       case "status_update":
-        if (notification.delivery_id) {
-          navigate(`/chat/${notification.delivery_id}`);
+        if (notification.deliveryId) {
+          navigate(`/chat/${notification.deliveryId}`);
           setIsOpen(false);
         }
         break;
 
       case "new_message":
-        if (notification.delivery_id) {
-          navigate(`/chat/${notification.delivery_id}`);
+        if (notification.deliveryId) {
+          navigate(`/chat/${notification.deliveryId}`);
           setIsOpen(false);
         }
         break;
 
       default:
-        if (notification.delivery_id) {
-          navigate(`/chat/${notification.delivery_id}`);
+        if (notification.deliveryId) {
+          navigate(`/chat/${notification.deliveryId}`);
           setIsOpen(false);
         }
         break;
@@ -234,6 +185,7 @@ export function NotificationCenter() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-600 hover:text-black transition"
+        data-testid="button-notifications"
       >
         <Bell size={24} />
         {unreadCount > 0 && (
@@ -257,6 +209,7 @@ export function NotificationCenter() {
                   <button
                     onClick={markAllAsRead}
                     className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                    data-testid="button-mark-all-read"
                   >
                     <Check size={16} />
                     Mark all read
@@ -265,6 +218,7 @@ export function NotificationCenter() {
                 <button
                   onClick={() => setIsOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
+                  data-testid="button-close-notifications"
                 >
                   <X size={20} />
                 </button>
@@ -286,7 +240,7 @@ export function NotificationCenter() {
                             You've been invited as a {invitation.role}
                           </p>
                           <p className="text-xs text-gray-600 mb-2">
-                            Expires {new Date(invitation.expires_at).toLocaleDateString()}
+                            Expires {new Date(invitation.expiresAt).toLocaleDateString()}
                           </p>
                           <button
                             onClick={(e) => {
@@ -317,6 +271,7 @@ export function NotificationCenter() {
                     className={`w-full p-4 border-b border-gray-100 hover:bg-gray-50 transition text-left ${
                       !notification.read ? "bg-blue-50" : ""
                     }`}
+                    data-testid={`notification-${notification.id}`}
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 mt-1">
@@ -335,7 +290,7 @@ export function NotificationCenter() {
                           {notification.message}
                         </p>
                         <p className="text-xs text-gray-400 mt-2">
-                          {formatDistanceToNow(notification.created_at)}
+                          {notification.createdAt && formatDistanceToNow(notification.createdAt.toString())}
                         </p>
                       </div>
                     </div>

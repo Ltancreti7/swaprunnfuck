@@ -1,58 +1,35 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useState, useEffect, useRef } from 'react';
+import api from '../lib/api';
+
+const POLLING_INTERVAL = 10000;
 
 export function useUnreadMessages(deliveryId: string, userId: string | undefined) {
   const [unreadCount, setUnreadCount] = useState(0);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!deliveryId || !userId) return;
 
     const loadUnreadCount = async () => {
-      const { count } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('delivery_id', deliveryId)
-        .eq('recipient_id', userId)
-        .eq('read', false);
-
-      setUnreadCount(count || 0);
+      try {
+        const messages = await api.messages.list(deliveryId);
+        const unread = messages?.filter((m: { recipientId: string; read: boolean }) => 
+          m.recipientId === userId && !m.read
+        ).length || 0;
+        setUnreadCount(unread);
+      } catch (error) {
+        console.error('Error loading unread count:', error);
+      }
     };
 
     loadUnreadCount();
 
-    const channel = supabase
-      .channel(`unread-${deliveryId}-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `delivery_id=eq.${deliveryId}`,
-        },
-        (payload) => {
-          const newMessage = payload.new as { recipient_id: string };
-          if (newMessage.recipient_id === userId) {
-            setUnreadCount((current) => current + 1);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `delivery_id=eq.${deliveryId}`,
-        },
-        () => {
-          loadUnreadCount();
-        }
-      )
-      .subscribe();
+    pollingRef.current = setInterval(loadUnreadCount, POLLING_INTERVAL);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
     };
   }, [deliveryId, userId]);
 

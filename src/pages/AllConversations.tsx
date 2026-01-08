@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Package, Clock, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, Delivery, Message } from '../lib/supabase';
 import { formatTime } from '../lib/dateUtils';
 import { Badge } from '../components/ui/Badge';
 import { UnreadBadge } from '../components/ui/UnreadBadge';
+import api from '../lib/api';
+import type { Delivery, Message } from '../../shared/schema';
+
+const POLLING_INTERVAL = 10000;
 
 interface ConversationGroup {
   deliveryId: string;
@@ -20,28 +23,20 @@ export function AllConversations() {
   const { user, role } = useAuth();
   const [conversations, setConversations] = useState<ConversationGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!user) return;
     loadConversations();
 
-    const channel = supabase
-      .channel('all-messages')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-        },
-        () => {
-          loadConversations();
-        }
-      )
-      .subscribe();
+    pollingRef.current = setInterval(() => {
+      loadConversations();
+    }, POLLING_INTERVAL);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
     };
   }, [user]);
 
@@ -49,70 +44,46 @@ export function AllConversations() {
     if (!user) return;
 
     try {
-      const { data: messages, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
+      const data = await api.conversations.list();
 
-      if (error) throw error;
-
-      if (!messages || messages.length === 0) {
+      if (!data || data.length === 0) {
         setConversations([]);
         setLoading(false);
         return;
       }
 
-      const deliveryIds = [...new Set(messages.map(m => m.delivery_id))];
+      const conversationGroups: ConversationGroup[] = await Promise.all(
+        data.map(async (conv: { deliveryId: string; delivery: Delivery; lastMessage: Message; unreadCount: number }) => {
+          let otherPartyName = 'Unknown';
 
-      const { data: deliveries, error: deliveriesError } = await supabase
-        .from('deliveries')
-        .select('*')
-        .in('id', deliveryIds);
+          if (role === 'driver' && conv.delivery.salesId) {
+            try {
+              const salesData = await api.sales.get(conv.delivery.salesId);
+              otherPartyName = salesData?.name || 'Sales Person';
+            } catch {
+              otherPartyName = 'Sales Person';
+            }
+          } else if (role === 'sales' && conv.delivery.driverId) {
+            try {
+              const driverData = await api.drivers.get(conv.delivery.driverId);
+              otherPartyName = driverData?.name || 'Driver';
+            } catch {
+              otherPartyName = 'Driver';
+            }
+          }
 
-      if (deliveriesError) throw deliveriesError;
+          return {
+            deliveryId: conv.deliveryId,
+            delivery: conv.delivery,
+            lastMessage: conv.lastMessage,
+            unreadCount: conv.unreadCount,
+            otherPartyName,
+          };
+        })
+      );
 
-      const conversationMap = new Map<string, ConversationGroup>();
-
-      for (const deliveryId of deliveryIds) {
-        const deliveryMessages = messages.filter(m => m.delivery_id === deliveryId);
-        const lastMessage = deliveryMessages[0];
-        const unreadCount = deliveryMessages.filter(
-          m => m.recipient_id === user.id && !m.read
-        ).length;
-
-        const delivery = deliveries?.find(d => d.id === deliveryId);
-        if (!delivery) continue;
-
-        let otherPartyName = 'Unknown';
-
-        if (role === 'driver') {
-          const { data: salesData } = await supabase
-            .from('sales')
-            .select('name')
-            .eq('id', delivery.sales_id)
-            .maybeSingle();
-          otherPartyName = salesData?.name || 'Sales Person';
-        } else if (role === 'sales') {
-          const { data: driverData } = await supabase
-            .from('drivers')
-            .select('name')
-            .eq('id', delivery.driver_id)
-            .maybeSingle();
-          otherPartyName = driverData?.name || 'Driver';
-        }
-
-        conversationMap.set(deliveryId, {
-          deliveryId,
-          delivery,
-          lastMessage,
-          unreadCount,
-          otherPartyName,
-        });
-      }
-
-      const sortedConversations = Array.from(conversationMap.values()).sort(
-        (a, b) => new Date(b.lastMessage.created_at).getTime() - new Date(a.lastMessage.created_at).getTime()
+      const sortedConversations = conversationGroups.sort(
+        (a, b) => new Date(b.lastMessage.createdAt || '').getTime() - new Date(a.lastMessage.createdAt || '').getTime()
       );
 
       setConversations(sortedConversations);
@@ -145,6 +116,7 @@ export function AllConversations() {
           <button
             onClick={() => navigate(-1)}
             className="touch-target flex items-center text-gray-600 hover:text-black mb-3 transition"
+            data-testid="button-back"
           >
             <ArrowLeft size={20} className="mr-2" />
             Back
@@ -181,6 +153,7 @@ export function AllConversations() {
                 key={conversation.deliveryId}
                 onClick={() => handleConversationClick(conversation.deliveryId)}
                 className="w-full bg-white rounded-lg shadow-sm hover:shadow-md transition-all p-4 text-left border-2 border-transparent hover:border-red-200"
+                data-testid={`conversation-${conversation.deliveryId}`}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -207,9 +180,9 @@ export function AllConversations() {
                 <div className="flex items-start gap-2 mb-3 text-sm text-gray-600">
                   <MapPin size={14} className="flex-shrink-0 mt-0.5" />
                   <p className="flex-1 truncate">
-                    {conversation.delivery.pickup_city || conversation.delivery.pickup}
+                    {conversation.delivery.pickupCity || conversation.delivery.pickup}
                     {' → '}
-                    {conversation.delivery.dropoff_city || conversation.delivery.dropoff}
+                    {conversation.delivery.dropoffCity || conversation.delivery.dropoff}
                   </p>
                 </div>
 
@@ -218,11 +191,11 @@ export function AllConversations() {
                     <p className="text-xs font-medium text-gray-500">Latest Message</p>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Clock size={12} />
-                      {formatTime(conversation.lastMessage.created_at)}
+                      {formatTime(conversation.lastMessage.createdAt)}
                     </div>
                   </div>
                   <p className="text-sm text-gray-900 line-clamp-2">
-                    {conversation.lastMessage.sender_id === user?.id ? 'You: ' : ''}
+                    {conversation.lastMessage.senderId === user?.id ? 'You: ' : ''}
                     {conversation.lastMessage.content}
                   </p>
                 </div>

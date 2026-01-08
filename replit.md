@@ -44,21 +44,26 @@ Preferred communication style: Simple, everyday language.
 - Notification system with unread counters
 
 ### Migration Status (Supabase to Replit API)
+**100% Complete - All Supabase imports removed from src/**
+
 **Completed:**
 - Core backend infrastructure: Express server with session-based auth, bcrypt password hashing
 - PostgreSQL database with all 15+ tables via Drizzle ORM
 - All 3 registration flows: RegisterDealer, SignUpSales, SignUpDriver use API routes
 - DealerDashboard fully migrated: data loading functions and action handlers use API calls
 - SalesDashboard fully migrated: all data loading and action handlers use API calls
-- DriverDashboard fully migrated: polling-based updates (15s interval), all data loading and action handlers use API calls, types imported from shared/schema.ts
-- API client (src/lib/api.ts) extended with all necessary methods including driver-specific endpoints
-- Backend routes (server/routes.ts) include all required endpoints for all three dashboards
-- Types exported from shared/schema.ts (Dealer, Driver, Sales, etc.)
+- DriverDashboard fully migrated: polling-based updates (15s interval), all data loading and action handlers use API calls
+- Chat and messaging fully migrated: AllConversations, Chat components use polling-based updates
+- All hooks migrated: useUnreadMessagesCount, useDriverRating, useDeliveryData use API layer
+- Admin management migrated: AdminManagement.tsx uses API for dealer admins and invitations
+- Profile management migrated: Profile.tsx uses API for profile updates and password changes
+- API client (src/lib/api.ts) extended with user, adminInvitations, and dealerAdmins namespaces
+- Backend routes include endpoints for admin management, profile updates, password changes
+- Types exported from shared/schema.ts (Dealer, Driver, Sales, DealerAdmin, AdminInvitation, etc.)
 
-**Remaining:**
-- Chat functionality migration (AllConversations, Chat components need polling-based alternative)
-- Hooks migration (useUnreadMessagesCount, useDriverRating, etc.)
-- Other components still using Supabase imports need updates
+**Stubbed for Future Implementation:**
+- Password reset via email (ForgotPassword/ResetPassword pages show informative messaging)
+- Account deletion (requires safe cascade deletion implementation)
 
 ### Project Structure
 ```
@@ -83,9 +88,9 @@ Preferred communication style: Simple, everyday language.
 - **Drizzle ORM**: Database toolkit for schema definition and queries
 
 ### Authentication & Backend
-- **Supabase Client**: Used for real-time subscriptions and some legacy auth features (requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY)
 - **bcryptjs**: Password hashing
 - **express-session**: Session management
+- **Drizzle ORM**: Type-safe database operations with PostgreSQL
 
 ### Mobile Deployment
 - **Capacitor**: Native iOS app wrapper with plugins for:

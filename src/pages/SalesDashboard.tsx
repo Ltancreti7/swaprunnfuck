@@ -18,6 +18,7 @@ import { formatAddress } from '../lib/addressUtils';
 import { NotificationService } from '../lib/notificationService';
 import { Calendar } from '../components/ui/Calendar';
 import { validateVIN } from '../lib/validation';
+import { OnboardingChecklist } from '../components/OnboardingChecklist';
 
 export function SalesDashboard() {
   const navigate = useNavigate();
@@ -379,6 +380,8 @@ export function SalesDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="container mx-auto px-4 py-8">
+        <OnboardingChecklist role="sales" />
+        
         <ProfileHeader
           sales={sales}
           deliveries={deliveries}

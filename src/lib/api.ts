@@ -246,6 +246,17 @@ export const api = {
       return `/api/deliveries/export/csv?${queryParams.toString()}`;
     },
   },
+  onboarding: {
+    getProgress: () => apiRequest<{ progress: { completedSteps: string[]; dismissed: boolean } | null }>('/onboarding/progress'),
+    updateProgress: (data: { completedSteps?: string[]; dismissed?: boolean }) =>
+      apiRequestWithSnakeBody<{ success: boolean }>('/onboarding/progress', { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  pushTokens: {
+    register: (token: string, platform: string) =>
+      apiRequest<{ success: boolean }>('/push-tokens', { method: 'POST', body: JSON.stringify({ token, platform }) }),
+    unregister: (token: string) =>
+      apiRequest<{ success: boolean }>('/push-tokens', { method: 'DELETE', body: JSON.stringify({ token }) }),
+  },
 };
 
 export default api;

@@ -19,6 +19,7 @@ import { DeliveryCardWithChat } from '../components/driver/DeliveryCardWithChat'
 import { Calendar } from '../components/ui/Calendar';
 import { UnreadBadge } from '../components/ui/UnreadBadge';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessagesCount';
+import { OnboardingChecklist } from '../components/OnboardingChecklist';
 
 interface DeliveryWithDealer extends Delivery {
   dealer: Dealer;
@@ -418,6 +419,8 @@ export function DriverDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-8 space-y-6">
+        <OnboardingChecklist role="driver" />
+        
         <div className="bg-white rounded-lg shadow-lg mb-6">
           <div className="border-b border-gray-200">
             <div className="flex overflow-x-auto scrollbar-hide">

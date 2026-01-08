@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { sendPasswordResetEmail, sendAdminInvitationEmail, isEmailConfigured } from "./email";
 import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
+import { notifyDeliveryStatusChange, notifyNewMessage, notifyNewDeliveryAvailable, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
 
 // Validation schemas
 const createDeliverySchema = z.object({
@@ -664,6 +665,32 @@ export function registerRoutes(app: Express): void {
       }
 
       const updatedDelivery = await storage.updateDelivery(id, updates);
+      
+      // Send push notifications for status changes
+      try {
+        const recipientUserIds: string[] = [];
+        
+        // Notify dealer
+        const dealer = await storage.getDealer(delivery.dealerId);
+        if (dealer?.userId) recipientUserIds.push(dealer.userId);
+        
+        // Notify driver if assigned
+        if (delivery.driverId) {
+          const driver = await storage.getDriver(delivery.driverId);
+          if (driver?.userId) recipientUserIds.push(driver.userId);
+        }
+        
+        // Notify sales if assigned
+        if (delivery.salesId) {
+          const sales = await storage.getSales(delivery.salesId);
+          if (sales?.userId) recipientUserIds.push(sales.userId);
+        }
+        
+        await notifyDeliveryStatusChange(id, newStatus, recipientUserIds);
+      } catch (pushError) {
+        console.error("Push notification error:", pushError);
+      }
+      
       res.json(updatedDelivery);
     } catch (error) {
       console.error("Update delivery status error:", error);
@@ -865,6 +892,36 @@ export function registerRoutes(app: Express): void {
   app.post("/api/messages", async (req, res) => {
     try {
       const message = await storage.createMessage(req.body);
+      
+      // Send push notification to recipient
+      try {
+        const senderUserId = (req.session as any)?.userId;
+        let senderName = "Someone";
+        
+        // Get sender name based on role
+        const user = await storage.getUser(senderUserId);
+        if (user) {
+          if (user.role === 'dealer') {
+            const dealer = await storage.getDealerByUserId(senderUserId);
+            senderName = dealer?.name || "Dealership";
+          } else if (user.role === 'sales') {
+            const sales = await storage.getSalesByUserId(senderUserId);
+            senderName = sales?.name || "Sales Rep";
+          } else if (user.role === 'driver') {
+            const driver = await storage.getDriverByUserId(senderUserId);
+            senderName = driver?.name || "Driver";
+          }
+        }
+        
+        // Get recipient user ID
+        const recipientId = req.body.recipientId;
+        if (recipientId) {
+          await notifyNewMessage(message.deliveryId, senderName, recipientId);
+        }
+      } catch (pushError) {
+        console.error("Push notification error:", pushError);
+      }
+      
       res.json(message);
     } catch (error) {
       console.error("Create message error:", error);
@@ -1039,6 +1096,18 @@ export function registerRoutes(app: Express): void {
   app.post("/api/driver-applications", async (req, res) => {
     try {
       const application = await storage.createDriverApplication(req.body);
+      
+      // Send push notification to dealer about new application
+      try {
+        const driver = await storage.getDriver(application.driverId);
+        const dealer = await storage.getDealer(application.dealerId);
+        if (dealer?.userId && driver?.name) {
+          await notifyDriverApplication(dealer.userId, driver.name, application.id);
+        }
+      } catch (pushError) {
+        console.error("Push notification error:", pushError);
+      }
+      
       res.json(application);
     } catch (error) {
       console.error("Create driver application error:", error);
@@ -1055,6 +1124,19 @@ export function registerRoutes(app: Express): void {
           driverId: application.driverId,
           dealerId: application.dealerId,
         });
+      }
+      
+      // Send push notification to driver about application decision
+      if (application && (req.body.status === "approved" || req.body.status === "rejected")) {
+        try {
+          const driver = await storage.getDriver(application.driverId);
+          const dealer = await storage.getDealer(application.dealerId);
+          if (driver?.userId && dealer?.name) {
+            await notifyApplicationDecision(driver.userId, dealer.name, req.body.status === "approved");
+          }
+        } catch (pushError) {
+          console.error("Push notification error:", pushError);
+        }
       }
       
       res.json(application);
@@ -1660,6 +1742,96 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Export deliveries error:", error);
       res.status(500).json({ error: "Failed to export deliveries" });
+    }
+  });
+
+  // Onboarding Progress Routes
+  app.get("/api/onboarding/progress", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const progress = await storage.getOnboardingProgress(userId);
+      res.json({ progress: progress ? { completedSteps: progress.completedSteps, dismissed: progress.dismissed } : null });
+    } catch (error) {
+      console.error("Get onboarding progress error:", error);
+      res.status(500).json({ error: "Failed to get onboarding progress" });
+    }
+  });
+
+  app.patch("/api/onboarding/progress", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const role = (req.session as any)?.role;
+      if (!userId || !role) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { completed_steps, dismissed } = req.body;
+
+      let progress = await storage.getOnboardingProgress(userId);
+      
+      if (!progress) {
+        progress = await storage.createOnboardingProgress({
+          userId,
+          role,
+          completedSteps: completed_steps || [],
+          dismissed: dismissed || false,
+        });
+      } else {
+        const updates: any = {};
+        if (completed_steps !== undefined) updates.completedSteps = completed_steps;
+        if (dismissed !== undefined) updates.dismissed = dismissed;
+        progress = await storage.updateOnboardingProgress(userId, updates);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Update onboarding progress error:", error);
+      res.status(500).json({ error: "Failed to update onboarding progress" });
+    }
+  });
+
+  // Push Token Routes
+  app.post("/api/push-tokens", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { token, platform } = req.body;
+      if (!token || !platform) {
+        return res.status(400).json({ error: "Token and platform are required" });
+      }
+
+      await storage.createOrUpdatePushToken({ userId, token, platform });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Register push token error:", error);
+      res.status(500).json({ error: "Failed to register push token" });
+    }
+  });
+
+  app.delete("/api/push-tokens", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+
+      await storage.deletePushToken(userId, token);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete push token error:", error);
+      res.status(500).json({ error: "Failed to delete push token" });
     }
   });
 }

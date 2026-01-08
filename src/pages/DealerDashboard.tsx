@@ -26,6 +26,7 @@ import { ProfileHeader } from "../components/dealer/ProfileHeader";
 import { EditDealerProfileModal } from "../components/dealer/EditDealerProfileModal";
 import { AdminManagement } from "../components/dealer/AdminManagement";
 import { DriverSelectionModal } from "../components/dealer/DriverSelectionModal";
+import { OnboardingChecklist } from "../components/OnboardingChecklist";
 
 export function DealerDashboard() {
   const navigate = useNavigate();
@@ -547,6 +548,8 @@ export function DealerDashboard() {
       />
 
       <div className="container mx-auto px-4 py-8">
+        <OnboardingChecklist role="dealer" />
+        
         <div className="bg-white rounded-lg shadow-lg mb-6">
           <div className="border-b border-gray-200">
             <div className="flex overflow-x-auto">

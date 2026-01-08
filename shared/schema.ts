@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, uuid, time, date, numeric, interval, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, uuid, time, date, numeric, interval } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -214,6 +214,15 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertDealerSchema = createInsertSchema(dealers).omit({ id: true, createdAt: true });
 export const insertSalesSchema = createInsertSchema(sales).omit({ id: true, createdAt: true });
 export const insertDriverSchema = createInsertSchema(drivers).omit({ id: true, createdAt: true, updatedAt: true });
@@ -249,6 +258,7 @@ export type ApprovedDriverDealer = typeof approvedDriverDealers.$inferSelect;
 export type DealerAdmin = typeof dealerAdmins.$inferSelect;
 export type AdminInvitation = typeof adminInvitations.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type DriverStatistics = typeof driverStatistics.$inferSelect;
 export type DriverPreference = typeof driverPreferences.$inferSelect;
 

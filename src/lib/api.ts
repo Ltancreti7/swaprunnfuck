@@ -212,6 +212,8 @@ export const api = {
       apiRequestWithSnakeBody<any>('/user/profile', { method: 'PATCH', body: JSON.stringify(data) }),
     changePassword: (password: string) =>
       apiRequest<{ success: boolean }>('/user/password', { method: 'PATCH', body: JSON.stringify({ password }) }),
+    deleteAccount: () =>
+      apiRequest<{ message: string }>('/user/account', { method: 'DELETE' }),
   },
   adminInvitations: {
     pending: () => apiRequest<any[]>('/admin-invitations/pending'),

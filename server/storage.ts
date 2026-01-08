@@ -14,6 +14,7 @@ import type {
   AdminInvitation, InsertAdminInvitation,
   User, InsertUser,
   DriverStatistics, DriverPreference,
+  PasswordResetToken,
 } from "../shared/schema";
 import crypto from "crypto";
 
@@ -88,6 +89,16 @@ export interface IStorage {
   getDriverPreferencesByUserAndDealer(userId: string, dealerId: string): Promise<DriverPreference[]>;
   getDriverPreference(userId: string, driverId: string, dealerId: string): Promise<DriverPreference | undefined>;
   upsertDriverPreference(preference: { userId: string; driverId: string; dealerId: string; preferenceLevel: number }): Promise<DriverPreference>;
+  
+  createPasswordResetToken(userId: string): Promise<{ token: string; expiresAt: Date }>;
+  getPasswordResetTokenByHash(tokenHash: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(id: string): Promise<void>;
+  invalidateUserPasswordResetTokens(userId: string): Promise<void>;
+  
+  atomicAcceptDelivery(deliveryId: string, driverId: string): Promise<Delivery | null>;
+  
+  updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+  deleteUserAccount(userId: string, role: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -431,6 +442,131 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
+  }
+
+  async createPasswordResetToken(userId: string): Promise<{ token: string; expiresAt: Date }> {
+    await this.invalidateUserPasswordResetTokens(userId);
+    
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    
+    await db.insert(schema.passwordResetTokens).values({
+      userId,
+      token: tokenHash,
+      expiresAt,
+    });
+    
+    return { token: rawToken, expiresAt };
+  }
+
+  async getPasswordResetTokenByHash(tokenHash: string): Promise<PasswordResetToken | undefined> {
+    const [token] = await db.select().from(schema.passwordResetTokens).where(
+      and(
+        eq(schema.passwordResetTokens.token, tokenHash),
+        sql`${schema.passwordResetTokens.expiresAt} > NOW()`,
+        sql`${schema.passwordResetTokens.usedAt} IS NULL`
+      )
+    );
+    return token;
+  }
+
+  async markPasswordResetTokenUsed(id: string): Promise<void> {
+    await db.update(schema.passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(schema.passwordResetTokens.id, id));
+  }
+
+  async invalidateUserPasswordResetTokens(userId: string): Promise<void> {
+    await db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.userId, userId));
+  }
+
+  async atomicAcceptDelivery(deliveryId: string, driverId: string): Promise<Delivery | null> {
+    const result = await db.update(schema.deliveries)
+      .set({
+        driverId,
+        status: 'accepted',
+        chatActivatedAt: new Date(),
+        acceptedAt: new Date(),
+        acceptedBy: driverId,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.deliveries.id, deliveryId),
+          or(
+            eq(schema.deliveries.status, 'pending'),
+            and(
+              eq(schema.deliveries.status, 'pending_driver_acceptance'),
+              eq(schema.deliveries.driverId, driverId)
+            )
+          ),
+          or(
+            sql`${schema.deliveries.driverId} IS NULL`,
+            eq(schema.deliveries.driverId, driverId)
+          )
+        )
+      )
+      .returning();
+    
+    return result[0] || null;
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    await db.update(schema.users)
+      .set({ passwordHash })
+      .where(eq(schema.users.id, userId));
+  }
+
+  async deleteUserAccount(userId: string, role: string): Promise<void> {
+    await db.delete(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.userId, userId));
+    await db.delete(schema.notifications).where(eq(schema.notifications.userId, userId));
+    await db.delete(schema.driverPreferences).where(eq(schema.driverPreferences.userId, userId));
+    await db.delete(schema.dealerAdmins).where(eq(schema.dealerAdmins.userId, userId));
+    
+    if (role === 'dealer') {
+      const dealer = await this.getDealerByUserId(userId);
+      if (dealer) {
+        await db.delete(schema.adminInvitations).where(eq(schema.adminInvitations.dealerId, dealer.id));
+        await db.delete(schema.dealerAdmins).where(eq(schema.dealerAdmins.dealerId, dealer.id));
+        await db.delete(schema.driverPreferences).where(eq(schema.driverPreferences.dealerId, dealer.id));
+        await db.delete(schema.driverStatistics).where(eq(schema.driverStatistics.dealerId, dealer.id));
+        await db.delete(schema.approvedDriverDealers).where(eq(schema.approvedDriverDealers.dealerId, dealer.id));
+        await db.delete(schema.driverApplications).where(eq(schema.driverApplications.dealerId, dealer.id));
+        await db.delete(schema.invitations).where(eq(schema.invitations.dealerId, dealer.id));
+        
+        const dealerDeliveries = await db.select().from(schema.deliveries).where(eq(schema.deliveries.dealerId, dealer.id));
+        for (const delivery of dealerDeliveries) {
+          await db.delete(schema.messages).where(eq(schema.messages.deliveryId, delivery.id));
+          await db.delete(schema.deliveryStatusHistory).where(eq(schema.deliveryStatusHistory.deliveryId, delivery.id));
+        }
+        await db.delete(schema.deliveries).where(eq(schema.deliveries.dealerId, dealer.id));
+        await db.delete(schema.sales).where(eq(schema.sales.dealerId, dealer.id));
+        await db.delete(schema.dealers).where(eq(schema.dealers.id, dealer.id));
+      }
+    } else if (role === 'driver') {
+      const driver = await this.getDriverByUserId(userId);
+      if (driver) {
+        await db.delete(schema.driverStatistics).where(eq(schema.driverStatistics.driverId, driver.id));
+        await db.delete(schema.approvedDriverDealers).where(eq(schema.approvedDriverDealers.driverId, driver.id));
+        await db.delete(schema.driverApplications).where(eq(schema.driverApplications.driverId, driver.id));
+        await db.delete(schema.driverPreferences).where(eq(schema.driverPreferences.driverId, driver.id));
+        await db.update(schema.deliveries)
+          .set({ driverId: null, acceptedBy: null })
+          .where(eq(schema.deliveries.driverId, driver.id));
+        await db.delete(schema.drivers).where(eq(schema.drivers.id, driver.id));
+      }
+    } else if (role === 'sales') {
+      const sales = await this.getSalesByUserId(userId);
+      if (sales) {
+        await db.update(schema.deliveries)
+          .set({ salesId: null })
+          .where(eq(schema.deliveries.salesId, sales.id));
+        await db.delete(schema.sales).where(eq(schema.sales.id, sales.id));
+      }
+    }
+    
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
   }
 }
 

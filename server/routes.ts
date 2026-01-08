@@ -5,6 +5,8 @@ import * as schema from "../shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { sendPasswordResetEmail, sendAdminInvitationEmail, isEmailConfigured } from "./email";
+import { pollingRateLimiter, authRateLimiter, sensitiveRateLimiter } from "./rateLimit";
 
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
@@ -98,6 +100,83 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Auth check error:", error);
       res.status(500).json({ error: "Auth check failed" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", sensitiveRateLimiter, async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      const user = await storage.getUserByEmail(email);
+      if (user) {
+        const { token } = await storage.createPasswordResetToken(user.id);
+        const emailSent = await sendPasswordResetEmail(email, token);
+        if (!emailSent) {
+          console.warn('Password reset email could not be sent - email service not configured');
+        }
+      }
+      
+      res.json({ message: "If an account exists with this email, a password reset link has been sent." });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Failed to process password reset request" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", sensitiveRateLimiter, async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token and password are required" });
+      }
+      
+      if (password.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+      
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const resetToken = await storage.getPasswordResetTokenByHash(tokenHash);
+      
+      if (!resetToken) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+      
+      const passwordHash = await hashPassword(password);
+      await storage.updateUserPassword(resetToken.userId, passwordHash);
+      await storage.markPasswordResetTokenUsed(resetToken.id);
+      
+      res.json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
+  app.get("/api/auth/email-configured", (req, res) => {
+    res.json({ configured: isEmailConfigured() });
+  });
+
+  app.delete("/api/user/account", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const role = (req.session as any)?.role;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      await storage.deleteUserAccount(userId, role);
+      
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Session destroy error after account deletion:", err);
+        }
+        res.json({ message: "Account deleted successfully" });
+      });
+    } catch (error) {
+      console.error("Delete account error:", error);
+      res.status(500).json({ error: "Failed to delete account" });
     }
   });
 
@@ -566,37 +645,28 @@ export function registerRoutes(app: Express): void {
   app.post("/api/deliveries/:id/accept", async (req, res) => {
     try {
       const { driverId } = req.body;
-      const delivery = await storage.getDelivery(req.params.id);
       
-      if (!delivery) {
-        return res.status(404).json({ error: "Delivery not found" });
+      const updatedDelivery = await storage.atomicAcceptDelivery(req.params.id, driverId);
+      
+      if (!updatedDelivery) {
+        return res.status(400).json({ error: "Delivery not available or already accepted by another driver" });
       }
-      
-      const isSpecificRequest = delivery.status === "pending_driver_acceptance" && delivery.driverId === driverId;
-      
-      if (delivery.driverId && !isSpecificRequest) {
-        return res.status(400).json({ error: "Delivery already accepted by another driver" });
-      }
-      
-      const updatedDelivery = await storage.updateDelivery(req.params.id, {
-        driverId,
-        status: "accepted",
-        chatActivatedAt: new Date().toISOString(),
-        acceptedAt: new Date().toISOString(),
-      });
       
       const userId = (req.session as any)?.userId;
       const driver = await storage.getDriver(driverId);
-      const dealer = await storage.getDealer(delivery.dealerId);
-      const sales = delivery.salesId ? await storage.getSales(delivery.salesId) : null;
+      const dealer = await storage.getDealer(updatedDelivery.dealerId);
+      const sales = updatedDelivery.salesId ? await storage.getSales(updatedDelivery.salesId) : null;
       
       const welcomeMessage = `Chat activated! Driver ${driver?.name || "Unknown"} has accepted this delivery. You can now coordinate the pickup schedule and any other details.`;
-      await storage.createMessage({
-        deliveryId: req.params.id,
-        senderId: userId,
-        recipientId: sales?.userId || dealer?.userId,
-        content: welcomeMessage,
-      });
+      const recipientId = sales?.userId || dealer?.userId;
+      if (recipientId) {
+        await storage.createMessage({
+          deliveryId: req.params.id,
+          senderId: userId,
+          recipientId,
+          content: welcomeMessage,
+        });
+      }
       
       if (dealer?.userId) {
         await storage.createNotification({
@@ -672,7 +742,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/messages/:deliveryId", async (req, res) => {
+  app.get("/api/messages/:deliveryId", pollingRateLimiter, async (req, res) => {
     try {
       const messages = await storage.getMessages(req.params.deliveryId);
       res.json(messages);
@@ -706,7 +776,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/notifications", async (req, res) => {
+  app.get("/api/notifications", pollingRateLimiter, async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;
       if (!userId) {
@@ -740,7 +810,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/messages/unread/count", async (req, res) => {
+  app.get("/api/messages/unread/count", pollingRateLimiter, async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;
       if (!userId) {
@@ -754,7 +824,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/conversations", async (req, res) => {
+  app.get("/api/conversations", pollingRateLimiter, async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;
       if (!userId) {
@@ -1092,14 +1162,11 @@ export function registerRoutes(app: Express): void {
       await storage.createDealerAdmin({
         dealerId: invitation.dealerId,
         userId,
-        email: user.email,
-        name: user.email.split("@")[0],
-        role: invitation.role as "owner" | "manager" | "viewer",
+        role: invitation.role,
       });
 
       await storage.updateAdminInvitation(invitation.id, {
         status: "accepted",
-        acceptedAt: new Date(),
       });
 
       res.json({ success: true });
@@ -1205,6 +1272,39 @@ export function registerRoutes(app: Express): void {
         expiresAt,
         invitedBy: userId,
       });
+      
+      const inviter = await storage.getUser(userId);
+      let inviterName = 'Someone';
+      let dealershipName = 'a dealership';
+      
+      if (inviter) {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (dealer) {
+          inviterName = dealer.name;
+          dealershipName = dealer.name;
+        } else {
+          const admin = await storage.getDealerAdminByUserId(userId);
+          if (admin) {
+            const dealerInfo = await storage.getDealer(admin.dealerId);
+            if (dealerInfo) {
+              dealershipName = dealerInfo.name;
+            }
+          }
+        }
+      }
+      
+      const emailSent = await sendAdminInvitationEmail(
+        req.body.email,
+        inviterName,
+        dealershipName,
+        req.body.role,
+        token
+      );
+      
+      if (!emailSent) {
+        console.warn('Admin invitation email could not be sent - email service not configured');
+      }
+      
       res.json(invitation);
     } catch (error) {
       console.error("Create admin invitation error:", error);

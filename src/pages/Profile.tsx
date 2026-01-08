@@ -161,9 +161,9 @@ export function Profile() {
     setIsDeleting(true);
 
     try {
-      setMessage('Account deletion is not yet implemented. Please contact support.');
-      setShowDeleteModal(false);
-      setIsDeleting(false);
+      await api.user.deleteAccount();
+      await logout();
+      navigate('/');
     } catch (err: any) {
       setMessage(err.message || 'Failed to delete account');
       setShowDeleteModal(false);

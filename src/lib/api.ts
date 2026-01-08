@@ -53,6 +53,7 @@ export const api = {
   },
   sales: {
     list: () => apiRequest<any[]>('/sales'),
+    current: () => apiRequest<any>('/sales/current'),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/sales/dealer/${dealerId}`),
     create: (data: any) =>
       apiRequest<any>('/sales', { method: 'POST', body: JSON.stringify(data) }),
@@ -83,6 +84,7 @@ export const api = {
     list: () => apiRequest<any[]>('/deliveries'),
     get: (id: string) => apiRequest<any>(`/deliveries/${id}`),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/deliveries/dealer/${dealerId}`),
+    bySales: (salesId: string) => apiRequest<any[]>(`/deliveries/sales/${salesId}`),
     create: (data: any) =>
       apiRequest<any>('/deliveries', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>

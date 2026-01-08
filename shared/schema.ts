@@ -252,6 +252,8 @@ export type User = typeof users.$inferSelect;
 
 export type AdminRole = 'owner' | 'manager' | 'viewer';
 
+export type DeliveryTimeframe = 'tomorrow' | 'next_few_days' | 'next_week' | 'custom';
+
 export interface AddressFields {
   street: string;
   city: string;

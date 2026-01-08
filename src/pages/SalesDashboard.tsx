@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Package, Calendar as CalendarIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { supabase, Sales, Delivery, Driver, AddressFields, DeliveryTimeframe } from '../lib/supabase';
+import { api } from '../lib/api';
+import type { Sales, Delivery, Driver, AddressFields, DeliveryTimeframe } from '../../shared/schema';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DashboardSkeleton } from '../components/ui/LoadingSkeleton';
 import { ProfileHeader } from '../components/sales/ProfileHeader';
@@ -63,48 +64,14 @@ export function SalesDashboard() {
   useEffect(() => {
     if (!user || !sales) return undefined;
 
-    const channelName = `sales-deliveries-${sales.id}-${Date.now()}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'deliveries', filter: `sales_id=eq.${sales.id}` },
-        async (payload) => {
-          if (payload.new && payload.old) {
-            const newDelivery = payload.new as Delivery;
-            const oldDelivery = payload.old as Delivery;
-
-            if (oldDelivery.status === 'pending' && (newDelivery.status === 'accepted' || newDelivery.status === 'assigned') && newDelivery.driver_id) {
-              const { data: driverData } = await supabase
-                .from('drivers')
-                .select('name')
-                .eq('id', newDelivery.driver_id)
-                .single();
-
-              if (driverData) {
-                NotificationService.notifyDeliveryAccepted(driverData.name, newDelivery.vin);
-                setRecentlyAcceptedDeliveries(prev => new Set(prev).add(newDelivery.id));
-                setTimeout(() => {
-                  setRecentlyAcceptedDeliveries(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(newDelivery.id);
-                    return newSet;
-                  });
-                }, 10000);
-              }
-            }
-
-            if (sales) {
-              await loadDeliveries(sales.id);
-            }
-          }
-        }
-      )
-      .subscribe();
+    const pollInterval = setInterval(async () => {
+      if (document.visibilityState === 'visible') {
+        await loadDeliveries(sales.id);
+      }
+    }, 15000);
 
     return () => {
-      console.log('[SalesDashboard] Cleaning up realtime subscription');
-      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [user, sales?.id]);
 
@@ -113,30 +80,19 @@ export function SalesDashboard() {
 
     setLoading(true);
     try {
-      const { data: salesData, error } = await supabase
-        .from('sales')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error loading sales data:', error);
-        showToast(`Failed to load profile: ${error.message}`, 'error');
-        setLoading(false);
-        return;
-      }
+      const salesData = await api.sales.current();
 
       if (salesData) {
         setSales(salesData);
-        if (salesData.default_pickup_street || salesData.default_pickup_location) {
+        if (salesData.defaultPickupStreet || salesData.defaultPickupLocation) {
           const defaultAddress: AddressFields = {
-            street: salesData.default_pickup_street || '',
-            city: salesData.default_pickup_city || '',
-            state: salesData.default_pickup_state || '',
-            zip: salesData.default_pickup_zip || '',
+            street: salesData.defaultPickupStreet || '',
+            city: salesData.defaultPickupCity || '',
+            state: salesData.defaultPickupState || '',
+            zip: salesData.defaultPickupZip || '',
           };
 
-          if (defaultAddress.street || salesData.default_pickup_location) {
+          if (defaultAddress.street || salesData.defaultPickupLocation) {
             setNewDelivery(prev => ({
               ...prev,
               pickupAddress: defaultAddress.street ? defaultAddress : prev.pickupAddress
@@ -146,7 +102,7 @@ export function SalesDashboard() {
         }
         await Promise.all([
           loadDeliveries(salesData.id),
-          loadDrivers(salesData.dealer_id)
+          loadDrivers(salesData.dealerId)
         ]);
       } else {
         console.warn('No sales profile found for user:', user.id);
@@ -160,65 +116,25 @@ export function SalesDashboard() {
     }
   };
 
-  const loadDeliveries = async (salesId: string) => {
+  const loadDeliveries = useCallback(async (salesId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('deliveries')
-        .select('*')
-        .eq('sales_id', salesId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading deliveries:', error);
-        showToast('Failed to load deliveries', 'error');
-        return;
-      }
-
+      const data = await api.deliveries.bySales(salesId);
       if (data) setDeliveries(data);
     } catch (err) {
       console.error('Exception loading deliveries:', err);
     }
-  };
+  }, []);
 
   const loadDrivers = async (dealerId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('approved_driver_dealers')
-        .select(`
-          driver:drivers(
-            id,
-            user_id,
-            name,
-            email,
-            phone,
-            vehicle_type,
-            license_number,
-            radius,
-            status,
-            activated_at,
-            available_for_customer_deliveries,
-            available_for_dealer_swaps,
-            is_available,
-            created_at
-          )
-        `)
-        .eq('dealer_id', dealerId)
-        .order('approved_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading drivers:', error);
-        showToast('Failed to load drivers', 'error');
-        return;
-      }
+      const data = await api.drivers.approvedByDealer(dealerId);
 
       if (data) {
-        const approvedDrivers = data
-          .map((relationship: any) => relationship.driver as Driver)
-          .filter((driver: Driver) => driver && driver.is_available === true);
+        const approvedDrivers = data.filter((driver: Driver) => driver && driver.isAvailable === true);
 
         setDrivers(approvedDrivers);
         const map = new Map();
-        approvedDrivers.forEach(driver => {
+        approvedDrivers.forEach((driver: Driver) => {
           map.set(driver.id, driver.name);
         });
         setDriverMap(map);

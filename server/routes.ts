@@ -233,6 +233,25 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/sales/current", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const sales = await storage.getSalesByUserId(userId);
+      if (!sales) {
+        return res.status(404).json({ error: "Sales profile not found" });
+      }
+      
+      res.json(sales);
+    } catch (error) {
+      console.error("Get current sales error:", error);
+      res.status(500).json({ error: "Failed to get sales profile" });
+    }
+  });
+
   app.get("/api/sales/dealer/:dealerId", async (req, res) => {
     try {
       const sales = await storage.getSalesByDealerId(req.params.dealerId);
@@ -240,6 +259,16 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Get sales by dealer error:", error);
       res.status(500).json({ error: "Failed to get sales" });
+    }
+  });
+
+  app.get("/api/deliveries/sales/:salesId", async (req, res) => {
+    try {
+      const deliveries = await storage.getDeliveriesBySalesId(req.params.salesId);
+      res.json(deliveries);
+    } catch (error) {
+      console.error("Get deliveries by sales error:", error);
+      res.status(500).json({ error: "Failed to get deliveries" });
     }
   });
 

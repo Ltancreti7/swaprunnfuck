@@ -198,6 +198,93 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.delete("/api/sales/:id", async (req, res) => {
+    try {
+      await storage.deleteSales(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete sales error:", error);
+      res.status(500).json({ error: "Failed to delete sales" });
+    }
+  });
+
+  app.get("/api/dealer/current", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const admin = await storage.getDealerAdminByUserId(userId);
+      if (admin) {
+        const dealer = await storage.getDealer(admin.dealerId);
+        return res.json({ dealer, adminRole: admin.role });
+      }
+      
+      const dealer = await storage.getDealerByUserId(userId);
+      if (dealer) {
+        return res.json({ dealer, adminRole: 'owner' });
+      }
+      
+      res.status(404).json({ error: "Dealer not found" });
+    } catch (error) {
+      console.error("Get current dealer error:", error);
+      res.status(500).json({ error: "Failed to get dealer" });
+    }
+  });
+
+  app.get("/api/sales/dealer/:dealerId", async (req, res) => {
+    try {
+      const sales = await storage.getSalesByDealerId(req.params.dealerId);
+      res.json(sales);
+    } catch (error) {
+      console.error("Get sales by dealer error:", error);
+      res.status(500).json({ error: "Failed to get sales" });
+    }
+  });
+
+  app.get("/api/drivers/approved/:dealerId", async (req, res) => {
+    try {
+      const approvals = await storage.getApprovedDriversByDealerId(req.params.dealerId);
+      const drivers = await Promise.all(
+        approvals.map(async (a) => {
+          const driver = await storage.getDriver(a.driverId);
+          return driver;
+        })
+      );
+      res.json(drivers.filter(Boolean));
+    } catch (error) {
+      console.error("Get approved drivers error:", error);
+      res.status(500).json({ error: "Failed to get approved drivers" });
+    }
+  });
+
+  app.get("/api/deliveries/dealer/:dealerId", async (req, res) => {
+    try {
+      const deliveries = await storage.getDeliveriesByDealerId(req.params.dealerId);
+      res.json(deliveries);
+    } catch (error) {
+      console.error("Get deliveries by dealer error:", error);
+      res.status(500).json({ error: "Failed to get deliveries" });
+    }
+  });
+
+  app.get("/api/driver-applications/dealer/:dealerId", async (req, res) => {
+    try {
+      const applications = await storage.getDriverApplicationsByDealerId(req.params.dealerId);
+      const applicationsWithDrivers = await Promise.all(
+        applications.map(async (app) => {
+          const driver = await storage.getDriver(app.driverId);
+          return { ...app, driver };
+        })
+      );
+      res.json(applicationsWithDrivers.filter(a => a.driver));
+    } catch (error) {
+      console.error("Get driver applications error:", error);
+      res.status(500).json({ error: "Failed to get driver applications" });
+    }
+  });
+
   app.get("/api/drivers", async (req, res) => {
     try {
       const drivers = await storage.getDrivers();
@@ -243,6 +330,16 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Update driver error:", error);
       res.status(500).json({ error: "Failed to update driver" });
+    }
+  });
+
+  app.delete("/api/drivers/:id", async (req, res) => {
+    try {
+      await storage.deleteDriver(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete driver error:", error);
+      res.status(500).json({ error: "Failed to delete driver" });
     }
   });
 
@@ -364,6 +461,16 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.post("/api/notifications", async (req, res) => {
+    try {
+      const notification = await storage.createNotification(req.body);
+      res.json(notification);
+    } catch (error) {
+      console.error("Create notification error:", error);
+      res.status(500).json({ error: "Failed to create notification" });
+    }
+  });
+
   app.post("/api/notifications/:id/read", async (req, res) => {
     try {
       await storage.markNotificationAsRead(req.params.id);
@@ -468,6 +575,16 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.post("/api/approved-driver-dealers", async (req, res) => {
+    try {
+      const approval = await storage.createApprovedDriverDealer(req.body);
+      res.json(approval);
+    } catch (error) {
+      console.error("Create approved driver dealer error:", error);
+      res.status(500).json({ error: "Failed to create approved driver dealer" });
+    }
+  });
+
   app.delete("/api/approved-driver-dealers/:driverId/:dealerId", async (req, res) => {
     try {
       await storage.deleteApprovedDriverDealer(req.params.driverId, req.params.dealerId);
@@ -520,6 +637,43 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Delete dealer admin error:", error);
       res.status(500).json({ error: "Failed to delete dealer admin" });
+    }
+  });
+
+  app.post("/api/sales/check-preregistered", async (req, res) => {
+    try {
+      const { email, dealerId } = req.body;
+      const sales = await storage.getSalesByEmailAndDealerId(email.toLowerCase().trim(), dealerId);
+      if (sales && sales.status === "pending_signup") {
+        res.json({ preRegistered: true, salesId: sales.id });
+      } else {
+        res.json({ preRegistered: false });
+      }
+    } catch (error) {
+      console.error("Check preregistered error:", error);
+      res.status(500).json({ error: "Failed to check registration status" });
+    }
+  });
+
+  app.post("/api/sales/activate", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const { salesId } = req.body;
+      const sales = await storage.updateSales(salesId, {
+        userId,
+        status: "active",
+        activatedAt: new Date(),
+        passwordChanged: true,
+      });
+      
+      res.json(sales);
+    } catch (error) {
+      console.error("Activate sales error:", error);
+      res.status(500).json({ error: "Failed to activate sales account" });
     }
   });
 }

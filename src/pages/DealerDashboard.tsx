@@ -13,7 +13,8 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { useDebounce } from "../hooks/useDebounce";
-import { supabase, Dealer, Delivery, Driver, Sales, DriverApplication, AdminRole, AddressFields } from "../lib/supabase";
+import { api } from "../lib/api";
+import type { Dealer, Delivery, Driver, Sales, DriverApplication, AdminRole, AddressFields } from "../../shared/schema";
 import { AddressInput } from "../components/ui/AddressInput";
 import { formatAddress } from "../lib/addressUtils";
 import { Badge } from "../components/ui/Badge";
@@ -88,26 +89,16 @@ export function DealerDashboard() {
 
   const loadCurrentUserRole = async () => {
     if (!user) return;
-
-    const { data } = await supabase
-      .from("dealer_admins")
-      .select("role, dealer_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (data) {
-      setCurrentUserRole(data.role as AdminRole);
-      if (!dealer) {
-        const { data: dealerData } = await supabase
-          .from("dealers")
-          .select("*")
-          .eq("id", data.dealer_id)
-          .maybeSingle();
-
-        if (dealerData) {
+    try {
+      const { dealer: dealerData, adminRole } = await api.dealers.current();
+      if (dealerData) {
+        setCurrentUserRole(adminRole as AdminRole);
+        if (!dealer) {
           setDealer(dealerData);
         }
       }
+    } catch (err) {
+      console.error("Error loading user role:", err);
     }
   };
 
@@ -115,143 +106,72 @@ export function DealerDashboard() {
     if (!user) return;
 
     setLoading(true);
-    const { data: adminData } = await supabase
-      .from("dealer_admins")
-      .select("dealer_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (adminData) {
-      const { data: dealerData } = await supabase
-        .from("dealers")
-        .select("*")
-        .eq("id", adminData.dealer_id)
-        .maybeSingle();
-
+    try {
+      const { dealer: dealerData, adminRole } = await api.dealers.current();
       if (dealerData) {
         setDealer(dealerData);
+        setCurrentUserRole(adminRole as AdminRole);
         await Promise.all([
           loadDeliveries(dealerData.id),
           loadSalesTeam(dealerData.id),
           loadDrivers(dealerData.id),
           loadApplications(dealerData.id),
         ]);
-      }
-    } else {
-      const { data: dealerData } = await supabase
-        .from("dealers")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!dealerData) {
-        setLoading(false);
+      } else {
         navigate("/complete-profile");
-        return;
       }
+    } catch (err) {
+      console.error("Error loading dealer data:", err);
+      navigate("/complete-profile");
     }
     setLoading(false);
   };
 
   const loadDeliveries = async (dealershipId: string) => {
-    const { data, error } = await supabase
-      .from("deliveries")
-      .select("*")
-      .eq("dealership_id", dealershipId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
+    try {
+      const data = await api.deliveries.byDealer(dealershipId);
+      setDeliveries(data || []);
+    } catch (err) {
+      console.error(err);
       showToast("Failed to load deliveries", "error");
-      return;
     }
-
-    if (data) setDeliveries(data);
   };
 
   const loadDrivers = async (dealerId: string) => {
-    // Get approved drivers from the junction table
-    const { data: approvedDriverIds } = await supabase
-      .from("approved_driver_dealers")
-      .select("driver_id")
-      .eq("dealer_id", dealerId);
-
-    if (!approvedDriverIds || approvedDriverIds.length === 0) {
+    try {
+      const data = await api.drivers.approvedByDealer(dealerId);
+      const activeDrivers = (data || []).filter((d: Driver) => d.status === "active");
+      const pendingDriversData = (data || []).filter((d: Driver) => d.status === "pending_signup");
+      setDrivers(activeDrivers);
+      setPendingDrivers(pendingDriversData);
+    } catch (err) {
+      console.error("Error loading drivers:", err);
       setDrivers([]);
       setPendingDrivers([]);
-      return;
     }
-
-    const driverIds = approvedDriverIds.map(d => d.driver_id);
-
-    const { data: activeData } = await supabase
-      .from("drivers")
-      .select("*")
-      .in("id", driverIds)
-      .eq("status", "active")
-      .order("name");
-
-    const { data: pendingData } = await supabase
-      .from("drivers")
-      .select("*")
-      .in("id", driverIds)
-      .eq("status", "pending_signup")
-      .order("created_at", { ascending: false });
-
-    if (activeData) setDrivers(activeData);
-    if (pendingData) setPendingDrivers(pendingData);
   };
 
   const loadSalesTeam = async (dealerId: string) => {
-    const { data: activeData } = await supabase
-      .from("sales")
-      .select("*")
-      .eq("dealer_id", dealerId)
-      .eq("status", "active")
-      .order("name");
-
-    const { data: pendingData } = await supabase
-      .from("sales")
-      .select("*")
-      .eq("dealer_id", dealerId)
-      .eq("status", "pending_signup")
-      .order("created_at", { ascending: false });
-
-    if (activeData) setSalesTeam(activeData);
-    if (pendingData) setPendingSales(pendingData);
+    try {
+      const data = await api.sales.byDealer(dealerId);
+      const activeSales = (data || []).filter((s: Sales) => s.status === "active");
+      const pendingSalesData = (data || []).filter((s: Sales) => s.status === "pending_signup");
+      setSalesTeam(activeSales);
+      setPendingSales(pendingSalesData);
+    } catch (err) {
+      console.error("Error loading sales team:", err);
+      setSalesTeam([]);
+      setPendingSales([]);
+    }
   };
 
   const loadApplications = async (dealerId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("driver_applications")
-        .select(`
-          *,
-          driver:drivers(*)
-        `)
-        .eq("dealer_id", dealerId)
-        .order("applied_at", { ascending: false });
-
-      if (error) {
-        console.error("Error loading applications:", error);
-        showToast("Failed to load driver applications", "error");
-        return;
-      }
-
-      if (data) {
-        const validApplications = data.filter(app => app.driver != null);
-
-        if (validApplications.length !== data.length) {
-          console.warn(`Found ${data.length - validApplications.length} applications with null driver data`);
-        }
-
-        setDriverApplications(validApplications as (DriverApplication & { driver: Driver })[]);
-        const pendingCount = validApplications.filter(app => app.status === "pending").length;
-        setPendingApplicationsCount(pendingCount);
-      } else {
-        setDriverApplications([]);
-        setPendingApplicationsCount(0);
-      }
+      const data = await api.driverApplications.byDealer(dealerId);
+      const validApplications = (data || []).filter((app: any) => app.driver != null);
+      setDriverApplications(validApplications as (DriverApplication & { driver: Driver })[]);
+      const pendingCount = validApplications.filter((app: any) => app.status === "pending").length;
+      setPendingApplicationsCount(pendingCount);
     } catch (err: unknown) {
       console.error("Exception loading applications:", err);
       const message = err instanceof Error ? err.message : "Failed to load driver applications";
@@ -265,23 +185,20 @@ export function DealerDashboard() {
     if (!dealer) return;
 
     try {
-      await supabase
-        .from("driver_applications")
-        .update({
-          status: "approved",
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", application.id);
+      await api.driverApplications.update(application.id, {
+        status: "approved",
+        reviewedAt: new Date().toISOString(),
+      });
 
-      await supabase.from("approved_driver_dealers").insert({
-        driver_id: application.driver_id,
-        dealer_id: dealer.id,
+      await api.approvedDriverDealers.create({
+        driverId: application.driver_id,
+        dealerId: dealer.id,
       });
 
       if (application.driver.user_id) {
-        await supabase.from("notifications").insert({
-          user_id: application.driver.user_id,
-          delivery_id: null,
+        await api.notifications.create({
+          userId: application.driver.user_id,
+          deliveryId: null,
           type: "application_approved",
           title: "Application Approved",
           message: `Your application to ${dealer.name} has been approved! You can now accept deliveries from them.`,
@@ -301,18 +218,15 @@ export function DealerDashboard() {
     if (!dealer) return;
 
     try {
-      await supabase
-        .from("driver_applications")
-        .update({
-          status: "rejected",
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", application.id);
+      await api.driverApplications.update(application.id, {
+        status: "rejected",
+        reviewedAt: new Date().toISOString(),
+      });
 
       if (application.driver.user_id && notes) {
-        await supabase.from("notifications").insert({
-          user_id: application.driver.user_id,
-          delivery_id: null,
+        await api.notifications.create({
+          userId: application.driver.user_id,
+          deliveryId: null,
           type: "application_rejected",
           title: "Application Update",
           message: `Your application to ${dealer.name}: ${notes}`,
@@ -328,17 +242,17 @@ export function DealerDashboard() {
     }
   };
 
-  const handleFollowUpApplication = async (application: DriverApplication & { driver: Driver }, message: string) => {
+  const handleFollowUpApplication = async (application: DriverApplication & { driver: Driver }, msgContent: string) => {
     if (!dealer || !user) return;
 
     try {
       if (application.driver.user_id) {
-        await supabase.from("notifications").insert({
-          user_id: application.driver.user_id,
-          delivery_id: null,
+        await api.notifications.create({
+          userId: application.driver.user_id,
+          deliveryId: null,
           type: "application_followup",
           title: `Message from ${dealer.name}`,
-          message: message,
+          message: msgContent,
           read: false,
         });
       }
@@ -378,38 +292,16 @@ export function DealerDashboard() {
     const status = newDelivery.driverId ? "pending_driver_acceptance" : "pending";
 
     try {
-      const { data: createdDelivery, error: deliveryError } = await supabase
-        .from("deliveries")
-        .insert({
-          dealership_id: dealershipId,
-          sales_id: salesId,
-          driver_id: newDelivery.driverId || null,
-          vin: newDelivery.vin,
-          pickup_address: pickupAddress,
-          dropoff_address: dropoffAddress,
-          notes: newDelivery.notes,
-          status,
-        })
-        .select()
-        .single();
-
-      if (deliveryError) throw deliveryError;
-
-      if (createdDelivery?.id) {
-        const { error: chatError } = await supabase
-          .from("chats")
-          .insert({ delivery_id: createdDelivery.id });
-        if (chatError) throw chatError;
-
-        const { error: eventError } = await supabase
-          .from("delivery_events")
-          .insert({ delivery_id: createdDelivery.id, event: "delivery_created" });
-        if (eventError) throw eventError;
-
-        if (!newDelivery.driverId) {
-          // TODO: Fetch dealership drivers/sales relationships and notify them once the notification path is finalized.
-        }
-      }
+      await api.deliveries.create({
+        dealerId: dealershipId,
+        salesId: salesId,
+        driverId: newDelivery.driverId || null,
+        vin: newDelivery.vin,
+        pickup: pickupAddress,
+        dropoff: dropoffAddress,
+        notes: newDelivery.notes,
+        status,
+      });
 
       showToast("Delivery created successfully!", "success");
       setNewDelivery({
@@ -430,36 +322,25 @@ export function DealerDashboard() {
 
   const handleResendNotification = async (deliveryId: string) => {
     try {
-      const { data: availableDrivers, error: driversError } = await supabase
-        .from("drivers")
-        .select("user_id")
-        .eq("dealer_id", dealer?.id || '')
-        .eq("is_available", true);
+      const availableDrivers = drivers.filter((d: Driver) => d.is_available);
 
-      if (driversError) throw driversError;
-
-      const notificationsPayload = (availableDrivers || [])
-        .filter((driverRecord) => driverRecord.user_id)
-        .map((driverRecord) => ({
-          user_id: driverRecord.user_id,
-          delivery_id: deliveryId,
-          type: "delivery_reminder",
-          title: "Delivery Still Available",
-          message:
-            "A pending delivery is still available—claim it now before it is gone.",
-          read: false,
-        }));
-
-      if (notificationsPayload.length === 0) {
+      if (availableDrivers.length === 0) {
         showToast("No drivers available to notify.", "info");
         return;
       }
 
-      const { error } = await supabase
-        .from("notifications")
-        .insert(notificationsPayload);
-
-      if (error) throw error;
+      for (const driver of availableDrivers) {
+        if (driver.user_id) {
+          await api.notifications.create({
+            userId: driver.user_id,
+            deliveryId: deliveryId,
+            type: "delivery_reminder",
+            title: "Delivery Still Available",
+            message: "A pending delivery is still available—claim it now before it is gone.",
+            read: false,
+          });
+        }
+      }
 
       showToast("Notification resent to drivers!", "success");
     } catch (err: unknown) {
@@ -473,13 +354,7 @@ export function DealerDashboard() {
     if (!dealer) return;
 
     try {
-      const { error } = await supabase
-        .from("dealers")
-        .update(updatedData)
-        .eq("id", dealer.id);
-
-      if (error) throw error;
-
+      await api.dealers.update(dealer.id, updatedData);
       setDealer({ ...dealer, ...updatedData } as Dealer);
       showToast("Profile updated successfully!", "success");
     } catch (err: unknown) {
@@ -516,35 +391,31 @@ export function DealerDashboard() {
 
     try {
       if (teamTab === "sales") {
-        const { error: insertError } = await supabase.from("sales").insert({
-          dealer_id: dealer.id,
+        await api.sales.create({
+          dealerId: dealer.id,
           name: newTeamMember.name,
           email: newTeamMember.email,
           phone: newTeamMember.phone,
           role: newTeamMember.role || null,
           status: "pending_signup",
-          user_id: null,
         });
 
-        if (insertError) throw insertError;
         await loadSalesTeam(dealer.id);
         showToast(
           `${newTeamMember.name} has been added! They can now sign up at the public registration page using their email: ${newTeamMember.email}`,
           "success"
         );
       } else {
-        const { error: insertError } = await supabase.from("drivers").insert({
-          dealer_id: dealer.id,
+        await api.drivers.create({
+          dealerId: dealer.id,
           name: newTeamMember.name,
           email: newTeamMember.email,
           phone: newTeamMember.phone,
-          vehicle_type: newTeamMember.vehicle_type,
+          vehicleType: newTeamMember.vehicle_type,
           radius: parseInt(newTeamMember.radius),
           status: "pending_signup",
-          user_id: null,
         });
 
-        if (insertError) throw insertError;
         await loadDrivers(dealer.id);
         showToast(
           `${newTeamMember.name} has been added! They can now sign up at the public registration page using their email: ${newTeamMember.email}`,
@@ -572,34 +443,24 @@ export function DealerDashboard() {
 
     try {
       if (editType === "sales") {
-        const sales = editingMember as Sales;
-        const { error } = await supabase
-          .from("sales")
-          .update({
-            name: editingMember.name,
-            email: editingMember.email,
-            phone: editingMember.phone,
-            role: sales.role || null,
-          })
-          .eq("id", editingMember.id);
-
-        if (error) throw error;
+        const salesMember = editingMember as Sales;
+        await api.sales.update(editingMember.id, {
+          name: editingMember.name,
+          email: editingMember.email,
+          phone: editingMember.phone,
+          role: salesMember.role || null,
+        });
         await loadSalesTeam(dealer.id);
         showToast("Salesperson updated successfully!", "success");
       } else {
-        const driver = editingMember as Driver;
-        const { error } = await supabase
-          .from("drivers")
-          .update({
-            name: driver.name,
-            email: driver.email,
-            phone: driver.phone,
-            vehicle_type: driver.vehicle_type,
-            radius: driver.radius,
-          })
-          .eq("id", driver.id);
-
-        if (error) throw error;
+        const driverMember = editingMember as Driver;
+        await api.drivers.update(driverMember.id, {
+          name: driverMember.name,
+          email: driverMember.email,
+          phone: driverMember.phone,
+          vehicleType: driverMember.vehicle_type,
+          radius: driverMember.radius,
+        });
         await loadDrivers(dealer.id);
         showToast("Driver updated successfully!", "success");
       }
@@ -621,14 +482,11 @@ export function DealerDashboard() {
     if (!confirm("Are you sure you want to remove this team member?")) return;
 
     try {
-      const table = memberType === "sales" ? "sales" : "drivers";
-      const { error } = await supabase.from(table).delete().eq("id", memberId);
-
-      if (error) throw error;
-
       if (memberType === "sales") {
+        await api.sales.delete(memberId);
         await loadSalesTeam(dealer.id);
       } else {
+        await api.drivers.delete(memberId);
         await loadDrivers(dealer.id);
       }
 

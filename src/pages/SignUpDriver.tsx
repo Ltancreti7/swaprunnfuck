@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, Phone, Truck, MapPin } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { api } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
+import { useAuth } from "../contexts/AuthContext";
 import { validatePassword } from "../lib/validation";
 
 export function SignUpDriver() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { refreshAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -38,61 +40,28 @@ export function SignUpDriver() {
 
       const normalizedEmail = formData.email.toLowerCase().trim();
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      await api.auth.register(normalizedEmail, formData.password, "driver");
+
+      await api.drivers.create({
+        name: formData.name,
         email: normalizedEmail,
-        password: formData.password,
-        options: {
-          data: {
-            role: 'driver',
-            name: formData.name,
-          }
-        }
+        phone: formData.phone,
+        vehicleType: formData.vehicleType,
+        licenseNumber: formData.licenseNumber || null,
+        radius: parseInt(formData.radius),
       });
 
-      if (authError) {
-        console.error("Auth error during driver signup:", authError);
-        if (authError.message.includes("already registered")) {
-          throw new Error("An account with this email already exists. Please log in instead.");
-        }
-        throw new Error(authError.message);
-      }
-
-      if (!authData.user) {
-        throw new Error("Failed to create authentication account");
-      }
-
-      const { error: driverError } = await supabase
-        .from("drivers")
-        .insert({
-          user_id: authData.user.id,
-          name: formData.name,
-          email: normalizedEmail,
-          phone: formData.phone,
-          vehicle_type: formData.vehicleType,
-          license_number: formData.licenseNumber || null,
-          radius: parseInt(formData.radius),
-        });
-
-      if (driverError) {
-        console.error("Driver profile creation error:", driverError);
-        await supabase.auth.signOut();
-
-        if (driverError.code === '23505') {
-          throw new Error("A driver profile already exists for this account");
-        }
-
-        if (driverError.code === '42501') {
-          throw new Error("Permission denied. Please check your account settings");
-        }
-
-        throw new Error(`Failed to create driver profile: ${driverError.message}`);
-      }
+      await refreshAuth();
 
       showToast("Account created successfully!", "success");
       navigate("/driver");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to create account";
-      showToast(message, "error");
+      if (message.includes("already exists")) {
+        showToast("An account with this email already exists. Please log in instead.", "error");
+      } else {
+        showToast(message, "error");
+      }
       console.error("Driver signup error:", err);
     } finally {
       setLoading(false);
@@ -105,6 +74,7 @@ export function SignUpDriver() {
         <button
           onClick={() => navigate("/")}
           className="flex items-center text-gray-600 hover:text-black mb-6 transition"
+          data-testid="button-back"
         >
           <ArrowLeft size={20} className="mr-2" />
           Back to Home
@@ -131,66 +101,99 @@ export function SignUpDriver() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
+                  placeholder="Your full name"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  data-testid="input-name"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <Mail size={16} />
+                    <span>Email Address</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    placeholder="your.email@example.com"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="input-email"
+                  />
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <Phone size={16} />
+                    <span>Phone Number</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    placeholder="(555) 123-4567"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="input-phone"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <Truck size={16} />
+                    <span>Vehicle Type</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.vehicleType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, vehicleType: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="select-vehicle-type"
+                  >
+                    <option value="">Select vehicle type</option>
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                    <option value="truck">Truck</option>
+                    <option value="van">Van</option>
+                    <option value="flatbed">Flatbed</option>
+                    <option value="enclosed">Enclosed Trailer</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <MapPin size={16} />
+                    <span>Service Radius (miles)</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="10"
+                    max="500"
+                    value={formData.radius}
+                    onChange={(e) =>
+                      setFormData({ ...formData, radius: e.target.value })
+                    }
+                    placeholder="50"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="input-radius"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                  <Mail size={16} />
-                  <span>Email Address</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  placeholder="your.email@example.com"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                  <Phone size={16} />
-                  <span>Phone Number</span>
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                  <Truck size={16} />
-                  <span>Vehicle Type</span>
-                </label>
-                <select
-                  required
-                  value={formData.vehicleType}
-                  onChange={(e) =>
-                    setFormData({ ...formData, vehicleType: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                >
-                  <option value="">Select Vehicle Type</option>
-                  <option value="car">Car</option>
-                  <option value="truck">Truck</option>
-                  <option value="trailer">Trailer</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Driver's License Number (Optional)
+                  <span>Driver's License Number (optional)</span>
                 </label>
                 <input
                   type="text"
@@ -198,100 +201,63 @@ export function SignUpDriver() {
                   onChange={(e) =>
                     setFormData({ ...formData, licenseNumber: e.target.value })
                   }
+                  placeholder="DL12345678"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  data-testid="input-license"
                 />
               </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                  <MapPin size={16} />
-                  <span>Service Radius (miles)</span>
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={formData.radius}
-                  onChange={(e) =>
-                    setFormData({ ...formData, radius: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <Lock size={16} />
+                    <span>Create Password</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                      data-testid="input-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      data-testid="button-toggle-password"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    At least 8 characters with uppercase, lowercase, and number
+                  </p>
+                </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                  <Lock size={16} />
-                  <span>Create Password</span>
-                </label>
-                <div className="relative">
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <Lock size={16} />
+                    <span>Confirm Password</span>
+                  </label>
                   <input
                     type={showPassword ? "text" : "password"}
                     required
-                    value={formData.password}
+                    value={formData.confirmPassword}
                     onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
+                      setFormData({ ...formData, confirmPassword: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="input-confirm-password"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {showPassword ? <EyeOff size={24} /> : <Eye size={24} />}
-                  </button>
                 </div>
-                <p className="text-sm text-gray-600 mt-2 flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  <span>At least 8 characters with uppercase, lowercase, and number</span>
-                </p>
               </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                  <Lock size={16} />
-                  <span>Confirm Password</span>
-                </label>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={formData.confirmPassword}
-                  onChange={(e) =>
-                    setFormData({ ...formData, confirmPassword: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? "Creating Account..." : "Create Driver Account"}
-              </button>
-
-              <div className="text-center text-sm">
-                <p className="text-gray-600">
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/login?type=driver")}
-                    className="text-red-600 hover:text-red-700 font-semibold underline"
-                  >
-                    Log In Here
-                  </button>
-                </p>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                <p className="text-sm text-blue-800 mb-3">
-                  <strong>How it works:</strong> After creating your account, you'll have access to your driver dashboard where you can manage your profile and availability.
-                </p>
-                <p className="text-xs text-gray-600">
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600">
                   By signing up, you agree to our{' '}
                   <button
                     type="button"
@@ -310,7 +276,30 @@ export function SignUpDriver() {
                   </button>
                 </p>
               </div>
-            </form>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="button-submit"
+              >
+                {loading ? "Creating Account..." : "Create Account"}
+              </button>
+
+              <div className="text-center text-sm">
+                <p className="text-gray-600">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login?type=driver")}
+                    className="text-red-600 hover:text-red-700 font-semibold underline"
+                    data-testid="link-login"
+                  >
+                    Log In Here
+                  </button>
+                </p>
+              </div>
+          </form>
         </div>
       </div>
     </div>

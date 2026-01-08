@@ -30,14 +30,17 @@ export interface IStorage {
   getSales(id: string): Promise<Sales | undefined>;
   getSalesByUserId(userId: string): Promise<Sales | undefined>;
   getSalesByDealerId(dealerId: string): Promise<Sales[]>;
+  getSalesByEmailAndDealerId(email: string, dealerId: string): Promise<Sales | undefined>;
   createSales(sales: InsertSales): Promise<Sales>;
   updateSales(id: string, sales: Partial<InsertSales>): Promise<Sales | undefined>;
+  deleteSales(id: string): Promise<void>;
   
   getDriver(id: string): Promise<Driver | undefined>;
   getDriverByUserId(userId: string): Promise<Driver | undefined>;
   getDrivers(): Promise<Driver[]>;
   createDriver(driver: InsertDriver): Promise<Driver>;
   updateDriver(id: string, driver: Partial<InsertDriver>): Promise<Driver | undefined>;
+  deleteDriver(id: string): Promise<void>;
   
   getDelivery(id: string): Promise<Delivery | undefined>;
   getDeliveriesByDealerId(dealerId: string): Promise<Delivery[]>;
@@ -130,6 +133,13 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(schema.sales).where(eq(schema.sales.dealerId, dealerId));
   }
 
+  async getSalesByEmailAndDealerId(email: string, dealerId: string): Promise<Sales | undefined> {
+    const [sales] = await db.select().from(schema.sales).where(
+      and(eq(schema.sales.email, email), eq(schema.sales.dealerId, dealerId))
+    );
+    return sales;
+  }
+
   async createSales(sales: InsertSales): Promise<Sales> {
     const [created] = await db.insert(schema.sales).values(sales).returning();
     return created;
@@ -138,6 +148,10 @@ export class DatabaseStorage implements IStorage {
   async updateSales(id: string, sales: Partial<InsertSales>): Promise<Sales | undefined> {
     const [updated] = await db.update(schema.sales).set(sales).where(eq(schema.sales.id, id)).returning();
     return updated;
+  }
+
+  async deleteSales(id: string): Promise<void> {
+    await db.delete(schema.sales).where(eq(schema.sales.id, id));
   }
 
   async getDriver(id: string): Promise<Driver | undefined> {
@@ -162,6 +176,10 @@ export class DatabaseStorage implements IStorage {
   async updateDriver(id: string, driver: Partial<InsertDriver>): Promise<Driver | undefined> {
     const [updated] = await db.update(schema.drivers).set({ ...driver, updatedAt: new Date() }).where(eq(schema.drivers.id, id)).returning();
     return updated;
+  }
+
+  async deleteDriver(id: string): Promise<void> {
+    await db.delete(schema.drivers).where(eq(schema.drivers.id, id));
   }
 
   async getDelivery(id: string): Promise<Delivery | undefined> {

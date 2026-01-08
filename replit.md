@@ -39,9 +39,25 @@ Preferred communication style: Simple, everyday language.
 - Password hashing with bcrypt
 
 ### Real-time Features
-- Supabase client configured for real-time subscriptions (legacy integration)
+- Polling-based alternatives being implemented (replacing Supabase real-time)
 - Chat messaging with typing indicators
 - Notification system with unread counters
+
+### Migration Status (Supabase to Replit API)
+**Completed:**
+- Core backend infrastructure: Express server with session-based auth, bcrypt password hashing
+- PostgreSQL database with all 15+ tables via Drizzle ORM
+- All 3 registration flows: RegisterDealer, SignUpSales, SignUpDriver use API routes
+- DealerDashboard fully migrated: data loading functions and action handlers use API calls
+- API client (src/lib/api.ts) extended with all necessary methods
+- Backend routes (server/routes.ts) include all required endpoints
+- Types exported from shared/schema.ts (Dealer, Driver, Sales, etc.)
+
+**Remaining:**
+- SalesDashboard migration
+- DriverDashboard migration  
+- Chat functionality migration (polling-based alternative)
+- Other components still using Supabase imports need updates
 
 ### Project Structure
 ```

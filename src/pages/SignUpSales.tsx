@@ -1,13 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { supabase, Dealership } from "../lib/supabase";
+import { api } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
+import { useAuth } from "../contexts/AuthContext";
 import { validatePassword } from "../lib/validation";
+
+interface Dealership {
+  id: string;
+  name: string;
+}
 
 export function SignUpSales() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { refreshAuth } = useAuth();
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingDealerships, setLoadingDealerships] = useState(true);
@@ -25,13 +32,8 @@ export function SignUpSales() {
 
   const loadDealerships = async () => {
     try {
-      const { data, error } = await supabase
-        .from("dealerships")
-        .select("id, name")
-        .order("name");
-
-      if (error) throw error;
-      if (data) setDealerships(data as Dealer[]);
+      const data = await api.dealers.list();
+      setDealerships(data);
     } catch (err) {
       showToast("Failed to load dealerships", "error");
     } finally {
@@ -55,74 +57,31 @@ export function SignUpSales() {
 
       const normalizedEmail = formData.email.toLowerCase().trim();
 
-      const anonClient = supabase;
+      const checkResult = await api.sales.checkPreregistered(normalizedEmail, formData.dealershipId);
 
-      const { data: preRegistered, error: checkError } = await anonClient
-        .from("sales_staff")
-        .select("*")
-        .eq("dealership_id", formData.dealershipId)
-        .eq("email", normalizedEmail)
-        .eq("status", "pending_signup")
-        .maybeSingle();
-
-      if (checkError) {
-        console.error("Database error checking pre-registration:", checkError);
-        throw new Error(
-          checkError.message || "Database error. Please try again or contact support."
-        );
-      }
-
-      if (!preRegistered) {
+      if (!checkResult.preRegistered) {
         throw new Error(
           "Unable to create account. Please contact your dealership administrator to be added to the team roster."
         );
       }
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password: formData.password,
-        options: {
-          data: {
-            role: 'sales',
-            dealership_id: formData.dealershipId
-          }
-        }
-      });
+      await api.auth.register(normalizedEmail, formData.password, "sales");
 
-      if (authError) {
-        console.error("Auth error during signup:", authError);
-        if (authError.message === "User already registered") {
-          showToast("An account with this email already exists.", "error");
-          setTimeout(() => {
-            navigate("/login?type=sales");
-          }, 2000);
-          return;
-        }
-        throw new Error(authError.message || "Authentication error. Please try again.");
-      }
-      if (!authData.user) throw new Error("Failed to create account");
+      await api.sales.activate(checkResult.salesId!);
 
-      const { error: updateError } = await supabase
-        .from("sales_staff")
-        .update({
-          user_id: authData.user.id,
-          status: "active",
-          activated_at: new Date().toISOString(),
-          password_changed: true,
-        })
-        .eq("id", preRegistered.id);
-
-      if (updateError) {
-        console.error("Error updating sales record:", updateError);
-        throw new Error(
-          updateError.message || "Failed to activate account. Please contact support."
-        );
-      }
+      await refreshAuth();
 
       showToast("Account created successfully! Welcome to SwapRunn.", "success");
       navigate("/sales");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to create account";
+      if (message.includes("already exists")) {
+        showToast("An account with this email already exists.", "error");
+        setTimeout(() => {
+          navigate("/login?type=sales");
+        }, 2000);
+        return;
+      }
       showToast(message, "error");
     } finally {
       setLoading(false);
@@ -135,6 +94,7 @@ export function SignUpSales() {
         <button
           onClick={() => navigate("/")}
           className="flex items-center text-gray-600 hover:text-black mb-6 transition"
+          data-testid="button-back"
         >
           <ArrowLeft size={20} className="mr-2" />
           Back to Home
@@ -166,6 +126,7 @@ export function SignUpSales() {
                     setFormData({ ...formData, dealershipId: e.target.value })
                   }
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  data-testid="select-dealership"
                 >
                   <option value="">Choose a dealership</option>
                   {dealerships.map((dealership) => (
@@ -190,6 +151,7 @@ export function SignUpSales() {
                   }
                   placeholder="your.email@dealership.com"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  data-testid="input-email"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Use the email your administrator added to the team roster
@@ -210,11 +172,13 @@ export function SignUpSales() {
                       setFormData({ ...formData, password: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="input-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    data-testid="button-toggle-password"
                   >
                     {showPassword ? <EyeOff size={24} /> : <Eye size={24} />}
                   </button>
@@ -240,6 +204,7 @@ export function SignUpSales() {
                     setFormData({ ...formData, confirmPassword: e.target.value })
                   }
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  data-testid="input-confirm-password"
                 />
               </div>
 
@@ -247,6 +212,7 @@ export function SignUpSales() {
                 type="submit"
                 disabled={loading}
                 className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="button-submit"
               >
                 {loading ? "Creating Account..." : "Create Account"}
               </button>
@@ -258,6 +224,7 @@ export function SignUpSales() {
                     type="button"
                     onClick={() => navigate("/login?type=sales")}
                     className="text-red-600 hover:text-red-700 font-semibold underline"
+                    data-testid="link-login"
                   >
                     Log In Here
                   </button>

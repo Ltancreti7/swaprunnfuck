@@ -45,6 +45,7 @@ export const api = {
   dealers: {
     list: () => apiRequest<any[]>('/dealers'),
     get: (id: string) => apiRequest<any>(`/dealers/${id}`),
+    current: () => apiRequest<{ dealer: any; adminRole: string }>('/dealer/current'),
     create: (data: any) =>
       apiRequest<any>('/dealers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
@@ -52,22 +53,36 @@ export const api = {
   },
   sales: {
     list: () => apiRequest<any[]>('/sales'),
+    byDealer: (dealerId: string) => apiRequest<any[]>(`/sales/dealer/${dealerId}`),
     create: (data: any) =>
       apiRequest<any>('/sales', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
       apiRequest<any>(`/sales/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      apiRequest<{ success: boolean }>(`/sales/${id}`, { method: 'DELETE' }),
+    checkPreregistered: (email: string, dealerId: string) =>
+      apiRequest<{ preRegistered: boolean; salesId?: string }>('/sales/check-preregistered', {
+        method: 'POST',
+        body: JSON.stringify({ email, dealerId }),
+      }),
+    activate: (salesId: string) =>
+      apiRequest<any>('/sales/activate', { method: 'POST', body: JSON.stringify({ salesId }) }),
   },
   drivers: {
     list: () => apiRequest<any[]>('/drivers'),
     get: (id: string) => apiRequest<any>(`/drivers/${id}`),
+    approvedByDealer: (dealerId: string) => apiRequest<any[]>(`/drivers/approved/${dealerId}`),
     create: (data: any) =>
       apiRequest<any>('/drivers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
       apiRequest<any>(`/drivers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      apiRequest<{ success: boolean }>(`/drivers/${id}`, { method: 'DELETE' }),
   },
   deliveries: {
     list: () => apiRequest<any[]>('/deliveries'),
     get: (id: string) => apiRequest<any>(`/deliveries/${id}`),
+    byDealer: (dealerId: string) => apiRequest<any[]>(`/deliveries/dealer/${dealerId}`),
     create: (data: any) =>
       apiRequest<any>('/deliveries', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
@@ -82,11 +97,14 @@ export const api = {
   },
   notifications: {
     list: () => apiRequest<any[]>('/notifications'),
+    create: (data: any) =>
+      apiRequest<any>('/notifications', { method: 'POST', body: JSON.stringify(data) }),
     markRead: (id: string) =>
       apiRequest<{ success: boolean }>(`/notifications/${id}/read`, { method: 'POST' }),
   },
   driverApplications: {
     list: () => apiRequest<any[]>('/driver-applications'),
+    byDealer: (dealerId: string) => apiRequest<any[]>(`/driver-applications/dealer/${dealerId}`),
     create: (data: any) =>
       apiRequest<any>('/driver-applications', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
@@ -94,6 +112,8 @@ export const api = {
   },
   approvedDriverDealers: {
     list: () => apiRequest<any[]>('/approved-driver-dealers'),
+    create: (data: any) =>
+      apiRequest<any>('/approved-driver-dealers', { method: 'POST', body: JSON.stringify(data) }),
     delete: (driverId: string, dealerId: string) =>
       apiRequest<{ success: boolean }>(`/approved-driver-dealers/${driverId}/${dealerId}`, { method: 'DELETE' }),
   },

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Building2, MapPin, Mail, Phone, Lock, CheckCircle2 } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { api } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
+import { useAuth } from "../contexts/AuthContext";
 
 export function RegisterDealer() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { refreshAuth } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -54,67 +56,26 @@ export function RegisterDealer() {
 
       const fullAddress = `${formData.address}, ${formData.city}, ${formData.state} ${formData.zip}`.trim();
 
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            role: "dealer",
-          },
-        },
-      });
+      await api.auth.register(formData.email, formData.password, "dealer");
 
-      if (error) {
-        if (error.message.includes("already registered") || error.message.includes("User already registered")) {
-          throw new Error("This email is already registered. Please use the login page to access your account.");
-        }
-        throw new Error(`Registration failed: ${error.message}`);
-      }
-
-      const userId = data.user?.id;
-      if (!userId) throw new Error("Sign up succeeded but no user returned");
-
-      const { data: dealerData, error: insertError } = await supabase.from("dealerships").insert({
-        user_id: userId,
+      await api.dealers.create({
         name: formData.name,
         address: fullAddress,
         email: formData.email,
         phone: formData.phone,
-      }).select().single();
+      });
 
-      if (insertError) {
-        if (insertError.code === "23505") {
-          navigate("/complete-profile");
-          return;
-        }
-        console.error("Failed to create dealer profile:", insertError);
-        navigate("/complete-profile");
-        return;
-      }
+      await refreshAuth();
 
-      if (dealerData) {
-        const { error: adminError } = await supabase
-          .from("dealer_admins")
-          .insert({
-            dealer_id: dealerData.id,
-            user_id: userId,
-            email: formData.email,
-            name: formData.name,
-            role: "owner",
-          });
-
-        if (adminError) {
-          console.error("Failed to create admin record:", adminError);
-          showToast("Failed to finalize admin setup. Please try again or contact support.", "error");
-          await supabase.from("dealerships").delete().eq("id", dealerData.id);
-          return;
-        }
-      }
-
+      showToast("Registration successful! Welcome to SwapRunn.", "success");
       navigate("/dealer");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to register. Please try again.";
-      setError(message);
+      if (message.includes("already exists")) {
+        setError("This email is already registered. Please use the login page to access your account.");
+      } else {
+        setError(message);
+      }
       console.error("Register dealer error:", err);
       showToast(message, "error");
     } finally {
@@ -128,6 +89,7 @@ export function RegisterDealer() {
         <button
           onClick={() => navigate("/")}
           className="flex items-center text-gray-600 hover:text-black mb-6 transition"
+          data-testid="button-back"
         >
           <ArrowLeft size={20} className="mr-2" />
           Back
@@ -148,7 +110,7 @@ export function RegisterDealer() {
 
           <div className="px-8 py-8">
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 text-red-800 px-4 py-3 rounded mb-6 flex items-start">
+              <div className="bg-red-50 border-l-4 border-red-500 text-red-800 px-4 py-3 rounded mb-6 flex items-start" data-testid="error-message">
                 <div className="flex-shrink-0 mr-3 mt-0.5">
                   <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -173,6 +135,7 @@ export function RegisterDealer() {
                     setFormData({ ...formData, name: e.target.value })
                   }
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                  data-testid="input-name"
                 />
               </div>
 
@@ -191,6 +154,7 @@ export function RegisterDealer() {
                       setFormData({ ...formData, address: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                    data-testid="input-address"
                   />
                 </div>
 
@@ -207,6 +171,7 @@ export function RegisterDealer() {
                       setFormData({ ...formData, city: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                    data-testid="input-city"
                   />
                 </div>
 
@@ -225,6 +190,7 @@ export function RegisterDealer() {
                         setFormData({ ...formData, state: e.target.value.toUpperCase() })
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                      data-testid="input-state"
                     />
                   </div>
                   <div>
@@ -241,6 +207,7 @@ export function RegisterDealer() {
                         setFormData({ ...formData, zip: e.target.value })
                       }
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                      data-testid="input-zip"
                     />
                   </div>
                 </div>
@@ -261,6 +228,7 @@ export function RegisterDealer() {
                       setFormData({ ...formData, email: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                    data-testid="input-email"
                   />
                 </div>
 
@@ -278,6 +246,7 @@ export function RegisterDealer() {
                       setFormData({ ...formData, phone: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                    data-testid="input-phone"
                   />
                 </div>
               </div>
@@ -296,6 +265,7 @@ export function RegisterDealer() {
                     value={formData.password}
                     onChange={(e) => handlePasswordChange(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                    data-testid="input-password"
                   />
                   {formData.password && (
                     <div className="mt-2">
@@ -328,6 +298,7 @@ export function RegisterDealer() {
                       setFormData({ ...formData, confirmPassword: e.target.value })
                     }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition"
+                    data-testid="input-confirm-password"
                   />
                   {formData.confirmPassword && (
                     <p className={`text-xs mt-1 ${formData.password === formData.confirmPassword ? "text-green-600" : "text-red-600"}`}>
@@ -364,6 +335,7 @@ export function RegisterDealer() {
                 type="submit"
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-lg font-bold text-lg hover:from-red-700 hover:to-red-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                data-testid="button-submit"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-3">
@@ -385,6 +357,7 @@ export function RegisterDealer() {
                 <button
                   onClick={() => navigate("/login")}
                   className="text-red-600 font-semibold hover:text-red-700 transition"
+                  data-testid="link-login"
                 >
                   Log in here
                 </button>

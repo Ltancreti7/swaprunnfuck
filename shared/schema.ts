@@ -249,3 +249,12 @@ export type ApprovedDriverDealer = typeof approvedDriverDealers.$inferSelect;
 export type DealerAdmin = typeof dealerAdmins.$inferSelect;
 export type AdminInvitation = typeof adminInvitations.$inferSelect;
 export type User = typeof users.$inferSelect;
+
+export type AdminRole = 'owner' | 'manager' | 'viewer';
+
+export interface AddressFields {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+}

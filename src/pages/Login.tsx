@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus } from 'lucide-react';
-import { signIn, getUserRole } from '../lib/auth';
-import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
 const REMEMBER_ME_KEY = 'swaprunn_remember_email';
 
 export function Login() {
   const navigate = useNavigate();
+  const { login, role } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -23,6 +23,19 @@ export function Login() {
       setRememberMe(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (role) {
+      if (role === 'dealer') {
+        navigate('/dealer');
+      } else if (role === 'sales') {
+        navigate('/sales');
+      } else if (role === 'driver') {
+        navigate('/driver');
+      }
+    }
+  }, [role, navigate]);
+
   const getLoginTypeFromURL = () => {
     const params = new URLSearchParams(window.location.search);
     return params.get('type') || 'general';
@@ -34,7 +47,7 @@ export function Login() {
     setError('');
 
     try {
-      await signIn(email, password);
+      await login(email, password);
 
       if (rememberMe) {
         localStorage.setItem(REMEMBER_ME_KEY, email);
@@ -42,20 +55,7 @@ export function Login() {
         localStorage.removeItem(REMEMBER_ME_KEY);
       }
 
-      const role = await getUserRole({
-        onRoleMissing: (message) => showToast(message, 'error'),
-      });
-
-      if (role === 'dealer') {
-        navigate('/dealer');
-      } else if (role === 'sales') {
-        navigate('/sales');
-      } else if (role === 'driver') {
-        navigate('/driver');
-      } else {
-        setError('Unable to determine your account type. Please contact support.');
-        showToast('Unable to determine your account type. Please log in again.', 'error');
-      }
+      showToast('Logged in successfully', 'success');
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
       console.error('Login error:', err);

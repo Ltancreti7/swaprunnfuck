@@ -6,13 +6,55 @@ import {
   ReactNode,
   useMemo,
 } from 'react';
+import { api } from '../lib/api';
 
-import { User } from '@supabase/supabase-js';
-import { supabase, UserRole, Sales, Driver, Dealership } from '../lib/supabase';
-import { getUserRole } from '../lib/auth';
-import { useSessionTimeout } from '../hooks/useSessionTimeout';
-import { checkAndAcceptPendingInvitations } from '../lib/adminInvitations';
-import { useToast } from './ToastContext';
+export type UserRole = 'dealer' | 'sales' | 'driver';
+
+export interface User {
+  id: string;
+  email: string;
+  role: string;
+}
+
+export interface Sales {
+  id: string;
+  userId: string | null;
+  dealerId: string;
+  name: string;
+  email: string;
+  phone: string;
+  role?: string | null;
+  status: string;
+  passwordChanged: boolean;
+  defaultPickupLocation?: string;
+  createdAt: string;
+}
+
+export interface Driver {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+  vehicleType: string;
+  licenseNumber?: string;
+  radius: number;
+  status: string;
+  isAvailable: boolean;
+  availableForCustomerDeliveries: boolean;
+  availableForDealerSwaps: boolean;
+  createdAt: string;
+}
+
+export interface Dealership {
+  id: string;
+  userId: string;
+  name: string;
+  address: string;
+  email: string;
+  phone: string;
+  createdAt: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +63,10 @@ interface AuthContextType {
   sales: Sales | null;
   driver: Driver | null;
   dealer: Dealership | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, role: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,6 +76,10 @@ const AuthContext = createContext<AuthContextType>({
   sales: null,
   driver: null,
   dealer: null,
+  login: async () => {},
+  register: async () => {},
+  logout: async () => {},
+  refreshAuth: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -39,141 +89,88 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [salesProfile, setSalesProfile] = useState<Sales | null>(null);
   const [driverProfile, setDriverProfile] = useState<Driver | null>(null);
   const [dealerProfile, setDealerProfile] = useState<Dealership | null>(null);
-  const { showToast } = useToast();
 
-  const handleTimeout = () => {
-    showToast('Your session has expired due to inactivity. Please log in again.', 'warning');
-    window.location.href = '/login';
-  };
-
-  useSessionTimeout(handleTimeout);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!isMounted) return;
-
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          await processUserLogin(session.user);
-        } else {
-          setRole(null);
-        }
-      } catch (err) {
-        console.error('Error loading session:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    loadSession();
-
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setLoading(true);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          await processUserLogin(session.user);
-        } else {
-          setRole(null);
-          setSalesProfile(null);
-          setDriverProfile(null);
-          setDealerProfile(null);
-        }
-
-        setLoading(false);
-      })();
-    });
-
-    return () => {
-      isMounted = false;
-      data?.subscription?.unsubscribe?.();
-    };
-  }, []);
-
-  const loadProfiles = async (userId: string, detectedRole: UserRole | null) => {
-    setSalesProfile(null);
-    setDriverProfile(null);
-    setDealerProfile(null);
-
-    if (!detectedRole) return;
-
+  const loadSession = async () => {
     try {
-      if (detectedRole === 'dealer') {
-        const { data, error } = await supabase
-          .from('dealerships')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) throw error;
-        if (data) setDealerProfile(data as Dealership);
+      const response = await api.auth.me();
+      if (response.user) {
+        setUser(response.user);
+        setRole(response.user.role as UserRole);
+        
+        if (response.profile) {
+          if (response.user.role === 'dealer') {
+            setDealerProfile(response.profile);
+          } else if (response.user.role === 'sales') {
+            setSalesProfile(response.profile);
+          } else if (response.user.role === 'driver') {
+            setDriverProfile(response.profile);
+          }
+        }
+      } else {
+        setUser(null);
+        setRole(null);
+        setSalesProfile(null);
+        setDriverProfile(null);
+        setDealerProfile(null);
       }
-
-      if (detectedRole === 'sales') {
-        const { data, error } = await supabase
-          .from('sales_staff')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) throw error;
-        if (data) setSalesProfile(data as Sales);
-      }
-
-      if (detectedRole === 'driver') {
-        const { data, error } = await supabase
-          .from('drivers')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (error) throw error;
-        if (data) setDriverProfile(data as Driver);
-      }
-    } catch (profileError) {
-      console.error('Error loading profile data:', profileError);
+    } catch (err) {
+      console.error('Error loading session:', err);
+      setUser(null);
+      setRole(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const processUserLogin = async (user: User) => {
+  useEffect(() => {
+    loadSession();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    setLoading(true);
     try {
-      if (!user.email) {
-        const detectedRole = await getUserRole({
-          onRoleMissing: (message) => showToast(message, 'error'),
-        });
-        setRole(detectedRole);
-        await loadProfiles(user.id, detectedRole);
-        return;
-      }
+      const response = await api.auth.login(email, password);
+      setUser(response.user);
+      setRole(response.user.role as UserRole);
+      await loadSession();
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const { accepted, errors } = await checkAndAcceptPendingInvitations(
-        user.email,
-        user.id
-      );
+  const register = async (email: string, password: string, role: string) => {
+    setLoading(true);
+    try {
+      const response = await api.auth.register(email, password, role);
+      setUser(response.user);
+      setRole(response.user.role as UserRole);
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      if (accepted.length > 0) {
-        console.log(`Accepted ${accepted.length} admin invitation(s).`);
-      }
-
-      if (errors.length > 0) {
-        console.error('Invitation errors:', errors);
-      }
-
-      const detectedRole = await getUserRole({
-        onRoleMissing: (message) => showToast(message, 'error'),
-      });
-      setRole(detectedRole);
-      await loadProfiles(user.id, detectedRole);
-    } catch (err) {
-      console.error('Error processing user login:', err);
+  const logout = async () => {
+    setLoading(true);
+    try {
+      await api.auth.logout();
+      setUser(null);
       setRole(null);
       setSalesProfile(null);
       setDriverProfile(null);
       setDealerProfile(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const refreshAuth = async () => {
+    await loadSession();
   };
 
   const value = useMemo(
@@ -184,6 +181,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sales: salesProfile,
       driver: driverProfile,
       dealer: dealerProfile,
+      login,
+      register,
+      logout,
+      refreshAuth,
     }),
     [user, role, loading, salesProfile, driverProfile, dealerProfile]
   );

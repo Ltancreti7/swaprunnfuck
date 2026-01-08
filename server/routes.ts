@@ -1,0 +1,521 @@
+import type { Express } from "express";
+import { storage } from "./storage";
+import crypto from "crypto";
+
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+export function registerRoutes(app: Express): void {
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, role } = req.body;
+      
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User already exists" });
+      }
+      
+      const user = await storage.createUser({
+        email,
+        passwordHash: hashPassword(password),
+        role,
+      });
+      
+      (req.session as any).userId = user.id;
+      (req.session as any).role = user.role;
+      
+      res.json({ user: { id: user.id, email: user.email, role: user.role } });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      const user = await storage.getUserByEmail(email);
+      if (!user || user.passwordHash !== hashPassword(password)) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      (req.session as any).userId = user.id;
+      (req.session as any).role = user.role;
+      
+      res.json({ user: { id: user.id, email: user.email, role: user.role } });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.json({ user: null });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.json({ user: null });
+      }
+      
+      let profile = null;
+      const role = user.role;
+      
+      if (role === "dealer") {
+        profile = await storage.getDealerByUserId(userId);
+      } else if (role === "sales") {
+        profile = await storage.getSalesByUserId(userId);
+      } else if (role === "driver") {
+        profile = await storage.getDriverByUserId(userId);
+      }
+      
+      res.json({ 
+        user: { id: user.id, email: user.email, role: user.role },
+        profile
+      });
+    } catch (error) {
+      console.error("Auth check error:", error);
+      res.status(500).json({ error: "Auth check failed" });
+    }
+  });
+
+  app.get("/api/dealers", async (req, res) => {
+    try {
+      const dealers = await storage.getDealers();
+      res.json(dealers);
+    } catch (error) {
+      console.error("Get dealers error:", error);
+      res.status(500).json({ error: "Failed to get dealers" });
+    }
+  });
+
+  app.get("/api/dealers/:id", async (req, res) => {
+    try {
+      const dealer = await storage.getDealer(req.params.id);
+      if (!dealer) {
+        return res.status(404).json({ error: "Dealer not found" });
+      }
+      res.json(dealer);
+    } catch (error) {
+      console.error("Get dealer error:", error);
+      res.status(500).json({ error: "Failed to get dealer" });
+    }
+  });
+
+  app.post("/api/dealers", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const dealer = await storage.createDealer({ ...req.body, userId });
+      
+      await storage.createDealerAdmin({
+        dealerId: dealer.id,
+        userId,
+        role: "owner",
+        invitedBy: userId,
+      });
+      
+      res.json(dealer);
+    } catch (error) {
+      console.error("Create dealer error:", error);
+      res.status(500).json({ error: "Failed to create dealer" });
+    }
+  });
+
+  app.patch("/api/dealers/:id", async (req, res) => {
+    try {
+      const dealer = await storage.updateDealer(req.params.id, req.body);
+      res.json(dealer);
+    } catch (error) {
+      console.error("Update dealer error:", error);
+      res.status(500).json({ error: "Failed to update dealer" });
+    }
+  });
+
+  app.get("/api/sales", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const dealer = await storage.getDealerByUserId(userId);
+      if (!dealer) {
+        return res.status(404).json({ error: "Dealer not found" });
+      }
+      
+      const sales = await storage.getSalesByDealerId(dealer.id);
+      res.json(sales);
+    } catch (error) {
+      console.error("Get sales error:", error);
+      res.status(500).json({ error: "Failed to get sales" });
+    }
+  });
+
+  app.post("/api/sales", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const sales = await storage.createSales({ ...req.body, userId });
+      res.json(sales);
+    } catch (error) {
+      console.error("Create sales error:", error);
+      res.status(500).json({ error: "Failed to create sales" });
+    }
+  });
+
+  app.patch("/api/sales/:id", async (req, res) => {
+    try {
+      const sales = await storage.updateSales(req.params.id, req.body);
+      res.json(sales);
+    } catch (error) {
+      console.error("Update sales error:", error);
+      res.status(500).json({ error: "Failed to update sales" });
+    }
+  });
+
+  app.get("/api/drivers", async (req, res) => {
+    try {
+      const drivers = await storage.getDrivers();
+      res.json(drivers);
+    } catch (error) {
+      console.error("Get drivers error:", error);
+      res.status(500).json({ error: "Failed to get drivers" });
+    }
+  });
+
+  app.get("/api/drivers/:id", async (req, res) => {
+    try {
+      const driver = await storage.getDriver(req.params.id);
+      if (!driver) {
+        return res.status(404).json({ error: "Driver not found" });
+      }
+      res.json(driver);
+    } catch (error) {
+      console.error("Get driver error:", error);
+      res.status(500).json({ error: "Failed to get driver" });
+    }
+  });
+
+  app.post("/api/drivers", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const driver = await storage.createDriver({ ...req.body, userId });
+      res.json(driver);
+    } catch (error) {
+      console.error("Create driver error:", error);
+      res.status(500).json({ error: "Failed to create driver" });
+    }
+  });
+
+  app.patch("/api/drivers/:id", async (req, res) => {
+    try {
+      const driver = await storage.updateDriver(req.params.id, req.body);
+      res.json(driver);
+    } catch (error) {
+      console.error("Update driver error:", error);
+      res.status(500).json({ error: "Failed to update driver" });
+    }
+  });
+
+  app.get("/api/deliveries", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      let deliveries;
+      if (user.role === "dealer") {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (dealer) {
+          deliveries = await storage.getDeliveriesByDealerId(dealer.id);
+        }
+      } else if (user.role === "sales") {
+        const sales = await storage.getSalesByUserId(userId);
+        if (sales) {
+          deliveries = await storage.getDeliveriesBySalesId(sales.id);
+        }
+      } else if (user.role === "driver") {
+        const driver = await storage.getDriverByUserId(userId);
+        if (driver) {
+          deliveries = await storage.getDeliveriesByDriverId(driver.id);
+        }
+      }
+      
+      res.json(deliveries || []);
+    } catch (error) {
+      console.error("Get deliveries error:", error);
+      res.status(500).json({ error: "Failed to get deliveries" });
+    }
+  });
+
+  app.get("/api/deliveries/:id", async (req, res) => {
+    try {
+      const delivery = await storage.getDelivery(req.params.id);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      res.json(delivery);
+    } catch (error) {
+      console.error("Get delivery error:", error);
+      res.status(500).json({ error: "Failed to get delivery" });
+    }
+  });
+
+  app.post("/api/deliveries", async (req, res) => {
+    try {
+      const delivery = await storage.createDelivery(req.body);
+      res.json(delivery);
+    } catch (error) {
+      console.error("Create delivery error:", error);
+      res.status(500).json({ error: "Failed to create delivery" });
+    }
+  });
+
+  app.patch("/api/deliveries/:id", async (req, res) => {
+    try {
+      const delivery = await storage.updateDelivery(req.params.id, req.body);
+      res.json(delivery);
+    } catch (error) {
+      console.error("Update delivery error:", error);
+      res.status(500).json({ error: "Failed to update delivery" });
+    }
+  });
+
+  app.get("/api/messages/:deliveryId", async (req, res) => {
+    try {
+      const messages = await storage.getMessages(req.params.deliveryId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get messages error:", error);
+      res.status(500).json({ error: "Failed to get messages" });
+    }
+  });
+
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const message = await storage.createMessage(req.body);
+      res.json(message);
+    } catch (error) {
+      console.error("Create message error:", error);
+      res.status(500).json({ error: "Failed to create message" });
+    }
+  });
+
+  app.post("/api/messages/:deliveryId/read", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      await storage.markMessagesAsRead(req.params.deliveryId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark messages read error:", error);
+      res.status(500).json({ error: "Failed to mark messages as read" });
+    }
+  });
+
+  app.get("/api/notifications", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const notifications = await storage.getNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ error: "Failed to get notifications" });
+    }
+  });
+
+  app.post("/api/notifications/:id/read", async (req, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark notification read error:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  app.get("/api/driver-applications", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      if (user.role === "driver") {
+        const driver = await storage.getDriverByUserId(userId);
+        if (driver) {
+          const applications = await storage.getDriverApplications(driver.id);
+          return res.json(applications);
+        }
+      } else if (user.role === "dealer") {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (dealer) {
+          const applications = await storage.getDriverApplicationsByDealerId(dealer.id);
+          return res.json(applications);
+        }
+      }
+      
+      res.json([]);
+    } catch (error) {
+      console.error("Get driver applications error:", error);
+      res.status(500).json({ error: "Failed to get driver applications" });
+    }
+  });
+
+  app.post("/api/driver-applications", async (req, res) => {
+    try {
+      const application = await storage.createDriverApplication(req.body);
+      res.json(application);
+    } catch (error) {
+      console.error("Create driver application error:", error);
+      res.status(500).json({ error: "Failed to create driver application" });
+    }
+  });
+
+  app.patch("/api/driver-applications/:id", async (req, res) => {
+    try {
+      const application = await storage.updateDriverApplication(req.params.id, req.body);
+      
+      if (req.body.status === "approved" && application) {
+        await storage.createApprovedDriverDealer({
+          driverId: application.driverId,
+          dealerId: application.dealerId,
+        });
+      }
+      
+      res.json(application);
+    } catch (error) {
+      console.error("Update driver application error:", error);
+      res.status(500).json({ error: "Failed to update driver application" });
+    }
+  });
+
+  app.get("/api/approved-driver-dealers", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      if (user.role === "driver") {
+        const driver = await storage.getDriverByUserId(userId);
+        if (driver) {
+          const approvals = await storage.getApprovedDriverDealers(driver.id);
+          return res.json(approvals);
+        }
+      } else if (user.role === "dealer") {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (dealer) {
+          const approvals = await storage.getApprovedDriversByDealerId(dealer.id);
+          return res.json(approvals);
+        }
+      }
+      
+      res.json([]);
+    } catch (error) {
+      console.error("Get approved driver dealers error:", error);
+      res.status(500).json({ error: "Failed to get approved driver dealers" });
+    }
+  });
+
+  app.delete("/api/approved-driver-dealers/:driverId/:dealerId", async (req, res) => {
+    try {
+      await storage.deleteApprovedDriverDealer(req.params.driverId, req.params.dealerId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete approved driver dealer error:", error);
+      res.status(500).json({ error: "Failed to delete approved driver dealer" });
+    }
+  });
+
+  app.get("/api/dealer-admins", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const dealer = await storage.getDealerByUserId(userId);
+      if (!dealer) {
+        const admin = await storage.getDealerAdminByUserId(userId);
+        if (admin) {
+          const admins = await storage.getDealerAdmins(admin.dealerId);
+          return res.json(admins);
+        }
+        return res.status(404).json({ error: "Dealer not found" });
+      }
+      
+      const admins = await storage.getDealerAdmins(dealer.id);
+      res.json(admins);
+    } catch (error) {
+      console.error("Get dealer admins error:", error);
+      res.status(500).json({ error: "Failed to get dealer admins" });
+    }
+  });
+
+  app.post("/api/dealer-admins", async (req, res) => {
+    try {
+      const admin = await storage.createDealerAdmin(req.body);
+      res.json(admin);
+    } catch (error) {
+      console.error("Create dealer admin error:", error);
+      res.status(500).json({ error: "Failed to create dealer admin" });
+    }
+  });
+
+  app.delete("/api/dealer-admins/:id", async (req, res) => {
+    try {
+      await storage.deleteDealerAdmin(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete dealer admin error:", error);
+      res.status(500).json({ error: "Failed to delete dealer admin" });
+    }
+  });
+}

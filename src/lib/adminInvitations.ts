@@ -1,6 +1,7 @@
-import { supabase, AdminInvitation, DealerAdmin } from './supabase';
+import { api } from './api';
+import { AdminInvitation, DealerAdmin } from '../../shared/schema';
 
-export async function checkAndAcceptPendingInvitations(userEmail: string, _userId: string): Promise<{
+export async function checkAndAcceptPendingInvitations(_userEmail: string, _userId: string): Promise<{
   accepted: AdminInvitation[];
   errors: string[];
 }> {
@@ -8,46 +9,26 @@ export async function checkAndAcceptPendingInvitations(userEmail: string, _userI
   const errors: string[] = [];
 
   try {
-    const { data: pendingInvitations, error: fetchError } = await supabase
-      .from('admin_invitations')
-      .select('*')
-      .ilike('email', userEmail)
-      .eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString());
-
-    if (fetchError) {
-      console.error('Failed to fetch invitations:', fetchError);
-      errors.push(`Failed to fetch invitations: ${fetchError.message}`);
-      return { accepted, errors };
-    }
+    const pendingInvitations = await api.adminInvitations.pending();
 
     if (!pendingInvitations || pendingInvitations.length === 0) {
       return { accepted, errors };
     }
 
-    console.log(`Found ${pendingInvitations.length} pending invitation(s) for ${userEmail}`);
+    console.log(`Found ${pendingInvitations.length} pending invitation(s)`);
 
     for (const invitation of pendingInvitations) {
       try {
         console.log(`Processing invitation ${invitation.id} for role: ${invitation.role}`);
 
-        const { data: result, error: acceptError } = await supabase
-          .rpc('accept_admin_invitation', { invitation_token: invitation.token });
-
-        if (acceptError) {
-          console.error('Error accepting invitation:', acceptError);
-          errors.push(`Failed to accept invitation: ${acceptError.message}`);
-          continue;
-        }
+        const result = await api.adminInvitations.accept(invitation.token);
 
         if (result && result.success) {
-          console.log('Invitation accepted successfully:', result);
+          console.log('Invitation accepted successfully');
           accepted.push(invitation);
         } else {
-          console.warn('Invitation acceptance returned false:', result);
-          if (result && result.error) {
-            errors.push(result.error);
-          }
+          console.warn('Invitation acceptance returned false');
+          errors.push('Failed to accept invitation');
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error processing invitation';
@@ -65,19 +46,10 @@ export async function checkAndAcceptPendingInvitations(userEmail: string, _userI
   }
 }
 
-export async function getUserAdminRoles(userId: string): Promise<DealerAdmin[]> {
+export async function getUserAdminRoles(_userId: string): Promise<DealerAdmin[]> {
   try {
-    const { data, error } = await supabase
-      .from('dealer_admins')
-      .select('*')
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error('Failed to fetch admin roles:', error);
-      return [];
-    }
-
-    return data || [];
+    const roles = await api.user.adminRoles();
+    return roles || [];
   } catch (err: unknown) {
     console.error('Error fetching admin roles:', err);
     return [];
@@ -86,19 +58,8 @@ export async function getUserAdminRoles(userId: string): Promise<DealerAdmin[]> 
 
 export async function getUserAdminRoleForDealer(userId: string, dealerId: string): Promise<DealerAdmin | null> {
   try {
-    const { data, error } = await supabase
-      .from('dealer_admins')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('dealer_id', dealerId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Failed to fetch admin role:', error);
-      return null;
-    }
-
-    return data;
+    const roles = await getUserAdminRoles(userId);
+    return roles.find(r => r.dealerId === dealerId) || null;
   } catch (err: unknown) {
     console.error('Error fetching admin role:', err);
     return null;

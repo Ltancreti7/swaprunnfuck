@@ -1,5 +1,5 @@
 import { X, MapPin, Package, User, Calendar, MessageCircle } from 'lucide-react';
-import { Delivery, Driver } from '../../lib/supabase';
+import { Delivery, Driver, DeliveryStatus } from '../../../shared/schema';
 import { Badge } from '../ui/Badge';
 import { formatDate } from '../../lib/dateUtils';
 
@@ -37,9 +37,9 @@ export function DeliveryDetailsModal({
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6">
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <Badge status={delivery.status} />
+              <Badge status={delivery.status as DeliveryStatus} />
               <span className="text-sm text-gray-500">
-                {formatDate(delivery.created_at)}
+                {delivery.createdAt ? formatDate(new Date(delivery.createdAt).toISOString()) : ''}
               </span>
             </div>
 
@@ -83,7 +83,7 @@ export function DeliveryDetailsModal({
                   <p className="text-sm font-medium text-gray-700">Driver</p>
                   <p className="text-gray-900">{driver.name}</p>
                   <p className="text-sm text-gray-600">{driver.phone}</p>
-                  <p className="text-sm text-gray-600">{driver.vehicle_type}</p>
+                  <p className="text-sm text-gray-600">{driver.vehicleType}</p>
                 </div>
               </div>
             )}
@@ -96,21 +96,21 @@ export function DeliveryDetailsModal({
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-              {delivery.started_at && (
+              {delivery.startedAt && (
                 <div>
                   <p className="text-sm font-medium text-gray-700">Started</p>
                   <p className="text-gray-900 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    {formatDate(delivery.started_at)}
+                    {formatDate(new Date(delivery.startedAt).toISOString())}
                   </p>
                 </div>
               )}
-              {delivery.completed_at && (
+              {delivery.completedAt && (
                 <div>
                   <p className="text-sm font-medium text-gray-700">Completed</p>
                   <p className="text-gray-900 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    {formatDate(delivery.completed_at)}
+                    {formatDate(new Date(delivery.completedAt).toISOString())}
                   </p>
                 </div>
               )}

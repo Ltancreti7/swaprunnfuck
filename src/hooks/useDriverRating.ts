@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 
 export function useDriverRating() {
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
@@ -18,35 +18,13 @@ export function useDriverRating() {
   const submitRating = async (rating: number) => {
     if (!pendingRating) return;
 
-    const { driverId, dealerId, userId } = pendingRating;
+    const { driverId, dealerId } = pendingRating;
 
-    const { data: existingPref } = await supabase
-      .from('driver_preferences')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('driver_id', driverId)
-      .eq('dealer_id', dealerId)
-      .maybeSingle();
-
-    if (existingPref) {
-      await supabase
-        .from('driver_preferences')
-        .update({
-          preference_level: rating,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingPref.id);
-    } else {
-      await supabase
-        .from('driver_preferences')
-        .insert({
-          user_id: userId,
-          driver_id: driverId,
-          dealer_id: dealerId,
-          preference_level: rating,
-          use_count: 1,
-        });
-    }
+    await api.drivers.upsertPreference({
+      driverId,
+      dealerId,
+      preferenceLevel: rating,
+    });
 
     setIsRatingModalOpen(false);
     setPendingRating(null);

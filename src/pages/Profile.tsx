@@ -2,15 +2,23 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, AddressFields, DealerAdmin, AdminRole } from '../lib/supabase';
+import { DealerAdmin, AdminRole } from '../../shared/schema';
 import { AddressInput } from '../components/ui/AddressInput';
 import { formatAddress, parseAddress } from '../lib/addressUtils';
 import { getUserAdminRoles } from '../lib/adminInvitations';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
+import { api } from '../lib/api';
+
+interface AddressFields {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+}
 
 export function Profile() {
   const navigate = useNavigate();
-  const { user, role } = useAuth();
+  const { user, role, logout } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,42 +43,43 @@ export function Profile() {
   const loadProfileData = async () => {
     if (!user || !role) return;
 
-    let tableName = '';
-    if (role === 'dealer') tableName = 'dealers';
-    else if (role === 'sales') tableName = 'sales';
-    else if (role === 'driver') tableName = 'drivers';
-
-    if (!tableName) return;
-
-    const { data } = await supabase
-      .from(tableName)
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (data) {
-      const defaultAddress: AddressFields = {
-        street: data.default_pickup_street || '',
-        city: data.default_pickup_city || '',
-        state: data.default_pickup_state || '',
-        zip: data.default_pickup_zip || '',
-      };
-
-      if (!defaultAddress.street && data.default_pickup_location) {
-        const parsed = parseAddress(data.default_pickup_location);
-        defaultAddress.street = parsed.street || '';
-        defaultAddress.city = parsed.city || '';
-        defaultAddress.state = parsed.state || '';
-        defaultAddress.zip = parsed.zip || '';
+    try {
+      let data: any = null;
+      if (role === 'dealer') {
+        const result = await api.dealers.current();
+        data = result.dealer;
+      } else if (role === 'sales') {
+        data = await api.sales.current();
+      } else if (role === 'driver') {
+        data = await api.drivers.current();
       }
 
-      setFormData({
-        name: data.name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        password: '',
-        defaultPickupAddress: defaultAddress,
-      });
+      if (data) {
+        const defaultAddress: AddressFields = {
+          street: data.defaultPickupStreet || '',
+          city: data.defaultPickupCity || '',
+          state: data.defaultPickupState || '',
+          zip: data.defaultPickupZip || '',
+        };
+
+        if (!defaultAddress.street && data.defaultPickupLocation) {
+          const parsed = parseAddress(data.defaultPickupLocation);
+          defaultAddress.street = parsed.street || '';
+          defaultAddress.city = parsed.city || '';
+          defaultAddress.state = parsed.state || '';
+          defaultAddress.zip = parsed.zip || '';
+        }
+
+        setFormData({
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          password: '',
+          defaultPickupAddress: defaultAddress,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
     }
   };
 
@@ -81,24 +90,21 @@ export function Profile() {
     setAdminRoles(roles);
 
     if (roles.length > 0) {
-      const dealerIds = roles.map(r => r.dealer_id);
-      const { data: dealers } = await supabase
-        .from('dealers')
-        .select('id, name')
-        .in('id', dealerIds);
-
-      if (dealers) {
+      try {
+        const dealers = await api.dealers.list();
         const namesMap: Record<string, string> = {};
-        dealers.forEach(dealer => {
+        dealers.forEach((dealer: any) => {
           namesMap[dealer.id] = dealer.name;
         });
         setDealerNames(namesMap);
+      } catch (error) {
+        console.error('Error loading dealer names:', error);
       }
     }
   };
 
-  const getRoleBadgeColor = (role: AdminRole) => {
-    switch (role) {
+  const getRoleBadgeColor = (adminRole: AdminRole) => {
+    switch (adminRole) {
       case "owner":
         return "bg-yellow-100 text-yellow-800 border-yellow-300";
       case "manager":
@@ -116,13 +122,6 @@ export function Profile() {
     setMessage('');
 
     try {
-      let tableName = '';
-      if (role === 'dealer') tableName = 'dealers';
-      else if (role === 'sales') tableName = 'sales';
-      else if (role === 'driver') tableName = 'drivers';
-
-      if (!tableName) throw new Error('Invalid role');
-
       const updates: any = {
         name: formData.name,
         phone: formData.phone,
@@ -130,26 +129,17 @@ export function Profile() {
 
       if (role === 'sales') {
         const formatted = formatAddress(formData.defaultPickupAddress);
-        updates.default_pickup_location = formatted || null;
-        updates.default_pickup_street = formData.defaultPickupAddress.street || null;
-        updates.default_pickup_city = formData.defaultPickupAddress.city || null;
-        updates.default_pickup_state = formData.defaultPickupAddress.state || null;
-        updates.default_pickup_zip = formData.defaultPickupAddress.zip || null;
+        updates.defaultPickupLocation = formatted || null;
+        updates.defaultPickupStreet = formData.defaultPickupAddress.street || null;
+        updates.defaultPickupCity = formData.defaultPickupAddress.city || null;
+        updates.defaultPickupState = formData.defaultPickupAddress.state || null;
+        updates.defaultPickupZip = formData.defaultPickupAddress.zip || null;
       }
 
-      const { error: updateError } = await supabase
-        .from(tableName)
-        .update(updates)
-        .eq('user_id', user.id);
-
-      if (updateError) throw updateError;
+      await api.user.updateProfile(updates);
 
       if (formData.password) {
-        const { error: passwordError } = await supabase.auth.updateUser({
-          password: formData.password,
-        });
-
-        if (passwordError) throw passwordError;
+        await api.user.changePassword(formData.password);
       }
 
       setMessage('Profile updated successfully!');
@@ -171,18 +161,9 @@ export function Profile() {
     setIsDeleting(true);
 
     try {
-      const { data, error } = await supabase.rpc('delete_user_account');
-
-      if (error) throw error;
-
-      const result = data as { success: boolean; error?: string; message?: string };
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to delete account');
-      }
-
-      await supabase.auth.signOut();
-      navigate('/');
+      setMessage('Account deletion is not yet implemented. Please contact support.');
+      setShowDeleteModal(false);
+      setIsDeleting(false);
     } catch (err: any) {
       setMessage(err.message || 'Failed to delete account');
       setShowDeleteModal(false);
@@ -223,11 +204,11 @@ export function Profile() {
                   <div className="space-y-2">
                     {adminRoles.map((adminRole) => (
                       <div key={adminRole.id} className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getRoleBadgeColor(adminRole.role)}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getRoleBadgeColor(adminRole.role as AdminRole)}`}>
                           {adminRole.role.charAt(0).toUpperCase() + adminRole.role.slice(1)}
                         </span>
                         <span className="text-sm text-gray-700">
-                          {dealerNames[adminRole.dealer_id] || 'Loading...'}
+                          {dealerNames[adminRole.dealerId] || 'Loading...'}
                         </span>
                       </div>
                     ))}

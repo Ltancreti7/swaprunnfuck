@@ -70,12 +70,14 @@ export interface IStorage {
   
   getDealerAdmins(dealerId: string): Promise<DealerAdmin[]>;
   getDealerAdminByUserId(userId: string): Promise<DealerAdmin | undefined>;
+  getAllDealerAdminsByUserId(userId: string): Promise<DealerAdmin[]>;
   createDealerAdmin(admin: InsertDealerAdmin): Promise<DealerAdmin>;
   updateDealerAdmin(id: string, admin: Partial<InsertDealerAdmin>): Promise<DealerAdmin | undefined>;
   deleteDealerAdmin(id: string): Promise<void>;
   
   getAdminInvitations(dealerId: string): Promise<AdminInvitation[]>;
   getAdminInvitationByToken(token: string): Promise<AdminInvitation | undefined>;
+  getPendingAdminInvitationsByEmail(email: string): Promise<AdminInvitation[]>;
   createAdminInvitation(invitation: InsertAdminInvitation): Promise<AdminInvitation>;
   updateAdminInvitation(id: string, invitation: Partial<InsertAdminInvitation>): Promise<AdminInvitation | undefined>;
   
@@ -84,6 +86,8 @@ export interface IStorage {
   getDeliveryWithRelations(deliveryId: string): Promise<{ delivery: Delivery; sales?: Sales; driver?: Driver } | undefined>;
   getDriverStatisticsByDealerId(dealerId: string): Promise<DriverStatistics[]>;
   getDriverPreferencesByUserAndDealer(userId: string, dealerId: string): Promise<DriverPreference[]>;
+  getDriverPreference(userId: string, driverId: string, dealerId: string): Promise<DriverPreference | undefined>;
+  upsertDriverPreference(preference: { userId: string; driverId: string; dealerId: string; preferenceLevel: number }): Promise<DriverPreference>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -290,6 +294,10 @@ export class DatabaseStorage implements IStorage {
     return admin;
   }
 
+  async getAllDealerAdminsByUserId(userId: string): Promise<DealerAdmin[]> {
+    return db.select().from(schema.dealerAdmins).where(eq(schema.dealerAdmins.userId, userId));
+  }
+
   async createDealerAdmin(admin: InsertDealerAdmin): Promise<DealerAdmin> {
     const [created] = await db.insert(schema.dealerAdmins).values(admin).returning();
     return created;
@@ -311,6 +319,15 @@ export class DatabaseStorage implements IStorage {
   async getAdminInvitationByToken(token: string): Promise<AdminInvitation | undefined> {
     const [invitation] = await db.select().from(schema.adminInvitations).where(eq(schema.adminInvitations.token, token));
     return invitation;
+  }
+
+  async getPendingAdminInvitationsByEmail(email: string): Promise<AdminInvitation[]> {
+    return db.select().from(schema.adminInvitations)
+      .where(and(
+        sql`lower(${schema.adminInvitations.email}) = lower(${email})`,
+        eq(schema.adminInvitations.status, "pending"),
+        sql`${schema.adminInvitations.expiresAt} > now()`
+      ));
   }
 
   async createAdminInvitation(invitation: InsertAdminInvitation): Promise<AdminInvitation> {
@@ -380,6 +397,40 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(schema.driverPreferences).where(
       and(eq(schema.driverPreferences.userId, userId), eq(schema.driverPreferences.dealerId, dealerId))
     );
+  }
+
+  async getDriverPreference(userId: string, driverId: string, dealerId: string): Promise<DriverPreference | undefined> {
+    const [pref] = await db.select().from(schema.driverPreferences).where(
+      and(
+        eq(schema.driverPreferences.userId, userId),
+        eq(schema.driverPreferences.driverId, driverId),
+        eq(schema.driverPreferences.dealerId, dealerId)
+      )
+    );
+    return pref;
+  }
+
+  async upsertDriverPreference(preference: { userId: string; driverId: string; dealerId: string; preferenceLevel: number }): Promise<DriverPreference> {
+    const existing = await this.getDriverPreference(preference.userId, preference.driverId, preference.dealerId);
+    
+    if (existing) {
+      const [updated] = await db.update(schema.driverPreferences)
+        .set({ preferenceLevel: preference.preferenceLevel, updatedAt: new Date() })
+        .where(eq(schema.driverPreferences.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(schema.driverPreferences)
+        .values({
+          userId: preference.userId,
+          driverId: preference.driverId,
+          dealerId: preference.dealerId,
+          preferenceLevel: preference.preferenceLevel,
+          useCount: 1,
+        })
+        .returning();
+      return created;
+    }
   }
 }
 

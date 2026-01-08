@@ -1,6 +1,6 @@
 import { User, Package, CheckCircle, Clock, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Sales, Delivery } from '../../lib/supabase';
+import { Sales, Delivery } from '../../../shared/schema';
 import { UnreadBadge } from '../ui/UnreadBadge';
 import { useUnreadMessagesCount } from '../../hooks/useUnreadMessagesCount';
 import { useAuth } from '../../contexts/AuthContext';

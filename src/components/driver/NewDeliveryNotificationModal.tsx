@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bell, Truck, MapPin, Building2, X } from 'lucide-react';
-import { Delivery, Dealer } from '../../lib/supabase';
+import { Delivery, Dealer } from '../../../shared/schema';
 import { Badge } from '../ui/Badge';
 
 interface NewDeliveryNotificationModalProps {
@@ -100,23 +100,23 @@ export function NewDeliveryNotificationModal({
                 </div>
               </div>
 
-              {delivery.service_type && (
+              {delivery.serviceType && (
                 <div className="p-3 bg-indigo-50 rounded-lg">
                   <p className="text-sm font-semibold text-gray-700 mb-1">Service Type</p>
                   <div className="flex items-center gap-2">
-                    <Badge status={delivery.service_type === 'delivery' ? 'pending' : 'in_progress'} />
-                    <p className="text-lg font-bold text-gray-900 capitalize">{delivery.service_type}</p>
+                    <Badge status={delivery.serviceType === 'delivery' ? 'pending' : 'in_progress'} />
+                    <p className="text-lg font-bold text-gray-900 capitalize">{delivery.serviceType}</p>
                   </div>
-                  {delivery.service_type === 'delivery' && (
+                  {delivery.serviceType === 'delivery' && (
                     <div className="mt-2 space-y-1">
-                      {delivery.has_trade !== null && (
+                      {delivery.hasTrade !== null && (
                         <p className="text-sm text-gray-700">
-                          <span className="font-semibold">Trade Involved:</span> {delivery.has_trade ? 'Yes' : 'No'}
+                          <span className="font-semibold">Trade Involved:</span> {delivery.hasTrade ? 'Yes' : 'No'}
                         </p>
                       )}
-                      {delivery.requires_second_driver !== null && (
+                      {delivery.requiresSecondDriver !== null && (
                         <p className="text-sm text-gray-700">
-                          <span className="font-semibold">Second Driver Required:</span> {delivery.requires_second_driver ? 'Yes' : 'No'}
+                          <span className="font-semibold">Second Driver Required:</span> {delivery.requiresSecondDriver ? 'Yes' : 'No'}
                         </p>
                       )}
                     </div>

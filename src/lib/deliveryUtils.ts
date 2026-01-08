@@ -1,4 +1,4 @@
-import { DeliveryTimeframe } from './supabase';
+import { DeliveryTimeframe } from '../../shared/schema';
 
 export function getTimeframeDisplay(timeframe?: DeliveryTimeframe, customDate?: string): string {
   if (!timeframe) return '';

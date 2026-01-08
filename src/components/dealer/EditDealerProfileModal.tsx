@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dealer } from "../../lib/supabase";
+import { Dealer } from "../../../shared/schema";
 import { Modal } from "../ui/Modal";
 
 interface EditDealerProfileModalProps {

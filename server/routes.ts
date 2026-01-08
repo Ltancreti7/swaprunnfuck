@@ -1,6 +1,10 @@
 import type { Express } from "express";
 import { storage } from "./storage";
+import { db } from "./db";
+import * as schema from "../shared/schema";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
@@ -801,6 +805,24 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.post("/api/driver-preferences", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const { driverId, dealerId, preferenceLevel } = req.body;
+      if (!driverId || !dealerId || typeof preferenceLevel !== 'number') {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      const preference = await storage.upsertDriverPreference({ userId, driverId, dealerId, preferenceLevel });
+      res.json(preference);
+    } catch (error) {
+      console.error("Upsert driver preference error:", error);
+      res.status(500).json({ error: "Failed to save driver preference" });
+    }
+  });
+
   app.get("/api/driver-applications", async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;
@@ -1010,6 +1032,235 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Activate sales error:", error);
       res.status(500).json({ error: "Failed to activate sales account" });
+    }
+  });
+
+  app.get("/api/user/admin-roles", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const roles = await storage.getAllDealerAdminsByUserId(userId);
+      res.json(roles);
+    } catch (error) {
+      console.error("Get user admin roles error:", error);
+      res.status(500).json({ error: "Failed to get admin roles" });
+    }
+  });
+
+  app.get("/api/admin-invitations/pending", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const invitations = await storage.getPendingAdminInvitationsByEmail(user.email);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Get pending invitations error:", error);
+      res.status(500).json({ error: "Failed to get pending invitations" });
+    }
+  });
+
+  app.post("/api/admin-invitations/:id/accept", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const invitation = await storage.getAdminInvitationByToken(req.params.id);
+      if (!invitation) {
+        return res.status(404).json({ error: "Invitation not found" });
+      }
+      if (invitation.status !== "pending") {
+        return res.status(400).json({ error: "Invitation is no longer pending" });
+      }
+      if (invitation.email.toLowerCase() !== user.email.toLowerCase()) {
+        return res.status(403).json({ error: "Invitation not for this user" });
+      }
+
+      await storage.createDealerAdmin({
+        dealerId: invitation.dealerId,
+        userId,
+        email: user.email,
+        name: user.email.split("@")[0],
+        role: invitation.role as "owner" | "manager" | "viewer",
+      });
+
+      await storage.updateAdminInvitation(invitation.id, {
+        status: "accepted",
+        acceptedAt: new Date(),
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Accept invitation error:", error);
+      res.status(500).json({ error: "Failed to accept invitation" });
+    }
+  });
+
+  app.patch("/api/user/profile", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const role = (req.session as any)?.role;
+      if (!userId || !role) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const updates = req.body;
+
+      if (role === "dealer") {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (!dealer) {
+          return res.status(404).json({ error: "Dealer not found" });
+        }
+        const updated = await storage.updateDealer(dealer.id, updates);
+        return res.json(updated);
+      } else if (role === "sales") {
+        const sales = await storage.getSalesByUserId(userId);
+        if (!sales) {
+          return res.status(404).json({ error: "Sales not found" });
+        }
+        const updated = await storage.updateSales(sales.id, updates);
+        return res.json(updated);
+      } else if (role === "driver") {
+        const driver = await storage.getDriverByUserId(userId);
+        if (!driver) {
+          return res.status(404).json({ error: "Driver not found" });
+        }
+        const updated = await storage.updateDriver(driver.id, updates);
+        return res.json(updated);
+      }
+
+      res.status(400).json({ error: "Invalid role" });
+    } catch (error) {
+      console.error("Update profile error:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  app.patch("/api/user/password", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const { password } = req.body;
+      if (!password || password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      await db.update(schema.users).set({ passwordHash: hashedPassword }).where(eq(schema.users.id, userId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Change password error:", error);
+      res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
+  app.get("/api/admin-invitations/dealer/:dealerId", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const invitations = await storage.getAdminInvitations(req.params.dealerId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Get admin invitations error:", error);
+      res.status(500).json({ error: "Failed to get admin invitations" });
+    }
+  });
+
+  app.post("/api/admin-invitations", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const token = crypto.randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const invitation = await storage.createAdminInvitation({
+        ...req.body,
+        token,
+        status: "pending",
+        expiresAt,
+        invitedBy: userId,
+      });
+      res.json(invitation);
+    } catch (error) {
+      console.error("Create admin invitation error:", error);
+      res.status(500).json({ error: "Failed to create invitation" });
+    }
+  });
+
+  app.delete("/api/admin-invitations/:id", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      await storage.updateAdminInvitation(req.params.id, { status: "cancelled" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Cancel admin invitation error:", error);
+      res.status(500).json({ error: "Failed to cancel invitation" });
+    }
+  });
+
+  app.get("/api/dealer-admins/with-emails/:dealerId", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const admins = await storage.getDealerAdmins(req.params.dealerId);
+      const adminsWithEmails = await Promise.all(
+        admins.map(async (admin) => {
+          const user = await storage.getUser(admin.userId);
+          return {
+            ...admin,
+            email: user?.email || admin.email,
+            name: admin.name || user?.email?.split("@")[0] || "Unknown",
+          };
+        })
+      );
+      res.json(adminsWithEmails);
+    } catch (error) {
+      console.error("Get admins with emails error:", error);
+      res.status(500).json({ error: "Failed to get admins" });
+    }
+  });
+
+  app.patch("/api/dealer-admins/:id", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const admin = await storage.updateDealerAdmin(req.params.id, req.body);
+      res.json(admin);
+    } catch (error) {
+      console.error("Update dealer admin error:", error);
+      res.status(500).json({ error: "Failed to update admin" });
     }
   });
 }

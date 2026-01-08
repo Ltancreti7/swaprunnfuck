@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 
 const TIMEOUT_DURATION = 30 * 60 * 1000;
 const WARNING_DURATION = 5 * 60 * 1000;
@@ -25,11 +25,11 @@ export function useSessionTimeout(onTimeout: () => void, onWarning?: () => void)
       const timeSinceActivity = Date.now() - parseInt(lastActivity);
 
       if (timeSinceActivity >= TIMEOUT_DURATION) {
-        await supabase.auth.signOut();
+        await api.auth.logout();
         onTimeout();
       } else if (onWarning && timeSinceActivity >= TIMEOUT_DURATION - WARNING_DURATION) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
+        const user = await api.auth.me();
+        if (user) {
           onWarning();
         }
       }

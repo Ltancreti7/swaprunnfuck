@@ -1,6 +1,6 @@
 import { MapPin, MessageCircle, Calendar, ChevronDown, ChevronUp, Car, ArrowLeftRight, Truck, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import { Delivery } from '../../lib/supabase';
+import { Delivery } from '../../../shared/schema';
 import { Badge } from '../ui/Badge';
 import { StatusTimeline } from '../ui/StatusTimeline';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,10 +37,10 @@ export function DeliveryCard({ delivery, driverName, onChatClick, onCancelClick 
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <h3 className="text-base font-bold text-gray-900">VIN: {delivery.vin}</h3>
-              <Badge status={delivery.status} />
-              {delivery.service_type && (
+              <Badge status={delivery.status as "pending" | "accepted" | "assigned" | "in_progress" | "completed" | "cancelled" | "pending_driver_acceptance"} />
+              {delivery.serviceType && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                  {delivery.service_type === 'delivery' ? (
+                  {delivery.serviceType === 'delivery' ? (
                     <>
                       <Truck size={12} />
                       Delivery
@@ -67,7 +67,7 @@ export function DeliveryCard({ delivery, driverName, onChatClick, onCancelClick 
             )}
             <div className="flex items-center text-sm text-gray-500">
               <Calendar size={14} className="mr-1" />
-              <span>Requested {formatDate(delivery.created_at)}</span>
+              <span>Requested {delivery.createdAt ? formatDate(new Date(delivery.createdAt).toISOString()) : ''}</span>
             </div>
           </div>
         </div>
@@ -89,17 +89,17 @@ export function DeliveryCard({ delivery, driverName, onChatClick, onCancelClick 
             </div>
           </div>
 
-          {delivery.scheduled_date && delivery.scheduled_time && (
+          {delivery.scheduledDate && delivery.scheduledTime && (
             <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
               <Calendar size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-green-900 mb-1">Scheduled</p>
                 <p className="text-sm text-gray-900">
-                  {new Date(delivery.scheduled_date).toLocaleDateString('en-US', {
+                  {new Date(delivery.scheduledDate).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric'
-                  })} at {delivery.scheduled_time}
+                  })} at {delivery.scheduledTime}
                 </p>
               </div>
             </div>
@@ -117,14 +117,14 @@ export function DeliveryCard({ delivery, driverName, onChatClick, onCancelClick 
             </div>
           )}
 
-          {delivery.service_type === 'delivery' && (delivery.has_trade || delivery.requires_second_driver) && (
+          {delivery.serviceType === 'delivery' && (delivery.hasTrade || delivery.requiresSecondDriver) && (
             <div className="flex flex-wrap gap-2">
-              {delivery.has_trade && (
+              {delivery.hasTrade && (
                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
                   Trade Involved
                 </span>
               )}
-              {delivery.requires_second_driver && (
+              {delivery.requiresSecondDriver && (
                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
                   Second Driver Required
                 </span>
@@ -153,11 +153,11 @@ export function DeliveryCard({ delivery, driverName, onChatClick, onCancelClick 
         {isExpanded && (
           <div className="mb-4 pt-4 border-t border-gray-100">
             <StatusTimeline
-              currentStatus={delivery.status}
-              acceptedAt={delivery.accepted_at}
-              startedAt={delivery.started_at}
-              completedAt={delivery.completed_at}
-              cancelledAt={delivery.cancelled_at}
+              currentStatus={delivery.status as "pending" | "accepted" | "assigned" | "in_progress" | "completed" | "cancelled"}
+              acceptedAt={delivery.acceptedAt ? new Date(delivery.acceptedAt).toISOString() : undefined}
+              startedAt={delivery.startedAt ? new Date(delivery.startedAt).toISOString() : undefined}
+              completedAt={delivery.completedAt ? new Date(delivery.completedAt).toISOString() : undefined}
+              cancelledAt={delivery.cancelledAt ? new Date(delivery.cancelledAt).toISOString() : undefined}
             />
           </div>
         )}

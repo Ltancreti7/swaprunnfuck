@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { DriverApplication, Driver } from '../../lib/supabase';
+import { DriverApplication, Driver } from '../../../shared/schema';
 
 interface ApplicationActionModalProps {
   application: DriverApplication & { driver: Driver };
@@ -94,7 +94,7 @@ export function ApplicationActionModal({
               <ul className="text-sm text-green-700 mt-2 space-y-1">
                 <li>• {application.driver.email}</li>
                 <li>• {application.driver.phone}</li>
-                <li>• {application.driver.vehicle_type}</li>
+                <li>• {application.driver.vehicleType}</li>
                 <li>• {application.driver.radius} mile radius</li>
               </ul>
             </div>

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Building2, MapPin, Phone } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
-import { supabase } from "../lib/supabase";
+import { api } from "../lib/api";
 
 export function CompleteProfile() {
   const navigate = useNavigate();
@@ -33,55 +33,21 @@ export function CompleteProfile() {
       const fullAddress = `${formData.address}, ${formData.city}, ${formData.state} ${formData.zip}`.trim();
 
       if (role === "dealer") {
-        const { data: existingDealer } = await supabase
-          .from("dealers")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const existingDealer = await api.dealers.current().catch(() => null);
 
         if (existingDealer) {
-          const { error: updateError } = await supabase
-            .from("dealers")
-            .update({
-              name: formData.name,
-              address: fullAddress,
-              phone: formData.phone,
-            })
-            .eq("user_id", user.id);
-
-          if (updateError) throw updateError;
+          await api.dealers.update(existingDealer.id, {
+            name: formData.name,
+            address: fullAddress,
+            phone: formData.phone,
+          });
         } else {
-          const { error: insertError } = await supabase.from("dealers").insert({
-            user_id: user.id,
+          await api.dealers.create({
             name: formData.name,
             address: fullAddress,
             email: user.email!,
             phone: formData.phone,
           });
-
-          if (insertError) throw insertError;
-
-          const { data: newDealer } = await supabase
-            .from("dealers")
-            .select("id")
-            .eq("user_id", user.id)
-            .single();
-
-          if (newDealer) {
-            const { error: adminError } = await supabase
-              .from("dealer_admins")
-              .insert({
-                dealer_id: newDealer.id,
-                user_id: user.id,
-                email: user.email!,
-                name: formData.name,
-                role: "owner",
-              });
-
-            if (adminError) {
-              console.error("Failed to create admin record:", adminError);
-            }
-          }
         }
 
         showToast("Profile completed successfully!", "success");

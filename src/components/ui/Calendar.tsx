@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin } from 'lucide-react';
-import { Delivery } from '../../lib/supabase';
+import { Delivery } from '../../../shared/schema';
 
 interface CalendarProps {
   deliveries: Delivery[];
@@ -35,7 +35,7 @@ export function Calendar({ deliveries, onDeliveryClick }: CalendarProps) {
     if (!date) return [];
 
     const dateStr = date.toISOString().split('T')[0];
-    return deliveries.filter(d => d.scheduled_date === dateStr);
+    return deliveries.filter(d => d.scheduledDate === dateStr);
   };
 
   const previousMonth = () => {
@@ -155,13 +155,13 @@ export function Calendar({ deliveries, onDeliveryClick }: CalendarProps) {
                         >
                           <div className="flex items-center gap-1 mb-0.5">
                             <span className="text-[10px] font-bold text-red-600">
-                              {delivery.scheduled_time}
+                              {delivery.scheduledTime}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <MapPin size={10} className="text-gray-400 flex-shrink-0" />
                             <span className="truncate text-[10px]">
-                              {delivery.dropoff_city || delivery.dropoff}
+                              {delivery.dropoffCity || delivery.dropoff}
                             </span>
                           </div>
                         </div>
@@ -180,7 +180,7 @@ export function Calendar({ deliveries, onDeliveryClick }: CalendarProps) {
         })}
       </div>
 
-      {deliveries.filter(d => d.scheduled_date && d.scheduled_time).length === 0 && (
+      {deliveries.filter(d => d.scheduledDate && d.scheduledTime).length === 0 && (
         <div className="text-center py-12 text-gray-500">
           <CalendarIcon size={64} className="mx-auto mb-4 text-gray-300" />
           <p className="text-lg font-medium">No scheduled deliveries</p>

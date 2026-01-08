@@ -1,4 +1,4 @@
-import { AddressFields } from './supabase';
+import { AddressFields } from '../../shared/schema';
 
 export function formatAddress(address: AddressFields): string {
   const parts = [

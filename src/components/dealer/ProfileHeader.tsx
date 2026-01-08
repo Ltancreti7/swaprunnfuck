@@ -1,5 +1,5 @@
 import { MapPin, Mail, Phone, Edit2, Users, Truck, FileCheck, TrendingUp } from "lucide-react";
-import { Dealer, AdminRole } from "../../lib/supabase";
+import { Dealer, AdminRole } from "../../../shared/schema";
 
 interface ProfileHeaderProps {
   dealer: Dealer;
@@ -58,7 +58,7 @@ export function ProfileHeader({ dealer, currentUserRole, stats, onEditProfile }:
                   )}
                 </div>
                 <p className="text-sm text-gray-500">
-                  Member since {new Date(dealer.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  Member since {dealer.createdAt ? new Date(dealer.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unknown'}
                 </p>
               </div>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapPin } from 'lucide-react';
-import { AddressFields } from '../../lib/supabase';
+import { AddressFields } from '../../../shared/schema';
 import { US_STATES } from '../../lib/usStates';
 import { validateZipCode, formatZipCode } from '../../lib/addressUtils';
 

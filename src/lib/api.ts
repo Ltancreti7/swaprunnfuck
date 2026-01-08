@@ -133,6 +133,8 @@ export const api = {
     myDealerships: () => apiRequest<any[]>('/drivers/my-dealerships'),
     statistics: (dealerId: string) => apiRequest<any[]>(`/driver-statistics/${dealerId}`),
     preferences: (dealerId: string) => apiRequest<any[]>(`/driver-preferences/${dealerId}`),
+    upsertPreference: (data: { driverId: string; dealerId: string; preferenceLevel: number }) =>
+      apiRequestWithSnakeBody<any>('/driver-preferences', { method: 'POST', body: JSON.stringify(data) }),
     create: (data: any) =>
       apiRequestWithSnakeBody<any>('/drivers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
@@ -194,10 +196,32 @@ export const api = {
   },
   dealerAdmins: {
     list: () => apiRequest<any[]>('/dealer-admins'),
+    byDealer: (dealerId: string) => apiRequest<any[]>(`/dealer-admins/with-emails/${dealerId}`),
     create: (data: any) =>
       apiRequestWithSnakeBody<any>('/dealer-admins', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+      apiRequestWithSnakeBody<any>(`/dealer-admins/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) =>
       apiRequest<{ success: boolean }>(`/dealer-admins/${id}`, { method: 'DELETE' }),
+    roleForCurrentUser: (dealerId: string) => 
+      apiRequest<any>(`/dealer-admins/role/${dealerId}`),
+  },
+  user: {
+    adminRoles: () => apiRequest<any[]>('/user/admin-roles'),
+    updateProfile: (data: any) =>
+      apiRequestWithSnakeBody<any>('/user/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    changePassword: (password: string) =>
+      apiRequest<{ success: boolean }>('/user/password', { method: 'PATCH', body: JSON.stringify({ password }) }),
+  },
+  adminInvitations: {
+    pending: () => apiRequest<any[]>('/admin-invitations/pending'),
+    byDealer: (dealerId: string) => apiRequest<any[]>(`/admin-invitations/dealer/${dealerId}`),
+    create: (data: any) =>
+      apiRequestWithSnakeBody<any>('/admin-invitations', { method: 'POST', body: JSON.stringify(data) }),
+    accept: (token: string) =>
+      apiRequest<{ success: boolean }>(`/admin-invitations/${token}/accept`, { method: 'POST' }),
+    cancel: (id: string) =>
+      apiRequest<{ success: boolean }>(`/admin-invitations/${id}`, { method: 'DELETE' }),
   },
 };
 

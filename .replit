@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "swift-5.8", "web", "ruby-3.2"]
+modules = ["nodejs-20", "swift-5.8", "web", "ruby-3.2", "postgresql-16"]
 [agent]
 expertMode = true
 integrations = ["javascript_database:1.0.0"]

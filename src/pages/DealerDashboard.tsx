@@ -17,7 +17,7 @@ import { api } from "../lib/api";
 import type { Dealer, Delivery, Driver, Sales, DriverApplication, AdminRole, AddressFields } from "../../shared/schema";
 import { AddressInput } from "../components/ui/AddressInput";
 import { formatAddress } from "../lib/addressUtils";
-import { Badge } from "../components/ui/Badge";
+import { StatusBadge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { DashboardSkeleton } from "../components/ui/LoadingSkeleton";
@@ -713,7 +713,7 @@ export function DealerDashboard() {
                             {delivery.pickup} → {delivery.dropoff}
                           </p>
                         </div>
-                        <Badge status={delivery.status || 'pending'} />
+                        <StatusBadge status={delivery.status || 'pending'} />
                       </div>
                       {delivery.notes && (
                         <p className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded">
@@ -942,7 +942,7 @@ export function DealerDashboard() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <p className="font-semibold text-lg">{application.driver.name}</p>
-                                  <Badge status="pending" />
+                                  <StatusBadge status="pending" />
                                 </div>
                                 <p className="text-sm text-gray-600">{application.driver.email}</p>
                                 <p className="text-sm text-gray-600">{application.driver.phone}</p>
@@ -1015,7 +1015,7 @@ export function DealerDashboard() {
                                   <div>
                                     <div className="flex items-center gap-2">
                                       <p className="font-semibold">{application.driver.name}</p>
-                                      <Badge status="completed" />
+                                      <StatusBadge status="completed" />
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1">
                                       Approved {new Date(application.reviewed_at || "").toLocaleDateString()}
@@ -1040,7 +1040,7 @@ export function DealerDashboard() {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <p className="font-semibold">{application.driver.name}</p>
-                                    <Badge status="cancelled" />
+                                    <StatusBadge status="cancelled" />
                                   </div>
                                   <p className="text-xs text-gray-500 mt-1">
                                     Rejected {new Date(application.reviewed_at || "").toLocaleDateString()}
@@ -1310,7 +1310,7 @@ export function DealerDashboard() {
                                   <div>
                                     <div className="flex items-center gap-2">
                                       <p className="font-semibold">{member.name}</p>
-                                      <Badge status="pending" />
+                                      <StatusBadge status="pending" />
                                     </div>
                                     <p className="text-sm text-gray-600 mt-1">
                                       {member.email}
@@ -1373,7 +1373,7 @@ export function DealerDashboard() {
                                   <div>
                                     <div className="flex items-center gap-2">
                                       <p className="font-semibold">{driver.name}</p>
-                                      <Badge status="pending" />
+                                      <StatusBadge status="pending" />
                                     </div>
                                     <p className="text-sm text-gray-600 mt-1">
                                       {driver.email}

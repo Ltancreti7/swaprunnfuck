@@ -4,7 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { DealerAdmin, AdminInvitation, AdminRole } from "../../../shared/schema";
 import { Card } from "../ui/Card";
-import { Badge } from "../ui/Badge";
+import { StatusBadge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
 import { api } from "../../lib/api";
 
@@ -258,7 +258,7 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
                       <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(invitation.role as AdminRole)}`}>
                         {invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1)}
                       </span>
-                      <Badge status="pending" />
+                      <StatusBadge status="pending" />
                     </div>
                     <p className="text-sm text-gray-600">
                       Invited {new Date(invitation.createdAt).toLocaleDateString()} •

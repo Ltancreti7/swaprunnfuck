@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Package, Clock, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatTime } from '../lib/dateUtils';
-import { Badge } from '../components/ui/Badge';
+import { StatusBadge } from '../components/ui/Badge';
 import { UnreadBadge } from '../components/ui/UnreadBadge';
 import api from '../lib/api';
 import type { Delivery, Message } from '../../shared/schema';
@@ -174,7 +174,7 @@ export function AllConversations() {
                       </p>
                     </div>
                   </div>
-                  <Badge status={conversation.delivery.status} />
+                  <StatusBadge status={conversation.delivery.status} />
                 </div>
 
                 <div className="flex items-start gap-2 mb-3 text-sm text-gray-600">

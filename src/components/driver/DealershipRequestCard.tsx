@@ -1,5 +1,5 @@
 import { MapPin, Building2, Clock, Calendar, User, Star } from 'lucide-react';
-import { Badge } from '../ui/Badge';
+import { StatusBadge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { getTimeframeDisplay, getTimeframeColor } from '../../lib/deliveryUtils';
 import type { Delivery, Dealer, DeliveryTimeframe } from '../../../shared/schema';
@@ -62,7 +62,7 @@ export function DealershipRequestCard({ delivery, onAccept, onDecline, dealerCol
               {delivery.createdAt && getTimeAgo(delivery.createdAt.toString())}
             </div>
           </div>
-          <Badge status={(delivery.status || 'pending') as DeliveryStatus} size="sm" />
+          <StatusBadge status={(delivery.status || 'pending') as DeliveryStatus} size="sm" />
         </div>
 
         <div className="mb-3">

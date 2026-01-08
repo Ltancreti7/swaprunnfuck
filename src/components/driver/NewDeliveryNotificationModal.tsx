@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, Truck, MapPin, Building2, X } from 'lucide-react';
 import { Delivery, Dealer } from '../../../shared/schema';
-import { Badge } from '../ui/Badge';
+import { StatusBadge } from '../ui/Badge';
 
 interface NewDeliveryNotificationModalProps {
   delivery: Delivery & { dealer: Dealer };
@@ -104,7 +104,7 @@ export function NewDeliveryNotificationModal({
                 <div className="p-3 bg-indigo-50 rounded-lg">
                   <p className="text-sm font-semibold text-gray-700 mb-1">Service Type</p>
                   <div className="flex items-center gap-2">
-                    <Badge status={delivery.serviceType === 'delivery' ? 'pending' : 'in_progress'} />
+                    <StatusBadge status={delivery.serviceType === 'delivery' ? 'pending' : 'in_progress'} />
                     <p className="text-lg font-bold text-gray-900 capitalize">{delivery.serviceType}</p>
                   </div>
                   {delivery.serviceType === 'delivery' && (

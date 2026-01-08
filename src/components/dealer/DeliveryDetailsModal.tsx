@@ -1,6 +1,6 @@
 import { X, MapPin, Package, User, Calendar, MessageCircle } from 'lucide-react';
 import { Delivery, Driver, DeliveryStatus } from '../../../shared/schema';
-import { Badge } from '../ui/Badge';
+import { StatusBadge } from '../ui/Badge';
 import { formatDate } from '../../lib/dateUtils';
 
 interface DeliveryDetailsModalProps {
@@ -37,7 +37,7 @@ export function DeliveryDetailsModal({
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6">
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <Badge status={delivery.status as DeliveryStatus} />
+              <StatusBadge status={delivery.status as DeliveryStatus} />
               <span className="text-sm text-gray-500">
                 {delivery.createdAt ? formatDate(new Date(delivery.createdAt).toISOString()) : ''}
               </span>

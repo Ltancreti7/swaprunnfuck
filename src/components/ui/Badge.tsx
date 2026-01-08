@@ -79,7 +79,7 @@ const statusConfig: Record<
   },
 };
 
-export function Badge({ status, showIcon = true, size = 'md' }: BadgeProps) {
+export function StatusBadge({ status, showIcon = true, size = 'md' }: BadgeProps) {
   const config = statusConfig[status] || statusConfig.pending;
   const Icon = config.icon;
 
@@ -101,6 +101,29 @@ export function Badge({ status, showIcon = true, size = 'md' }: BadgeProps) {
     >
       {showIcon && <Icon size={iconSizes[size]} />}
       {config.label}
+    </span>
+  );
+}
+
+interface GenericBadgeProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+  className?: string;
+}
+
+export function Badge({ children, variant = 'default', className = '' }: GenericBadgeProps) {
+  const variantClasses = {
+    default: 'bg-primary text-primary-foreground',
+    secondary: 'bg-gray-100 text-gray-700 border-gray-200',
+    destructive: 'bg-red-100 text-red-700 border-red-200',
+    outline: 'border border-gray-300 text-gray-700 bg-transparent',
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${variantClasses[variant]} ${className}`}
+    >
+      {children}
     </span>
   );
 }

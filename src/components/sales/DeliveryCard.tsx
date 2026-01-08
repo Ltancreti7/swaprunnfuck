@@ -1,7 +1,7 @@
 import { MapPin, MessageCircle, Calendar, ChevronDown, ChevronUp, Car, ArrowLeftRight, Truck, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Delivery } from '../../../shared/schema';
-import { Badge } from '../ui/Badge';
+import { StatusBadge } from '../ui/Badge';
 import { StatusTimeline } from '../ui/StatusTimeline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnreadMessages } from '../../hooks/useUnreadMessages';
@@ -37,7 +37,7 @@ export function DeliveryCard({ delivery, driverName, onChatClick, onCancelClick 
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <h3 className="text-base font-bold text-gray-900">VIN: {delivery.vin}</h3>
-              <Badge status={delivery.status as "pending" | "accepted" | "assigned" | "in_progress" | "completed" | "cancelled" | "pending_driver_acceptance"} />
+              <StatusBadge status={delivery.status as "pending" | "accepted" | "assigned" | "in_progress" | "completed" | "cancelled" | "pending_driver_acceptance"} />
               {delivery.serviceType && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
                   {delivery.serviceType === 'delivery' ? (

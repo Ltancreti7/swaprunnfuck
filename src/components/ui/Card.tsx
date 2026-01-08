@@ -23,3 +23,48 @@ export function Card({ children, className = '', onClick, hover = false, style }
     </div>
   );
 }
+
+interface CardSubProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function CardHeader({ children, className = '' }: CardSubProps) {
+  return (
+    <div className={`flex flex-col space-y-1.5 pb-3 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function CardTitle({ children, className = '' }: CardSubProps) {
+  return (
+    <h3 className={`font-semibold leading-none tracking-tight ${className}`}>
+      {children}
+    </h3>
+  );
+}
+
+export function CardContent({ children, className = '' }: CardSubProps) {
+  return (
+    <div className={`${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function CardDescription({ children, className = '' }: CardSubProps) {
+  return (
+    <p className={`text-sm text-gray-500 ${className}`}>
+      {children}
+    </p>
+  );
+}
+
+export function CardFooter({ children, className = '' }: CardSubProps) {
+  return (
+    <div className={`flex items-center pt-3 ${className}`}>
+      {children}
+    </div>
+  );
+}

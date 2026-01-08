@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, MessageCircle, AlertCircle, RefreshCw, Calendar, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Badge } from '../components/ui/Badge';
+import { StatusBadge } from '../components/ui/Badge';
 import { formatMessageDate, formatTime } from '../lib/dateUtils';
 import { retryWithBackoff, isNetworkError } from '../lib/retry';
 import { ScheduleConfirmationModal } from '../components/sales/ScheduleConfirmationModal';
@@ -274,7 +274,7 @@ export function Chat() {
                   </p>
                 )}
               </div>
-              <Badge status={delivery.status} />
+              <StatusBadge status={delivery.status} />
             </div>
             {delivery.scheduledDate && delivery.scheduledTime && (
               <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 mb-3">

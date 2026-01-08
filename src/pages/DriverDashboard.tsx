@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../lib/api';
 import type { Driver, Delivery, Dealer, DriverApplication, ApprovedDriverDealer } from '../../shared/schema';
-import { Badge } from '../components/ui/Badge';
+import { StatusBadge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DashboardSkeleton } from '../components/ui/LoadingSkeleton';
@@ -686,7 +686,7 @@ export function DriverDashboard() {
                                 <span className="ml-2">{delivery.dropoff}</span>
                               </div>
                             </div>
-                            <Badge status={delivery.status} size="md" />
+                            <StatusBadge status={delivery.status} size="md" />
                           </div>
                           {delivery.scheduled_date && delivery.scheduled_time && (
                             <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
@@ -784,7 +784,7 @@ export function DriverDashboard() {
                           </p>
                         )}
                       </div>
-                      <Badge status="completed" size="md" />
+                      <StatusBadge status="completed" size="md" />
                     </div>
                     {delivery.notes && (
                       <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">

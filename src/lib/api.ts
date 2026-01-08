@@ -128,6 +128,7 @@ export const api = {
   drivers: {
     list: () => apiRequest<any[]>('/drivers'),
     get: (id: string) => apiRequest<any>(`/drivers/${id}`),
+    current: () => apiRequest<any>('/drivers/current'),
     approvedByDealer: (dealerId: string) => apiRequest<any[]>(`/drivers/approved/${dealerId}`),
     create: (data: any) =>
       apiRequestWithSnakeBody<any>('/drivers', { method: 'POST', body: JSON.stringify(data) }),
@@ -139,12 +140,20 @@ export const api = {
   deliveries: {
     list: () => apiRequest<any[]>('/deliveries'),
     get: (id: string) => apiRequest<any>(`/deliveries/${id}`),
+    getWithRelations: (id: string) => apiRequest<any>(`/deliveries/${id}/full`),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/deliveries/dealer/${dealerId}`),
     bySales: (salesId: string) => apiRequest<any[]>(`/deliveries/sales/${salesId}`),
+    byDriver: (driverId: string, status?: string) => 
+      apiRequest<any[]>(`/deliveries/driver/${driverId}${status ? `?status=${status}` : ''}`),
+    requestsForDriver: (driverId: string) => apiRequest<any[]>(`/deliveries/driver/${driverId}/requests`),
     create: (data: any) =>
       apiRequestWithSnakeBody<any>('/deliveries', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
       apiRequestWithSnakeBody<any>(`/deliveries/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    accept: (id: string, driverId: string) =>
+      apiRequestWithSnakeBody<any>(`/deliveries/${id}/accept`, { method: 'POST', body: JSON.stringify({ driverId }) }),
+    decline: (id: string, driverId: string) =>
+      apiRequestWithSnakeBody<any>(`/deliveries/${id}/decline`, { method: 'POST', body: JSON.stringify({ driverId }) }),
   },
   messages: {
     list: (deliveryId: string) => apiRequest<any[]>(`/messages/${deliveryId}`),
@@ -170,6 +179,7 @@ export const api = {
   },
   approvedDriverDealers: {
     list: () => apiRequest<any[]>('/approved-driver-dealers'),
+    byDriver: (driverId: string) => apiRequest<any[]>(`/approved-driver-dealers/driver/${driverId}`),
     create: (data: any) =>
       apiRequestWithSnakeBody<any>('/approved-driver-dealers', { method: 'POST', body: JSON.stringify(data) }),
     delete: (driverId: string, dealerId: string) =>

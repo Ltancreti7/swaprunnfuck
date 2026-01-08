@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, UserCircle, FileCheck, Search, Settings, Clock, CheckCircle2, Inbox, Building2, Calendar as CalendarIcon, List, LayoutGrid, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { supabase, Driver, Delivery, Dealer, DriverApplication, ApprovedDriverDealer } from '../lib/supabase';
+import api from '../lib/api';
+import type { Driver, Delivery, Dealer, DriverApplication, ApprovedDriverDealer } from '../../shared/schema';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -52,12 +53,11 @@ export function DriverDashboard() {
   const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
   const [dealershipColors] = useState<Map<string, string>>(new Map());
   const [hasRequestedNotificationPermission, setHasRequestedNotificationPermission] = useState(false);
-  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connected');
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [upcomingViewMode, setUpcomingViewMode] = useState<'list' | 'calendar'>('list');
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const getDealershipColor = (dealershipId: string) => {
     if (!dealershipColors.has(dealershipId)) {
@@ -83,246 +83,71 @@ export function DriverDashboard() {
 
   useEffect(() => {
     if (!user || !driver) {
-      console.log('[Realtime] Skipping setup - missing user or driver');
+      console.log('[Polling] Skipping setup - missing user or driver');
       return;
     }
 
-    console.log('[Realtime] Setting up subscription for driver:', driver.id);
-    console.log('[Realtime] User ID:', user.id);
-    setRealtimeStatus('connecting');
+    console.log('[Polling] Setting up polling for driver:', driver.id);
+    setRealtimeStatus('connected');
 
-    const channelName = `deliveries-driver-${driver.id}-${Date.now()}`;
-    console.log('[Realtime] Channel name:', channelName);
+    const POLLING_INTERVAL = 15000;
+    let isVisible = true;
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'deliveries' },
-        async (payload) => {
-          console.log('[Realtime] ========== DELIVERY CHANGE EVENT ==========');
-          console.log('[Realtime] Event type:', payload.eventType);
-          console.log('[Realtime] Payload:', payload);
-
-          try {
-            if (payload.eventType === 'INSERT' && payload.new) {
-              const newDelivery = payload.new as Delivery;
-              console.log('[Realtime] New delivery INSERT detected');
-              console.log('[Realtime] Delivery ID:', newDelivery.id);
-              console.log('[Realtime] Delivery dealer_id:', newDelivery.dealer_id);
-              console.log('[Realtime] Delivery driver_id:', newDelivery.driver_id);
-              console.log('[Realtime] Delivery status:', newDelivery.status);
-
-              console.log('[Realtime] Fetching approved dealerships for driver:', driver.id);
-              const { data: dealershipIds, error: dealershipError } = await supabase
-                .from('approved_driver_dealers')
-                .select('dealer_id')
-                .eq('driver_id', driver.id);
-
-              if (dealershipError) {
-                console.error('[Realtime] Error fetching approved dealerships:', dealershipError);
-                return;
-              }
-
-              console.log('[Realtime] Approved dealerships:', dealershipIds);
-              const isFromApprovedDealer = dealershipIds?.some(d => d.dealer_id === newDelivery.dealer_id);
-              console.log('[Realtime] Is from approved dealer?', isFromApprovedDealer);
-              console.log('[Realtime] Has driver_id?', !!newDelivery.driver_id);
-              console.log('[Realtime] Status is pending?', newDelivery.status === 'pending');
-
-            if (
-  isFromApprovedDealer &&
-  newDelivery.status === "pending"
-) {
-  console.log("[Realtime] ✔ Delivery qualifies — fetching full details...");
-
-  const { data: deliveryWithDetails, error: deliveryError } = await supabase
-    .from("deliveries")
-    .select(`
-      *,
-      dealer:dealers(*),
-      sales:sales!sales_id(name)
-    `)
-    .eq("id", newDelivery.id)
-    .single();
-
-  if (deliveryError) {
-    console.error("[Realtime] Error fetching delivery details:", deliveryError);
-    return;
-  }
-
-  if (!deliveryWithDetails) {
-    console.warn("[Realtime] deliveryWithDetails is null or undefined");
-    return;
-  }
-
-  // Add to requests immediately
-  setRequestDeliveries((prev) => {
-    if (prev.some((d) => d.id === deliveryWithDetails.id)) {
-      console.log("[Realtime] Already in list — skipping");
-      return prev;
-    }
-    return [deliveryWithDetails as DeliveryWithDealer, ...prev];
-  });
-
-  // Build notification message
-  const salesName = deliveryWithDetails.sales?.name || "Salesperson";
-  const dealerName = deliveryWithDetails.dealer?.name || "Dealership";
-  const pickup = deliveryWithDetails.pickup || "Pickup location";
-  const dropoff = deliveryWithDetails.dropoff || "Dropoff location";
-
-  let msg = "";
-
-  if (
-    deliveryWithDetails.scheduled_date &&
-    deliveryWithDetails.scheduled_time
-  ) {
-    const formattedDate = new Date(
-      deliveryWithDetails.scheduled_date
-    ).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-
-    msg = `New request from ${salesName} (${dealerName}). Pickup: ${pickup} on ${formattedDate} at ${deliveryWithDetails.scheduled_time}.`;
-  } else {
-    msg = `New request from ${salesName} (${dealerName}). Pickup: ${pickup} → Dropoff: ${dropoff}.`;
-  }
-
-  // Push notification (browser)
-  NotificationService.notifyNewDelivery(msg);
-
-  // Toast message
-  showToast(msg, "success");
-
-  console.log("[Realtime] ✔ New delivery added successfully");
-} else {
-  console.log("[Realtime] ❌ Delivery does not qualify — skipping");
-}
-            } else if (payload.eventType === 'UPDATE') {
-              console.log('[Realtime] UPDATE event detected - delivery updated:', payload.new);
-              if (payload.new) {
-                const updatedDelivery = payload.new as Delivery;
-                console.log('[Realtime] Updated delivery details:', {
-                  id: updatedDelivery.id,
-                  status: updatedDelivery.status,
-                  scheduled_date: updatedDelivery.scheduled_date,
-                  scheduled_time: updatedDelivery.scheduled_time
-                });
-              }
-              console.log('[Realtime] Refreshing all delivery lists...');
-              await loadRequestDeliveries(driver.id);
-              await loadUpcomingDeliveries(driver.id);
-              await loadRecentDeliveries(driver.id);
-              console.log('[Realtime] All lists refreshed');
-            } else if (payload.eventType === 'DELETE') {
-              console.log('[Realtime] DELETE event detected - refreshing all lists');
-              await loadRequestDeliveries(driver.id);
-              await loadUpcomingDeliveries(driver.id);
-              await loadRecentDeliveries(driver.id);
-            }
-
-            setLastUpdateTime(new Date());
-            console.log('[Realtime] ========== EVENT PROCESSING COMPLETE ==========');
-          } catch (error) {
-            console.error('[Realtime] ❌ Error processing delivery change:', error);
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('[Realtime] ========== SUBSCRIPTION STATUS ==========');
-        console.log('[Realtime] Status:', status);
-
-        if (status === 'SUBSCRIBED') {
-          setRealtimeStatus('connected');
-          console.log('[Realtime] ✅ Successfully subscribed to delivery updates');
-          stopPolling();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setRealtimeStatus('disconnected');
-          console.error('[Realtime] ❌ Connection error, starting fallback polling');
-          if (realtimeStatus !== 'connected') {
-            startPolling();
-          }
-        } else if (status === 'CLOSED') {
-          setRealtimeStatus('disconnected');
-          console.log('[Realtime] Connection closed');
-        }
-      });
-
-    channelRef.current = channel;
-
-    return () => {
-      console.log('[Realtime] ========== CLEANUP ==========');
-      console.log('[Realtime] Cleaning up subscription');
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      stopPolling();
-    };
-  }, [user, driver?.id]);
-
-  const startPolling = () => {
-    if (pollingIntervalRef.current || !driver) return;
-
-    console.log('[Polling] Starting fallback polling every 30 seconds');
-    pollingIntervalRef.current = setInterval(async () => {
+    const pollDeliveries = async () => {
+      if (!isVisible) return;
+      
       console.log('[Polling] Fetching deliveries...');
       try {
-        await loadRequestDeliveries(driver.id);
-        await loadUpcomingDeliveries(driver.id);
-        await loadRecentDeliveries(driver.id);
+        await Promise.all([
+          loadRequestDeliveries(driver.id),
+          loadUpcomingDeliveries(driver.id),
+          loadRecentDeliveries(driver.id),
+        ]);
         setLastUpdateTime(new Date());
       } catch (error) {
         console.error('[Polling] Error fetching deliveries:', error);
       }
-    }, 30000);
-  };
+    };
 
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      console.log('[Polling] Stopping fallback polling');
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  };
+    const handleVisibilityChange = () => {
+      isVisible = document.visibilityState === 'visible';
+      if (isVisible) {
+        pollDeliveries();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    pollingIntervalRef.current = setInterval(pollDeliveries, POLLING_INTERVAL);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [user, driver?.id]);
 
   const loadDriverData = async () => {
     if (!user) return;
 
     setLoading(true);
-    const { data: driverData, error: driverError } = await supabase
-      .from('drivers')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (driverError) {
-      console.error('Error loading driver data:', driverError);
-      console.error('Driver error details:', {
-        code: driverError.code,
-        message: driverError.message,
-        details: driverError.details,
-        hint: driverError.hint,
-        userId: user.id,
-      });
-    }
-
-    if (!driverData) {
-      console.warn('No driver data found for user:', user.id);
-      console.log('User object:', user);
-    }
-
-    if (driverData) {
-      setDriver(driverData);
-      await Promise.all([
-        loadRequestDeliveries(driverData.id),
-        loadUpcomingDeliveries(driverData.id),
-        loadRecentDeliveries(driverData.id),
-        loadApplications(driverData.id),
-        loadApprovedDealerships(driverData.id),
-      ]);
+    try {
+      const driverData = await api.drivers.current();
+      if (driverData) {
+        setDriver(driverData as Driver);
+        await Promise.all([
+          loadRequestDeliveries(driverData.id),
+          loadUpcomingDeliveries(driverData.id),
+          loadRecentDeliveries(driverData.id),
+          loadApplications(driverData.id),
+          loadApprovedDealerships(driverData.id),
+        ]);
+      } else {
+        console.warn('No driver data found for user:', user.id);
+      }
+    } catch (error) {
+      console.error('Error loading driver data:', error);
     }
     setLoading(false);
   };
@@ -332,64 +157,11 @@ export function DriverDashboard() {
       console.log('[LoadRequests] Loading request deliveries for driver:', driverId);
       setLoadingRequests(true);
 
-      const { data: dealershipIds, error: dealershipError } = await supabase
-        .from('approved_driver_dealers')
-        .select('dealer_id')
-        .eq('driver_id', driverId);
-
-      if (dealershipError) {
-        console.error('[LoadRequests] Error fetching approved dealerships:', dealershipError);
-        console.error('[LoadRequests] Error details:', {
-          code: dealershipError.code,
-          message: dealershipError.message,
-          details: dealershipError.details,
-          hint: dealershipError.hint
-        });
-        throw dealershipError;
-      }
-
-      if (!dealershipIds || dealershipIds.length === 0) {
-        console.log('[LoadRequests] No approved dealerships found');
-        setRequestDeliveries([]);
-        setLoadingRequests(false);
-        return;
-      }
-
-      const dealerIds = dealershipIds.map(d => d.dealer_id);
-      console.log('[LoadRequests] Fetching deliveries from dealerships:', dealerIds);
-
-      // Fetch two types of requests:
-      // 1. General pending deliveries (no driver assigned, available to all)
-      // 2. Deliveries specifically requested for this driver (pending_driver_acceptance)
-      const { data, error: deliveriesError } = await supabase
-        .from('deliveries')
-        .select(`
-          *,
-          dealer:dealers(*),
-          sales:sales!sales_id(name)
-        `)
-        .in('dealer_id', dealerIds)
-        .or(`and(driver_id.is.null,status.eq.pending),and(driver_id.eq.${driverId},status.eq.pending_driver_acceptance)`)
-        .order('created_at', { ascending: false });
-
-      if (deliveriesError) {
-        console.error('[LoadRequests] Error fetching deliveries:', deliveriesError);
-        console.error('[LoadRequests] Error details:', {
-          code: deliveriesError.code,
-          message: deliveriesError.message,
-          details: deliveriesError.details,
-          hint: deliveriesError.hint
-        });
-        throw deliveriesError;
-      }
-
+      const data = await api.deliveries.requestsForDriver(driverId);
       console.log('[LoadRequests] Found', data?.length || 0, 'request deliveries');
-      if (data) {
-        setRequestDeliveries(data as DeliveryWithDealer[]);
-      }
+      setRequestDeliveries(data as DeliveryWithDealer[]);
     } catch (error) {
       console.error('[LoadRequests] Failed to load request deliveries:', error);
-      console.error('[LoadRequests] Stack trace:', error instanceof Error ? error.stack : 'N/A');
       showToast('Failed to load delivery requests', 'error');
       setRequestDeliveries([]);
     } finally {
@@ -398,104 +170,39 @@ export function DriverDashboard() {
   };
 
   const loadUpcomingDeliveries = async (driverId: string) => {
-    const { data } = await supabase
-      .from('deliveries')
-      .select(`
-        *,
-        dealer:dealers(*),
-        sales:sales(name)
-      `)
-      .eq('driver_id', driverId)
-      .in('status', ['accepted', 'assigned', 'in_progress'])
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      console.log('[LoadUpcoming] Loaded upcoming deliveries:', data.length);
-      const scheduled = data.filter(d => d.scheduled_date && d.scheduled_time);
-      console.log('[LoadUpcoming] Deliveries with schedule:', scheduled.length, scheduled.map(d => ({
-        id: d.id,
-        vin: d.vin,
-        scheduled_date: d.scheduled_date,
-        scheduled_time: d.scheduled_time
-      })));
+    try {
+      const data = await api.deliveries.byDriver(driverId, 'accepted,assigned,in_progress');
+      console.log('[LoadUpcoming] Loaded upcoming deliveries:', data?.length || 0);
       setUpcomingDeliveries(data as DeliveryWithDealer[]);
+    } catch (error) {
+      console.error('[LoadUpcoming] Failed to load upcoming deliveries:', error);
     }
   };
 
   const loadRecentDeliveries = async (driverId: string) => {
-    const { data } = await supabase
-      .from('deliveries')
-      .select(`
-        *,
-        dealer:dealers(*),
-        sales:sales(name)
-      `)
-      .eq('driver_id', driverId)
-      .eq('status', 'completed')
-      .order('completed_at', { ascending: false })
-      .limit(50);
-
-    if (data) setRecentDeliveries(data as DeliveryWithDealer[]);
+    try {
+      const data = await api.deliveries.byDriver(driverId, 'completed');
+      setRecentDeliveries(data as DeliveryWithDealer[]);
+    } catch (error) {
+      console.error('[LoadRecent] Failed to load recent deliveries:', error);
+    }
   };
 
-
   const loadApplications = async (driverId: string) => {
-    const { data } = await supabase
-      .from('driver_applications')
-      .select(`
-        *,
-        dealer:dealers(*)
-      `)
-      .eq('driver_id', driverId)
-      .order('applied_at', { ascending: false });
-
-    if (data) setApplications(data as ApplicationWithDealer[]);
+    try {
+      const data = await api.driverApplications.list();
+      setApplications(data as ApplicationWithDealer[]);
+    } catch (error) {
+      console.error('[LoadApplications] Failed to load applications:', error);
+    }
   };
 
   const loadApprovedDealerships = async (driverId: string) => {
-    const { data } = await supabase
-      .from('approved_driver_dealers')
-      .select(`
-        *,
-        dealer:dealers(*)
-      `)
-      .eq('driver_id', driverId)
-      .order('approved_at', { ascending: false });
-
-    if (data) {
-      const dealershipsWithStats = await Promise.all(
-        data.map(async (relationship) => {
-          const [pendingResult, upcomingResult, completedResult] = await Promise.all([
-            supabase
-              .from('deliveries')
-              .select('id', { count: 'exact', head: true })
-              .eq('dealer_id', relationship.dealer_id)
-              .is('driver_id', null)
-              .eq('status', 'pending'),
-            supabase
-              .from('deliveries')
-              .select('id', { count: 'exact', head: true })
-              .eq('dealer_id', relationship.dealer_id)
-              .eq('driver_id', driverId)
-              .in('status', ['accepted', 'assigned', 'in_progress']),
-            supabase
-              .from('deliveries')
-              .select('id', { count: 'exact', head: true })
-              .eq('dealer_id', relationship.dealer_id)
-              .eq('driver_id', driverId)
-              .eq('status', 'completed'),
-          ]);
-
-          return {
-            ...relationship,
-            pendingCount: pendingResult.count || 0,
-            upcomingCount: upcomingResult.count || 0,
-            completedCount: completedResult.count || 0,
-          } as DealershipWithStats;
-        })
-      );
-
-      setApprovedDealerships(dealershipsWithStats);
+    try {
+      const data = await api.approvedDriverDealers.byDriver(driverId);
+      setApprovedDealerships(data as DealershipWithStats[]);
+    } catch (error) {
+      console.error('[LoadApprovedDealerships] Failed to load dealerships:', error);
     }
   };
 
@@ -521,93 +228,15 @@ export function DriverDashboard() {
 
   const handleDeclineDelivery = async (deliveryId: string) => {
     if (!driver) {
-      console.error('[DeclineDelivery] No driver found');
       showToast('Driver profile not found', 'error');
       return;
     }
 
-    console.log('[DeclineDelivery] Starting decline process for delivery:', deliveryId);
-    console.log('[DeclineDelivery] Driver ID:', driver.id);
-
     try {
-      // Fetch delivery details first
-      console.log('[DeclineDelivery] Fetching delivery details...');
-      const { data: delivery, error: fetchError } = await supabase
-        .from('deliveries')
-        .select('*, dealer:dealers(user_id), sales:sales!sales_id(user_id, name)')
-        .eq('id', deliveryId)
-        .single();
-
-      if (fetchError) {
-        console.error('[DeclineDelivery] Error fetching delivery:', fetchError);
-        throw fetchError;
-      }
-
-      console.log('[DeclineDelivery] Delivery fetched:', delivery);
-
-      // Reset delivery to pending status (unassign driver)
-      console.log('[DeclineDelivery] Resetting delivery to pending status');
-      const { error } = await supabase
-        .from('deliveries')
-        .update({
-          driver_id: null,
-          status: 'pending',
-        })
-        .eq('id', deliveryId)
-        .eq('driver_id', driver.id);
-
-      if (error) {
-        console.error('[DeclineDelivery] Error updating delivery:', error);
-        throw error;
-      }
-
-      console.log('[DeclineDelivery] Delivery declined successfully');
-
-      // Send notifications
-      console.log('[DeclineDelivery] Sending notifications...');
-      const notifications = [];
-      if (delivery?.sales?.user_id) {
-        notifications.push({
-          user_id: delivery.sales.user_id,
-          delivery_id: deliveryId,
-          type: 'delivery_declined',
-          title: 'Delivery Request Declined',
-          message: `${driver.name} has declined the delivery request for VIN: ${delivery.vin}. Please assign another driver.`,
-          read: false,
-        });
-      }
-      if (delivery?.dealer?.user_id && delivery?.dealer?.user_id !== delivery?.sales?.user_id) {
-        notifications.push({
-          user_id: delivery.dealer.user_id,
-          delivery_id: deliveryId,
-          type: 'delivery_declined',
-          title: 'Delivery Request Declined',
-          message: `${driver.name} has declined a delivery request for VIN: ${delivery.vin}.`,
-          read: false,
-        });
-      }
-
-      if (notifications.length > 0) {
-        const { error: notifError } = await supabase.from('notifications').insert(notifications);
-        if (notifError) {
-          console.error('[DeclineDelivery] Error sending notifications:', notifError);
-        } else {
-          console.log('[DeclineDelivery] Notifications sent:', notifications.length);
-        }
-      }
-
-      // Update state immediately
-      console.log('[DeclineDelivery] Updating local state...');
-      setRequestDeliveries(prev => {
-        const filtered = prev.filter(d => d.id !== deliveryId);
-        console.log('[DeclineDelivery] Removed from requests, remaining:', filtered.length);
-        return filtered;
-      });
-
-      console.log('[DeclineDelivery] Decline process completed successfully');
+      await api.deliveries.decline(deliveryId, driver.id);
+      setRequestDeliveries(prev => prev.filter(d => d.id !== deliveryId));
       showToast('Delivery request declined', 'success');
     } catch (err: unknown) {
-      console.error('[DeclineDelivery] Fatal error:', err);
       const message = err instanceof Error ? err.message : 'Failed to decline delivery';
       showToast(message, 'error');
     }
@@ -615,182 +244,31 @@ export function DriverDashboard() {
 
   const handleAcceptDelivery = async (deliveryId: string) => {
     if (!driver) {
-      console.error('[AcceptDelivery] No driver found');
       showToast('Driver profile not found', 'error');
       return;
     }
 
-    console.log('[AcceptDelivery] Starting accept process for delivery:', deliveryId);
-    console.log('[AcceptDelivery] Driver ID:', driver.id);
-
     try {
-      // Fetch delivery details first
-      console.log('[AcceptDelivery] Fetching delivery details...');
-      const { data: delivery, error: fetchError } = await supabase
-        .from('deliveries')
-        .select('*, dealer:dealers(user_id), sales:sales!sales_id(user_id)')
-        .eq('id', deliveryId)
-        .single();
-
-      if (fetchError) {
-        console.error('[AcceptDelivery] Error fetching delivery:', fetchError);
-        throw fetchError;
-      }
-
-      console.log('[AcceptDelivery] Delivery fetched:', delivery);
-
-      // Check if this is a specifically requested delivery (pending_driver_acceptance with driver_id already set)
-      const isSpecificallyRequested = delivery.status === 'pending_driver_acceptance' && delivery.driver_id === driver.id;
-
-      if (delivery.driver_id && !isSpecificallyRequested) {
-        console.warn('[AcceptDelivery] Delivery already has different driver_id:', delivery.driver_id);
-        showToast('This delivery has already been accepted by another driver', 'error');
-        await loadRequestDeliveries(driver.id);
-        return;
-      }
-
-      // Attempt to update the delivery
-      console.log('[AcceptDelivery] Updating delivery with:', {
-        driver_id: driver.id,
-        status: 'accepted',
-        chat_activated_at: new Date().toISOString(),
-        accepted_at: new Date().toISOString(),
-        isSpecificallyRequested
-      });
-
-      // Different query depending on whether it's a specific request or general pending
-      let updateResult;
-      if (isSpecificallyRequested) {
-        // For specifically requested deliveries, just update the status
-        updateResult = await supabase
-          .from('deliveries')
-          .update({
-            status: 'accepted',
-            chat_activated_at: new Date().toISOString(),
-            accepted_at: new Date().toISOString()
-          })
-          .eq('id', deliveryId)
-          .eq('driver_id', driver.id)
-          .eq('status', 'pending_driver_acceptance')
-          .select('id');
-      } else {
-        // For general pending deliveries, claim it by setting driver_id
-        updateResult = await supabase
-          .from('deliveries')
-          .update({
-            driver_id: driver.id,
-            status: 'accepted',
-            chat_activated_at: new Date().toISOString(),
-            accepted_at: new Date().toISOString()
-          })
-          .eq('id', deliveryId)
-          .is('driver_id', null)
-          .eq('status', 'pending')
-          .select('id');
-      }
-
-      const { error, count, data: updateData } = updateResult;
-
-      console.log('[AcceptDelivery] Update result:', { error, count, updateData });
-
-      if (error) {
-        console.error('[AcceptDelivery] Error updating delivery:', error);
-        console.error('[AcceptDelivery] Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        throw error;
-      }
-
-      if (count === 0) {
-        console.warn('[AcceptDelivery] Update affected 0 rows - delivery was already accepted');
-        showToast('This delivery has already been accepted by another driver', 'error');
-        await loadRequestDeliveries(driver.id);
-        return;
-      }
-
-      console.log('[AcceptDelivery] Delivery updated successfully, count:', count);
-
-      // Send welcome message
-      console.log('[AcceptDelivery] Sending welcome message...');
-      const welcomeMessage = `Chat activated! Driver ${driver.name} has accepted this delivery. You can now coordinate the pickup schedule and any other details.`;
-      const { error: messageError } = await supabase.from('messages').insert({
-        delivery_id: deliveryId,
-        sender_id: user!.id,
-        recipient_id: delivery?.sales?.user_id || delivery?.dealer?.user_id,
-        content: welcomeMessage,
-      });
-
-      if (messageError) {
-        console.error('[AcceptDelivery] Error sending message:', messageError);
-      } else {
-        console.log('[AcceptDelivery] Welcome message sent');
-      }
-
-      // Send notifications
-      console.log('[AcceptDelivery] Sending notifications...');
-      const notifications = [];
-      if (delivery?.dealer?.user_id) {
-        notifications.push({
-          user_id: delivery.dealer.user_id,
-          delivery_id: deliveryId,
-          type: 'delivery_accepted',
-          title: 'Delivery Accepted',
-          message: `${driver.name} has accepted a delivery request.`,
-          read: false,
-        });
-      }
-      if (delivery?.sales?.user_id) {
-        notifications.push({
-          user_id: delivery.sales.user_id,
-          delivery_id: deliveryId,
-          type: 'delivery_accepted',
-          title: 'Delivery Accepted',
-          message: `${driver.name} has accepted your delivery request.`,
-          read: false,
-        });
-      }
-
-      if (notifications.length > 0) {
-        const { error: notifError } = await supabase.from('notifications').insert(notifications);
-        if (notifError) {
-          console.error('[AcceptDelivery] Error sending notifications:', notifError);
-        } else {
-          console.log('[AcceptDelivery] Notifications sent:', notifications.length);
-        }
-      }
-
-      // Update state immediately without refresh
-      console.log('[AcceptDelivery] Updating local state...');
-      setRequestDeliveries(prev => {
-        const filtered = prev.filter(d => d.id !== deliveryId);
-        console.log('[AcceptDelivery] Removed from requests, remaining:', filtered.length);
-        return filtered;
-      });
-
-      // Add to upcoming deliveries
+      await api.deliveries.accept(deliveryId, driver.id);
+      
       const acceptedDelivery = requestDeliveries.find(d => d.id === deliveryId);
+      setRequestDeliveries(prev => prev.filter(d => d.id !== deliveryId));
+      
       if (acceptedDelivery) {
-        console.log('[AcceptDelivery] Adding to upcoming deliveries');
         setUpcomingDeliveries(prev => [{
           ...acceptedDelivery,
-          driver_id: driver.id,
+          driverId: driver.id,
           status: 'accepted',
-          chat_activated_at: new Date().toISOString(),
-          accepted_at: new Date().toISOString()
+          chatActivatedAt: new Date().toISOString(),
+          acceptedAt: new Date().toISOString()
         }, ...prev]);
-      } else {
-        console.warn('[AcceptDelivery] Could not find accepted delivery in request list');
       }
-
-      console.log('[AcceptDelivery] Accept process completed successfully');
+      
       showToast('Delivery accepted successfully!', 'success');
     } catch (err: unknown) {
-      console.error('[AcceptDelivery] Fatal error:', err);
       const message = err instanceof Error ? err.message : 'Failed to accept delivery';
       showToast(message, 'error');
+      await loadRequestDeliveries(driver.id);
     }
   };
 
@@ -798,75 +276,24 @@ export function DriverDashboard() {
     if (!driver) return;
 
     try {
-      const { data: delivery, error: fetchError } = await supabase
-        .from('deliveries')
-        .select('*, dealer:dealers(user_id), sales:sales!sales_id(user_id)')
-        .eq('id', deliveryId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const updateData: { status: string; completed_at?: string } = { status: newStatus };
+      const updateData: { status: string; completedAt?: string } = { status: newStatus };
       if (newStatus === 'completed') {
-        updateData.completed_at = new Date().toISOString();
+        updateData.completedAt = new Date().toISOString();
       }
 
-      const { error } = await supabase
-        .from('deliveries')
-        .update(updateData)
-        .eq('id', deliveryId);
+      await api.deliveries.update(deliveryId, updateData);
 
-      if (error) throw error;
-
-      const statusMessages: Record<string, string> = {
-        'in_progress': 'started the delivery',
-        'completed': 'completed the delivery',
-        'cancelled': 'cancelled the delivery',
-      };
-
-      const statusMessage = statusMessages[newStatus] || `updated status to ${newStatus}`;
-
-      const notifications = [];
-      if (delivery?.dealer?.user_id) {
-        notifications.push({
-          user_id: delivery.dealer.user_id,
-          delivery_id: deliveryId,
-          type: 'status_update',
-          title: 'Delivery Status Update',
-          message: `${driver.name} ${statusMessage}.`,
-          read: false,
-        });
-      }
-      if (delivery?.sales?.user_id) {
-        notifications.push({
-          user_id: delivery.sales.user_id,
-          delivery_id: deliveryId,
-          type: 'status_update',
-          title: 'Delivery Status Update',
-          message: `${driver.name} ${statusMessage}.`,
-          read: false,
-        });
-      }
-
-      if (notifications.length > 0) {
-        await supabase.from('notifications').insert(notifications);
-      }
-
-      // Update local state immediately
       if (newStatus === 'completed') {
-        // Remove from upcoming deliveries immediately
         setUpcomingDeliveries(prev => prev.filter(d => d.id !== deliveryId));
-        // Add to recent deliveries at the top
         const completedDelivery = upcomingDeliveries.find(d => d.id === deliveryId);
         if (completedDelivery) {
           setRecentDeliveries(prev => [{
             ...completedDelivery,
             status: 'completed',
-            completed_at: new Date().toISOString()
+            completedAt: new Date().toISOString()
           }, ...prev]);
         }
       } else {
-        // For other status updates, just reload
         loadUpcomingDeliveries(driver.id);
       }
 
@@ -881,16 +308,10 @@ export function DriverDashboard() {
     if (!driver) return;
 
     try {
-      const { error } = await supabase
-        .from('drivers')
-        .update({ is_available: !driver.is_available })
-        .eq('id', driver.id);
-
-      if (error) throw error;
-
-      setDriver({ ...driver, is_available: !driver.is_available });
+      await api.drivers.update(driver.id, { isAvailable: !driver.isAvailable });
+      setDriver({ ...driver, isAvailable: !driver.isAvailable } as Driver);
       showToast(
-        `You are now ${!driver.is_available ? 'available' : 'unavailable'}`,
+        `You are now ${!driver.isAvailable ? 'available' : 'unavailable'}`,
         'success'
       );
     } catch (err: unknown) {
@@ -903,13 +324,7 @@ export function DriverDashboard() {
     if (!driver) return;
 
     try {
-      const { error } = await supabase
-        .from('drivers')
-        .update(updatedDriver)
-        .eq('id', driver.id);
-
-      if (error) throw error;
-
+      await api.drivers.update(driver.id, updatedDriver);
       setDriver({ ...driver, ...updatedDriver });
       showToast('Profile updated successfully!', 'success');
     } catch (err: unknown) {
@@ -968,7 +383,7 @@ export function DriverDashboard() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 truncate">Welcome, {driver?.name}</h1>
               <p className="text-xs sm:text-sm text-gray-600 truncate">
-                {driver?.vehicle_type} | {driver?.radius} mi radius
+                {driver?.vehicleType} | {driver?.radius} mi radius
               </p>
             </div>
             <div className="flex gap-2 sm:gap-3 items-center">
@@ -990,12 +405,12 @@ export function DriverDashboard() {
               <button
                 onClick={toggleAvailability}
                 className={`touch-target px-4 sm:px-6 py-2 rounded-lg font-semibold transition text-sm sm:text-base ${
-                  driver?.is_available
+                  driver?.isAvailable
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-gray-600 text-white hover:bg-gray-700'
                 }`}
               >
-                {driver?.is_available ? 'Available' : 'Unavailable'}
+                {driver?.isAvailable ? 'Available' : 'Unavailable'}
               </button>
             </div>
           </div>

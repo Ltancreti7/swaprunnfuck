@@ -49,14 +49,15 @@ Preferred communication style: Simple, everyday language.
 - PostgreSQL database with all 15+ tables via Drizzle ORM
 - All 3 registration flows: RegisterDealer, SignUpSales, SignUpDriver use API routes
 - DealerDashboard fully migrated: data loading functions and action handlers use API calls
-- API client (src/lib/api.ts) extended with all necessary methods
-- Backend routes (server/routes.ts) include all required endpoints
+- SalesDashboard fully migrated: all data loading and action handlers use API calls
+- DriverDashboard fully migrated: polling-based updates (15s interval), all data loading and action handlers use API calls, types imported from shared/schema.ts
+- API client (src/lib/api.ts) extended with all necessary methods including driver-specific endpoints
+- Backend routes (server/routes.ts) include all required endpoints for all three dashboards
 - Types exported from shared/schema.ts (Dealer, Driver, Sales, etc.)
 
 **Remaining:**
-- SalesDashboard migration
-- DriverDashboard migration  
-- Chat functionality migration (polling-based alternative)
+- Chat functionality migration (AllConversations, Chat components need polling-based alternative)
+- Hooks migration (useUnreadMessagesCount, useDriverRating, etc.)
 - Other components still using Supabase imports need updates
 
 ### Project Structure

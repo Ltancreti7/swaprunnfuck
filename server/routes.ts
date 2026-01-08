@@ -324,6 +324,25 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/drivers/current", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver) {
+        return res.status(404).json({ error: "Driver profile not found" });
+      }
+      
+      res.json(driver);
+    } catch (error) {
+      console.error("Get current driver error:", error);
+      res.status(500).json({ error: "Failed to get driver profile" });
+    }
+  });
+
   app.get("/api/drivers/:id", async (req, res) => {
     try {
       const driver = await storage.getDriver(req.params.id);
@@ -439,6 +458,186 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Update delivery error:", error);
       res.status(500).json({ error: "Failed to update delivery" });
+    }
+  });
+
+  app.get("/api/deliveries/driver/:driverId", async (req, res) => {
+    try {
+      const { status } = req.query;
+      let deliveries = await storage.getDeliveriesByDriverId(req.params.driverId);
+      if (status && typeof status === "string") {
+        const statuses = status.split(",");
+        deliveries = deliveries.filter(d => statuses.includes(d.status));
+      }
+      const enrichedDeliveries = await Promise.all(
+        deliveries.map(async (d) => {
+          const dealer = await storage.getDealer(d.dealerId);
+          const sales = d.salesId ? await storage.getSales(d.salesId) : null;
+          return { ...d, dealer, sales: sales ? { name: sales.name } : null };
+        })
+      );
+      res.json(enrichedDeliveries);
+    } catch (error) {
+      console.error("Get deliveries by driver error:", error);
+      res.status(500).json({ error: "Failed to get deliveries" });
+    }
+  });
+
+  app.get("/api/deliveries/driver/:driverId/requests", async (req, res) => {
+    try {
+      const driverId = req.params.driverId;
+      const approvedDealers = await storage.getApprovedDriverDealers(driverId);
+      const dealerIds = approvedDealers.map(a => a.dealerId);
+      
+      if (dealerIds.length === 0) {
+        return res.json([]);
+      }
+      
+      const allDeliveries = await Promise.all(
+        dealerIds.map(dealerId => storage.getDeliveriesByDealerId(dealerId))
+      );
+      
+      const requests = allDeliveries.flat().filter(d => 
+        (d.status === "pending" && !d.driverId) ||
+        (d.status === "pending_driver_acceptance" && d.driverId === driverId)
+      );
+      
+      const enrichedRequests = await Promise.all(
+        requests.map(async (d) => {
+          const dealer = await storage.getDealer(d.dealerId);
+          const sales = d.salesId ? await storage.getSales(d.salesId) : null;
+          return { ...d, dealer, sales: sales ? { name: sales.name } : null };
+        })
+      );
+      
+      res.json(enrichedRequests);
+    } catch (error) {
+      console.error("Get delivery requests for driver error:", error);
+      res.status(500).json({ error: "Failed to get delivery requests" });
+    }
+  });
+
+  app.get("/api/deliveries/:id/full", async (req, res) => {
+    try {
+      const delivery = await storage.getDelivery(req.params.id);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      const dealer = await storage.getDealer(delivery.dealerId);
+      const sales = delivery.salesId ? await storage.getSales(delivery.salesId) : null;
+      res.json({ ...delivery, dealer, sales: sales ? { name: sales.name, userId: sales.userId } : null });
+    } catch (error) {
+      console.error("Get delivery with relations error:", error);
+      res.status(500).json({ error: "Failed to get delivery" });
+    }
+  });
+
+  app.post("/api/deliveries/:id/accept", async (req, res) => {
+    try {
+      const { driverId } = req.body;
+      const delivery = await storage.getDelivery(req.params.id);
+      
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      
+      const isSpecificRequest = delivery.status === "pending_driver_acceptance" && delivery.driverId === driverId;
+      
+      if (delivery.driverId && !isSpecificRequest) {
+        return res.status(400).json({ error: "Delivery already accepted by another driver" });
+      }
+      
+      const updatedDelivery = await storage.updateDelivery(req.params.id, {
+        driverId,
+        status: "accepted",
+        chatActivatedAt: new Date().toISOString(),
+        acceptedAt: new Date().toISOString(),
+      });
+      
+      const userId = (req.session as any)?.userId;
+      const driver = await storage.getDriver(driverId);
+      const dealer = await storage.getDealer(delivery.dealerId);
+      const sales = delivery.salesId ? await storage.getSales(delivery.salesId) : null;
+      
+      const welcomeMessage = `Chat activated! Driver ${driver?.name || "Unknown"} has accepted this delivery. You can now coordinate the pickup schedule and any other details.`;
+      await storage.createMessage({
+        deliveryId: req.params.id,
+        senderId: userId,
+        recipientId: sales?.userId || dealer?.userId,
+        content: welcomeMessage,
+      });
+      
+      if (dealer?.userId) {
+        await storage.createNotification({
+          userId: dealer.userId,
+          deliveryId: req.params.id,
+          type: "delivery_accepted",
+          title: "Delivery Accepted",
+          message: `${driver?.name || "A driver"} has accepted a delivery request.`,
+          read: false,
+        });
+      }
+      if (sales?.userId) {
+        await storage.createNotification({
+          userId: sales.userId,
+          deliveryId: req.params.id,
+          type: "delivery_accepted",
+          title: "Delivery Accepted",
+          message: `${driver?.name || "A driver"} has accepted your delivery request.`,
+          read: false,
+        });
+      }
+      
+      res.json(updatedDelivery);
+    } catch (error) {
+      console.error("Accept delivery error:", error);
+      res.status(500).json({ error: "Failed to accept delivery" });
+    }
+  });
+
+  app.post("/api/deliveries/:id/decline", async (req, res) => {
+    try {
+      const { driverId } = req.body;
+      const delivery = await storage.getDelivery(req.params.id);
+      
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      
+      const updatedDelivery = await storage.updateDelivery(req.params.id, {
+        driverId: null,
+        status: "pending",
+      });
+      
+      const driver = await storage.getDriver(driverId);
+      const dealer = await storage.getDealer(delivery.dealerId);
+      const sales = delivery.salesId ? await storage.getSales(delivery.salesId) : null;
+      
+      if (sales?.userId) {
+        await storage.createNotification({
+          userId: sales.userId,
+          deliveryId: req.params.id,
+          type: "delivery_declined",
+          title: "Delivery Request Declined",
+          message: `${driver?.name || "A driver"} has declined the delivery request for VIN: ${delivery.vin}. Please assign another driver.`,
+          read: false,
+        });
+      }
+      if (dealer?.userId && dealer.userId !== sales?.userId) {
+        await storage.createNotification({
+          userId: dealer.userId,
+          deliveryId: req.params.id,
+          type: "delivery_declined",
+          title: "Delivery Request Declined",
+          message: `${driver?.name || "A driver"} has declined a delivery request for VIN: ${delivery.vin}.`,
+          read: false,
+        });
+      }
+      
+      res.json(updatedDelivery);
+    } catch (error) {
+      console.error("Decline delivery error:", error);
+      res.status(500).json({ error: "Failed to decline delivery" });
     }
   });
 
@@ -601,6 +800,22 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Get approved driver dealers error:", error);
       res.status(500).json({ error: "Failed to get approved driver dealers" });
+    }
+  });
+
+  app.get("/api/approved-driver-dealers/driver/:driverId", async (req, res) => {
+    try {
+      const approvals = await storage.getApprovedDriverDealers(req.params.driverId);
+      const approvalsWithDealers = await Promise.all(
+        approvals.map(async (a) => {
+          const dealer = await storage.getDealer(a.dealerId);
+          return { ...a, dealer };
+        })
+      );
+      res.json(approvalsWithDealers.filter(a => a.dealer));
+    } catch (error) {
+      console.error("Get approved dealerships for driver error:", error);
+      res.status(500).json({ error: "Failed to get approved dealerships" });
     }
   });
 

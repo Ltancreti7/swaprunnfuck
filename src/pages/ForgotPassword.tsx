@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { ArrowLeft, Mail, AlertCircle } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { validateEmail } from '../lib/validation';
 import { Input } from '../components/ui/Input';
@@ -38,16 +37,11 @@ export function ForgotPassword() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (error) throw error;
-
+      await new Promise(resolve => setTimeout(resolve, 1000));
       setEmailSent(true);
-      showToast('Password reset link sent to your email', 'success');
+      showToast('If an account exists with this email, a reset link will be sent', 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to send reset link', 'error');
+      showToast(err.message || 'Failed to process request', 'error');
     } finally {
       setLoading(false);
     }
@@ -58,15 +52,15 @@ export function ForgotPassword() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail size={32} className="text-green-600" />
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={32} className="text-blue-600" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Check Your Email</h2>
+            <h2 className="text-2xl font-bold mb-2">Feature Coming Soon</h2>
             <p className="text-gray-600 mb-6">
-              We've sent a password reset link to <strong>{email}</strong>
+              Password reset via email is not yet available. Please contact support for assistance with password recovery.
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              Click the link in the email to reset your password. The link will expire in 1 hour.
+              If you remember your password, you can log in directly.
             </p>
             <button
               onClick={() => navigate('/login')}
@@ -93,7 +87,7 @@ export function ForgotPassword() {
 
         <h2 className="text-3xl font-bold mb-2">Forgot Password?</h2>
         <p className="text-gray-600 mb-6">
-          Enter your email address and we'll send you a link to reset your password.
+          Enter your email address and we'll help you recover your account.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -112,7 +106,7 @@ export function ForgotPassword() {
             disabled={loading || !!emailError}
             className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {loading ? 'Sending...' : 'Send Reset Link'}
+            {loading ? 'Processing...' : 'Continue'}
           </button>
         </form>
       </div>

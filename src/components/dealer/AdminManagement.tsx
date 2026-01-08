@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Shield, UserPlus, Mail, Trash2, Crown } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
-import { supabase, DealerAdmin, AdminInvitation, AdminRole } from "../../lib/supabase";
+import { DealerAdmin, AdminInvitation, AdminRole } from "../../../shared/schema";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
+import { api } from "../../lib/api";
 
 interface AdminManagementProps {
   dealerId: string;
@@ -36,31 +37,21 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
   const loadCurrentUserRole = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from("dealer_admins")
-      .select("role")
-      .eq("dealer_id", dealerId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (data) {
-      setCurrentUserRole(data.role as AdminRole);
+    try {
+      const data = await api.dealerAdmins.roleForCurrentUser(dealerId);
+      if (data && data.role) {
+        setCurrentUserRole(data.role as AdminRole);
+      }
+    } catch (error) {
+      console.error('Error loading current user role:', error);
     }
   };
 
   const loadAdmins = async () => {
     setLoading(true);
     try {
-      const { data: adminData, error } = await supabase
-        .rpc('get_dealer_admins_with_emails', { dealer_uuid: dealerId });
-
-      if (error) {
-        console.error('Error loading admins:', error);
-        showToast('Failed to load administrators', 'error');
-        setAdmins([]);
-      } else if (adminData) {
-        setAdmins(adminData);
-      }
+      const adminData = await api.dealerAdmins.byDealer(dealerId);
+      setAdmins(adminData || []);
     } catch (err: unknown) {
       console.error('Exception loading admins:', err);
       const message = err instanceof Error ? err.message : 'Failed to load administrators';
@@ -71,15 +62,12 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
   };
 
   const loadInvitations = async () => {
-    const { data } = await supabase
-      .from("admin_invitations")
-      .select("*")
-      .eq("dealer_id", dealerId)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      setInvitations(data);
+    try {
+      const data = await api.adminInvitations.byDealer(dealerId);
+      setInvitations(data || []);
+    } catch (error) {
+      console.error('Error loading invitations:', error);
+      setInvitations([]);
     }
   };
 
@@ -88,14 +76,11 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
     if (!user) return;
 
     try {
-      const { error } = await supabase.from("admin_invitations").insert({
-        dealer_id: dealerId,
+      await api.adminInvitations.create({
+        dealerId: dealerId,
         email: inviteEmail,
         role: inviteRole,
-        invited_by: user.id,
       });
-
-      if (error) throw error;
 
       showToast(`Invitation sent to ${inviteEmail}`, "success");
       setShowInviteModal(false);
@@ -112,12 +97,7 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
     if (!confirm("Are you sure you want to revoke this invitation?")) return;
 
     try {
-      const { error } = await supabase
-        .from("admin_invitations")
-        .update({ status: "revoked" })
-        .eq("id", invitationId);
-
-      if (error) throw error;
+      await api.adminInvitations.cancel(invitationId);
 
       showToast("Invitation revoked", "success");
       loadInvitations();
@@ -131,12 +111,7 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
     if (!confirm(`Are you sure you want to remove ${adminEmail} as an admin?`)) return;
 
     try {
-      const { error } = await supabase
-        .from("dealer_admins")
-        .delete()
-        .eq("id", adminId);
-
-      if (error) throw error;
+      await api.dealerAdmins.delete(adminId);
 
       showToast("Admin removed successfully", "success");
       loadAdmins();
@@ -148,12 +123,7 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
 
   const handleUpdateRole = async (adminId: string, newRole: AdminRole) => {
     try {
-      const { error } = await supabase
-        .from("dealer_admins")
-        .update({ role: newRole })
-        .eq("id", adminId);
-
-      if (error) throw error;
+      await api.dealerAdmins.update(adminId, { role: newRole });
 
       showToast("Admin role updated", "success");
       loadAdmins();
@@ -234,21 +204,21 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-semibold text-lg">{admin.email}</p>
-                    <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(admin.role)}`}>
-                      {getRoleIcon(admin.role)}
+                    <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(admin.role as AdminRole)}`}>
+                      {getRoleIcon(admin.role as AdminRole)}
                       {admin.role.charAt(0).toUpperCase() + admin.role.slice(1)}
                     </span>
-                    {admin.user_id === user?.id && (
+                    {admin.userId === user?.id && (
                       <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
                         You
                       </span>
                     )}
                   </div>
                   <p className="text-sm text-gray-600">
-                    Added {new Date(admin.created_at).toLocaleDateString()}
+                    Added {new Date(admin.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                {isOwner && admin.user_id !== user?.id && (
+                {isOwner && admin.userId !== user?.id && (
                   <div className="flex gap-2">
                     <select
                       value={admin.role}
@@ -285,14 +255,14 @@ export function AdminManagement({ dealerId }: AdminManagementProps) {
                     <div className="flex items-center gap-2 mb-1">
                       <Mail size={18} className="text-gray-400" />
                       <p className="font-semibold">{invitation.email}</p>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(invitation.role)}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(invitation.role as AdminRole)}`}>
                         {invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1)}
                       </span>
                       <Badge status="pending" />
                     </div>
                     <p className="text-sm text-gray-600">
-                      Invited {new Date(invitation.created_at).toLocaleDateString()} •
-                      Expires {new Date(invitation.expires_at).toLocaleDateString()}
+                      Invited {new Date(invitation.createdAt).toLocaleDateString()} •
+                      Expires {new Date(invitation.expiresAt).toLocaleDateString()}
                     </p>
                   </div>
                   {isOwner && (

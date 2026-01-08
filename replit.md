@@ -22,7 +22,7 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 - **Server**: Express.js with TypeScript running via tsx
 - **API Structure**: RESTful endpoints under `/api` prefix
-- **Session Management**: Express-session with configurable storage
+- **Session Management**: Express-session with PostgreSQL storage (connect-pg-simple)
 - **Authentication**: Custom session-based auth with bcrypt password hashing
 - **Database ORM**: Drizzle ORM for type-safe database operations
 
@@ -61,9 +61,13 @@ Preferred communication style: Simple, everyday language.
 - Backend routes include endpoints for admin management, profile updates, password changes
 - Types exported from shared/schema.ts (Dealer, Driver, Sales, DealerAdmin, AdminInvitation, etc.)
 
-**Stubbed for Future Implementation:**
-- Password reset via email (ForgotPassword/ResetPassword pages show informative messaging)
-- Account deletion (requires safe cascade deletion implementation)
+### Production Infrastructure (January 2026)
+- **Password Reset**: SHA-256 hashed tokens, 1-hour expiry, single-use enforcement, email delivery via Resend
+- **Session Persistence**: PostgreSQL-backed sessions via connect-pg-simple, 7-day cookie expiry
+- **Email Service**: Resend API integration (requires RESEND_API_KEY env variable), graceful degradation when not configured
+- **Account Deletion**: Safe cascade deletion across all 15+ dependent tables in a single transaction
+- **Rate Limiting**: In-memory rate limiter on polling endpoints (20 req/10s) and sensitive operations (5 req/hour)
+- **Race Condition Handling**: Atomic delivery acceptance using conditional UPDATE with database-level locking
 
 ### Project Structure
 ```

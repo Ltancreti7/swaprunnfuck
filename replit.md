@@ -113,3 +113,15 @@ Preferred communication style: Simple, everyday language.
 - **TypeScript**: Type checking across frontend and backend
 - **ESLint**: Code linting
 - **tsx**: TypeScript execution for the server
+- **Vitest**: Unit testing framework
+- **Supertest**: HTTP endpoint testing
+
+### Testing Infrastructure (January 2026)
+- **Smoke Runner**: `npm run smoke` - validates 17 core user flows (100% pass rate)
+  - Registration: dealer, sales, driver account creation with proper linking
+  - Driver Hiring: application submission and approval flow
+  - Delivery Lifecycle: all 8 status transitions from pending to completed
+  - Chat/Messaging: send and retrieve messages per delivery
+  - Data Retrieval: role-scoped delivery queries
+- **Test Plan**: TEST_PLAN.md documents 85 test cases covering auth, roles, deliveries, chat, security
+- **Vitest Tests**: Unit tests in `/tests` directory (database isolation issues under investigation)

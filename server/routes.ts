@@ -1,9 +1,13 @@
 import type { Express } from "express";
 import { storage } from "./storage";
-import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 export function registerRoutes(app: Express): void {
@@ -18,7 +22,7 @@ export function registerRoutes(app: Express): void {
       
       const user = await storage.createUser({
         email,
-        passwordHash: hashPassword(password),
+        passwordHash: await hashPassword(password),
         role,
       });
       
@@ -37,7 +41,7 @@ export function registerRoutes(app: Express): void {
       const { email, password } = req.body;
       
       const user = await storage.getUserByEmail(email);
-      if (!user || user.passwordHash !== hashPassword(password)) {
+      if (!user || !await verifyPassword(password, user.passwordHash)) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       

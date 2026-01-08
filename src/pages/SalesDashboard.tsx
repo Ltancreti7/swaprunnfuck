@@ -159,141 +159,103 @@ export function SalesDashboard() {
     const dropoffFormatted = formatAddress(newDelivery.dropoffAddress);
 
     try {
-      const { data: createdDeliveries, error } = await supabase
-        .from('deliveries')
-        .insert({
-          dealer_id: sales.dealer_id,
-          sales_id: sales.id,
-          driver_id: newDelivery.driverId || null,
-          pickup: pickupFormatted,
-          dropoff: dropoffFormatted,
-          pickup_street: newDelivery.pickupAddress.street,
-          pickup_city: newDelivery.pickupAddress.city,
-          pickup_state: newDelivery.pickupAddress.state,
-          pickup_zip: newDelivery.pickupAddress.zip,
-          dropoff_street: newDelivery.dropoffAddress.street,
-          dropoff_city: newDelivery.dropoffAddress.city,
-          dropoff_state: newDelivery.dropoffAddress.state,
-          dropoff_zip: newDelivery.dropoffAddress.zip,
-          vin: newDelivery.vin,
-          notes: newDelivery.notes,
-          status: newDelivery.driverId ? 'pending_driver_acceptance' : 'pending',
-          year: parseInt(newDelivery.year) || null,
-          make: newDelivery.make || null,
-          model: newDelivery.model || null,
-          transmission: newDelivery.transmission || null,
-          service_type: newDelivery.serviceType,
-          has_trade: newDelivery.serviceType === 'delivery' ? newDelivery.hasTrade : null,
-          requires_second_driver: newDelivery.serviceType === 'delivery' ? newDelivery.requiresSecondDriver : null,
-          required_timeframe: newDelivery.requiredTimeframe || null,
-          custom_date: newDelivery.requiredTimeframe === 'custom' ? newDelivery.customDate : null,
-        })
-        .select()
-        .limit(1);
+      const createdDelivery = await api.deliveries.create({
+        dealerId: sales.dealerId,
+        salesId: sales.id,
+        driverId: newDelivery.driverId || null,
+        pickup: pickupFormatted,
+        dropoff: dropoffFormatted,
+        pickupStreet: newDelivery.pickupAddress.street,
+        pickupCity: newDelivery.pickupAddress.city,
+        pickupState: newDelivery.pickupAddress.state,
+        pickupZip: newDelivery.pickupAddress.zip,
+        dropoffStreet: newDelivery.dropoffAddress.street,
+        dropoffCity: newDelivery.dropoffAddress.city,
+        dropoffState: newDelivery.dropoffAddress.state,
+        dropoffZip: newDelivery.dropoffAddress.zip,
+        vin: newDelivery.vin,
+        notes: newDelivery.notes,
+        status: newDelivery.driverId ? 'pending_driver_acceptance' : 'pending',
+        year: parseInt(newDelivery.year) || null,
+        make: newDelivery.make || null,
+        model: newDelivery.model || null,
+        transmission: newDelivery.transmission || null,
+        serviceType: newDelivery.serviceType,
+        hasTrade: newDelivery.serviceType === 'delivery' ? newDelivery.hasTrade : null,
+        requiresSecondDriver: newDelivery.serviceType === 'delivery' ? newDelivery.requiresSecondDriver : null,
+        requiredTimeframe: newDelivery.requiredTimeframe || null,
+        customDate: newDelivery.requiredTimeframe === 'custom' ? newDelivery.customDate : null,
+      });
 
-      if (error) throw error;
-
-      const createdDelivery = createdDeliveries?.[0];
-
-      // If a specific driver was assigned, notify them directly
       if (newDelivery.driverId) {
-        const { data: assignedDriver, error: assignedDriverError } = await supabase
-          .from('drivers')
-          .select('user_id, name')
-          .eq('id', newDelivery.driverId)
-          .maybeSingle();
-
-        if (assignedDriverError) {
-          console.error('Error fetching assigned driver:', assignedDriverError);
-        } else if (assignedDriver?.user_id) {
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert({
-              user_id: assignedDriver.user_id,
-              delivery_id: createdDelivery?.id ?? null,
+        try {
+          const assignedDriver = await api.drivers.get(newDelivery.driverId);
+          if (assignedDriver?.userId) {
+            await api.notifications.create({
+              userId: assignedDriver.userId,
+              deliveryId: createdDelivery?.id ?? null,
               type: 'delivery_request',
               title: 'New Delivery Request',
               message: `${sales.name} has requested you for a delivery (VIN: ${newDelivery.vin}). Please accept or decline.`,
               read: false,
             });
-
-          if (notificationError) {
-            console.error('Error creating assigned driver notification:', notificationError);
           }
+        } catch (err) {
+          console.error('Error creating assigned driver notification:', err);
         }
       } else {
-        // If no specific driver was assigned, notify all available approved drivers
-        const { data: approvedDriverRelationships, error: driversError } = await supabase
-          .from('approved_driver_dealers')
-          .select(`
-            driver:drivers(
-              user_id,
-              is_available
-            )
-          `)
-          .eq('dealer_id', sales.dealer_id);
+        try {
+          const approvedDrivers = await api.drivers.approvedByDealer(sales.dealerId);
+          const notificationsPayload = (approvedDrivers || [])
+            .filter((driver: Driver) => driver && driver.userId && driver.isAvailable === true)
+            .map((driver: Driver) => ({
+              userId: driver.userId!,
+              deliveryId: createdDelivery?.id ?? null,
+              type: 'new_delivery_available',
+              title: 'New Delivery Available',
+              message: `A new delivery is available for VIN: ${newDelivery.vin}`,
+              read: false,
+            }));
 
-        if (driversError) throw driversError;
-
-        const notificationsPayload = (approvedDriverRelationships || [])
-          .filter((relationship: any) => {
-            if (!relationship.driver) return false;
-            if (!relationship.driver.user_id) return false;
-            return relationship.driver.is_available === true;
-          })
-          .map((relationship: any) => ({
-            user_id: relationship.driver!.user_id!,
-            delivery_id: createdDelivery?.id ?? null,
-            type: 'new_delivery_available',
-            title: 'New Delivery Available',
-            message: `A new delivery is available for VIN: ${newDelivery.vin}`,
-            read: false,
-          }));
-
-        if (notificationsPayload.length > 0) {
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert(notificationsPayload);
-
-          if (notificationError) throw notificationError;
+          for (const notification of notificationsPayload) {
+            await api.notifications.create(notification);
+          }
+        } catch (err) {
+          console.error('Error notifying drivers:', err);
         }
       }
 
       if (saveAsDefault && newDelivery.pickupAddress.street.trim()) {
-        const { error: updateError } = await supabase
-          .from('sales')
-          .update({
-            default_pickup_location: pickupFormatted,
-            default_pickup_street: newDelivery.pickupAddress.street,
-            default_pickup_city: newDelivery.pickupAddress.city,
-            default_pickup_state: newDelivery.pickupAddress.state,
-            default_pickup_zip: newDelivery.pickupAddress.zip,
-          })
-          .eq('id', sales.id);
-
-        if (updateError) {
-          console.error('Error saving default location:', updateError);
-          showToast('Delivery created, but failed to save default address', 'error');
-        } else {
+        try {
+          await api.sales.update(sales.id, {
+            defaultPickupLocation: pickupFormatted,
+            defaultPickupStreet: newDelivery.pickupAddress.street,
+            defaultPickupCity: newDelivery.pickupAddress.city,
+            defaultPickupState: newDelivery.pickupAddress.state,
+            defaultPickupZip: newDelivery.pickupAddress.zip,
+          });
           setSales({
             ...sales,
-            default_pickup_location: pickupFormatted,
-            default_pickup_street: newDelivery.pickupAddress.street,
-            default_pickup_city: newDelivery.pickupAddress.city,
-            default_pickup_state: newDelivery.pickupAddress.state,
-            default_pickup_zip: newDelivery.pickupAddress.zip,
+            defaultPickupLocation: pickupFormatted,
+            defaultPickupStreet: newDelivery.pickupAddress.street,
+            defaultPickupCity: newDelivery.pickupAddress.city,
+            defaultPickupState: newDelivery.pickupAddress.state,
+            defaultPickupZip: newDelivery.pickupAddress.zip,
           });
           showToast('Delivery requested and address saved as default!', 'success');
+        } catch (updateError) {
+          console.error('Error saving default location:', updateError);
+          showToast('Delivery created, but failed to save default address', 'error');
         }
       } else {
         showToast('Delivery requested successfully!', 'success');
       }
 
       const resetPickupAddress: AddressFields = {
-        street: sales?.default_pickup_street || '',
-        city: sales?.default_pickup_city || '',
-        state: sales?.default_pickup_state || '',
-        zip: sales?.default_pickup_zip || '',
+        street: sales?.defaultPickupStreet || '',
+        city: sales?.defaultPickupCity || '',
+        state: sales?.defaultPickupState || '',
+        zip: sales?.defaultPickupZip || '',
       };
       setNewDelivery({
         pickupAddress: resetPickupAddress,
@@ -311,7 +273,7 @@ export function SalesDashboard() {
         requiredTimeframe: '',
         customDate: '',
       });
-      setIsUsingDefaultLocation(!!(sales?.default_pickup_street || sales?.default_pickup_location));
+      setIsUsingDefaultLocation(!!(sales?.defaultPickupStreet || sales?.defaultPickupLocation));
       setSaveAsDefault(false);
       await loadDeliveries(sales.id);
       setShowNewDelivery(false);
@@ -325,33 +287,25 @@ export function SalesDashboard() {
     if (!sales) return;
 
     try {
-      const { data: delivery, error: fetchError } = await supabase
-        .from('deliveries')
-        .select('*, driver:drivers(user_id, name)')
-        .eq('id', deliveryId)
-        .single();
+      const delivery = await api.deliveries.get(deliveryId);
+      
+      await api.deliveries.update(deliveryId, {
+        status: 'cancelled',
+        cancelledAt: new Date().toISOString()
+      });
 
-      if (fetchError) throw fetchError;
-
-      const { error } = await supabase
-        .from('deliveries')
-        .update({
-          status: 'cancelled',
-          cancelled_at: new Date().toISOString()
-        })
-        .eq('id', deliveryId);
-
-      if (error) throw error;
-
-      if (delivery?.driver?.user_id) {
-        await supabase.from('notifications').insert({
-          user_id: delivery.driver.user_id,
-          delivery_id: deliveryId,
-          type: 'delivery_cancelled',
-          title: 'Delivery Cancelled',
-          message: `A delivery you accepted (VIN: ${delivery.vin}) has been cancelled by the salesperson.`,
-          read: false,
-        });
+      if (delivery?.driverId) {
+        const driver = await api.drivers.get(delivery.driverId);
+        if (driver?.userId) {
+          await api.notifications.create({
+            userId: driver.userId,
+            deliveryId: deliveryId,
+            type: 'delivery_cancelled',
+            title: 'Delivery Cancelled',
+            message: `A delivery you accepted (VIN: ${delivery.vin}) has been cancelled by the salesperson.`,
+            read: false,
+          });
+        }
       }
 
       showToast('Delivery cancelled successfully', 'success');
@@ -478,7 +432,7 @@ export function SalesDashboard() {
         {showCalendar && (
           <div className="mb-6">
             <Calendar
-              deliveries={deliveries.filter(d => d.scheduled_date && d.scheduled_time)}
+              deliveries={deliveries.filter(d => d.scheduledDate && d.scheduledTime)}
               onDeliveryClick={(id) => navigate(`/chat/${id}`)}
             />
           </div>
@@ -503,12 +457,12 @@ export function SalesDashboard() {
                   value={newDelivery.pickupAddress}
                   onChange={(address) => {
                     setNewDelivery({ ...newDelivery, pickupAddress: address });
-                    const hasDefault = sales?.default_pickup_street || sales?.default_pickup_location;
+                    const hasDefault = sales?.defaultPickupStreet || sales?.defaultPickupLocation;
                     const matchesDefault = hasDefault && (
-                      address.street === sales?.default_pickup_street &&
-                      address.city === sales?.default_pickup_city &&
-                      address.state === sales?.default_pickup_state &&
-                      address.zip === sales?.default_pickup_zip
+                      address.street === sales?.defaultPickupStreet &&
+                      address.city === sales?.defaultPickupCity &&
+                      address.state === sales?.defaultPickupState &&
+                      address.zip === sales?.defaultPickupZip
                     );
                     setIsUsingDefaultLocation(!!matchesDefault);
                   }}
@@ -528,12 +482,12 @@ export function SalesDashboard() {
                     </span>
                   </label>
                   <p className="text-xs text-gray-500 mt-1 ml-6">
-                    {sales?.default_pickup_street || sales?.default_pickup_location
+                    {sales?.defaultPickupStreet || sales?.defaultPickupLocation
                       ? 'This will update your saved default pickup location'
                       : 'This address will be automatically filled for future delivery requests'}
                   </p>
                 </div>
-                {!(sales?.default_pickup_street || sales?.default_pickup_location) && (
+                {!(sales?.defaultPickupStreet || sales?.defaultPickupLocation) && (
                   <p className="text-xs text-gray-500 mt-1">
                     Tip: Save a default pickup location in your{' '}
                     <button
@@ -936,7 +890,7 @@ export function SalesDashboard() {
                 <DeliveryCard
                   key={delivery.id}
                   delivery={delivery}
-                  driverName={delivery.driver_id ? driverMap.get(delivery.driver_id) : undefined}
+                  driverName={delivery.driverId ? driverMap.get(delivery.driverId) : undefined}
                   onChatClick={() => navigate(`/chat/${delivery.id}`)}
                   onCancelClick={delivery.status === 'pending' ? () => setDeliveryToCancel(delivery.id) : undefined}
                 />
@@ -954,7 +908,7 @@ export function SalesDashboard() {
             setNewDelivery({ ...newDelivery, driverId });
             setShowDriverSelection(false);
           }}
-          dealerId={sales.dealer_id}
+          dealerId={sales.dealerId}
           currentUserId={user.id}
           selectedDriverId={newDelivery.driverId}
         />

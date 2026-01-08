@@ -4,6 +4,46 @@ export interface ApiError {
   error: string;
 }
 
+function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+function camelToSnake(str: string): string {
+  return str.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
+function isPlainObject(obj: any): boolean {
+  if (obj === null || obj === undefined) return false;
+  if (typeof obj !== 'object') return false;
+  if (Array.isArray(obj)) return false;
+  if (obj instanceof Date) return false;
+  const proto = Object.getPrototypeOf(obj);
+  return proto === Object.prototype || proto === null;
+}
+
+function transformKeys(obj: any, transformer: (key: string) => string): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(item => transformKeys(item, transformer));
+  }
+  if (isPlainObject(obj)) {
+    const result: any = {};
+    for (const key of Object.keys(obj)) {
+      result[transformer(key)] = transformKeys(obj[key], transformer);
+    }
+    return result;
+  }
+  return obj;
+}
+
+function toCamelCase<T>(obj: any): T {
+  return transformKeys(obj, snakeToCamel);
+}
+
+function toSnakeCase(obj: any): any {
+  return transformKeys(obj, camelToSnake);
+}
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -22,7 +62,23 @@ async function apiRequest<T>(
     throw new Error(error.error || 'Request failed');
   }
 
-  return response.json();
+  const data = await response.json();
+  return toCamelCase<T>(data);
+}
+
+async function apiRequestWithSnakeBody<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  let body = options.body;
+  if (body && typeof body === 'string') {
+    try {
+      const parsed = JSON.parse(body);
+      body = JSON.stringify(toSnakeCase(parsed));
+    } catch { /* keep original */ }
+  }
+  
+  return apiRequest<T>(endpoint, { ...options, body });
 }
 
 export const api = {
@@ -47,36 +103,36 @@ export const api = {
     get: (id: string) => apiRequest<any>(`/dealers/${id}`),
     current: () => apiRequest<{ dealer: any; adminRole: string }>('/dealer/current'),
     create: (data: any) =>
-      apiRequest<any>('/dealers', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/dealers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest<any>(`/dealers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>(`/dealers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   sales: {
     list: () => apiRequest<any[]>('/sales'),
     current: () => apiRequest<any>('/sales/current'),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/sales/dealer/${dealerId}`),
     create: (data: any) =>
-      apiRequest<any>('/sales', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/sales', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest<any>(`/sales/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>(`/sales/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) =>
       apiRequest<{ success: boolean }>(`/sales/${id}`, { method: 'DELETE' }),
     checkPreregistered: (email: string, dealerId: string) =>
-      apiRequest<{ preRegistered: boolean; salesId?: string }>('/sales/check-preregistered', {
+      apiRequestWithSnakeBody<{ preRegistered: boolean; salesId?: string }>('/sales/check-preregistered', {
         method: 'POST',
         body: JSON.stringify({ email, dealerId }),
       }),
     activate: (salesId: string) =>
-      apiRequest<any>('/sales/activate', { method: 'POST', body: JSON.stringify({ salesId }) }),
+      apiRequestWithSnakeBody<any>('/sales/activate', { method: 'POST', body: JSON.stringify({ salesId }) }),
   },
   drivers: {
     list: () => apiRequest<any[]>('/drivers'),
     get: (id: string) => apiRequest<any>(`/drivers/${id}`),
     approvedByDealer: (dealerId: string) => apiRequest<any[]>(`/drivers/approved/${dealerId}`),
     create: (data: any) =>
-      apiRequest<any>('/drivers', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/drivers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest<any>(`/drivers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>(`/drivers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) =>
       apiRequest<{ success: boolean }>(`/drivers/${id}`, { method: 'DELETE' }),
   },
@@ -86,21 +142,21 @@ export const api = {
     byDealer: (dealerId: string) => apiRequest<any[]>(`/deliveries/dealer/${dealerId}`),
     bySales: (salesId: string) => apiRequest<any[]>(`/deliveries/sales/${salesId}`),
     create: (data: any) =>
-      apiRequest<any>('/deliveries', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/deliveries', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest<any>(`/deliveries/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>(`/deliveries/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   messages: {
     list: (deliveryId: string) => apiRequest<any[]>(`/messages/${deliveryId}`),
     create: (data: any) =>
-      apiRequest<any>('/messages', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/messages', { method: 'POST', body: JSON.stringify(data) }),
     markRead: (deliveryId: string) =>
       apiRequest<{ success: boolean }>(`/messages/${deliveryId}/read`, { method: 'POST' }),
   },
   notifications: {
     list: () => apiRequest<any[]>('/notifications'),
     create: (data: any) =>
-      apiRequest<any>('/notifications', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/notifications', { method: 'POST', body: JSON.stringify(data) }),
     markRead: (id: string) =>
       apiRequest<{ success: boolean }>(`/notifications/${id}/read`, { method: 'POST' }),
   },
@@ -108,21 +164,21 @@ export const api = {
     list: () => apiRequest<any[]>('/driver-applications'),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/driver-applications/dealer/${dealerId}`),
     create: (data: any) =>
-      apiRequest<any>('/driver-applications', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/driver-applications', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-      apiRequest<any>(`/driver-applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>(`/driver-applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   approvedDriverDealers: {
     list: () => apiRequest<any[]>('/approved-driver-dealers'),
     create: (data: any) =>
-      apiRequest<any>('/approved-driver-dealers', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/approved-driver-dealers', { method: 'POST', body: JSON.stringify(data) }),
     delete: (driverId: string, dealerId: string) =>
       apiRequest<{ success: boolean }>(`/approved-driver-dealers/${driverId}/${dealerId}`, { method: 'DELETE' }),
   },
   dealerAdmins: {
     list: () => apiRequest<any[]>('/dealer-admins'),
     create: (data: any) =>
-      apiRequest<any>('/dealer-admins', { method: 'POST', body: JSON.stringify(data) }),
+      apiRequestWithSnakeBody<any>('/dealer-admins', { method: 'POST', body: JSON.stringify(data) }),
     delete: (id: string) =>
       apiRequest<{ success: boolean }>(`/dealer-admins/${id}`, { method: 'DELETE' }),
   },

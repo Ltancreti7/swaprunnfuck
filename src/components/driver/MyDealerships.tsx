@@ -1,7 +1,7 @@
 import { Building2, Phone, Mail, MapPin, Calendar, Inbox, Clock, CheckCircle2 } from 'lucide-react';
-import { Dealer, ApprovedDriverDealer } from '../../lib/supabase';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
+import type { Dealer, ApprovedDriverDealer } from '../../../shared/schema';
 
 interface DealershipWithStats extends ApprovedDriverDealer {
   dealer: Dealer;
@@ -98,7 +98,7 @@ export function MyDealerships({
                   </div>
                   <div className="flex items-center text-sm text-gray-500">
                     <Calendar size={14} className="mr-2 text-gray-400" />
-                    Approved {formatDate(relationship.approved_at)}
+                    Approved {relationship.approvedAt && formatDate(relationship.approvedAt.toString())}
                   </div>
                 </div>
 

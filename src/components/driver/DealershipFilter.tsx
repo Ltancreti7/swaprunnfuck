@@ -1,5 +1,5 @@
 import { Building2, CheckCircle } from 'lucide-react';
-import { Dealer } from '../../lib/supabase';
+import type { Dealer } from '../../../shared/schema';
 
 interface DealershipFilterProps {
   dealerships: Dealer[];

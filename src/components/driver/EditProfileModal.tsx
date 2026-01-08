@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Driver } from '../../lib/supabase';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
+import type { Driver } from '../../../shared/schema';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -13,9 +13,9 @@ interface EditProfileModalProps {
 export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfileModalProps) {
   const [name, setName] = useState(driver.name);
   const [phone, setPhone] = useState(driver.phone);
-  const [vehicleType, setVehicleType] = useState(driver.vehicle_type);
+  const [vehicleType, setVehicleType] = useState(driver.vehicleType);
   const [radius, setRadius] = useState(driver.radius.toString());
-  const [licenseNumber, setLicenseNumber] = useState(driver.license_number || '');
+  const [licenseNumber, setLicenseNumber] = useState(driver.licenseNumber || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,9 +23,9 @@ export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfil
     if (isOpen) {
       setName(driver.name);
       setPhone(driver.phone);
-      setVehicleType(driver.vehicle_type);
+      setVehicleType(driver.vehicleType);
       setRadius(driver.radius.toString());
-      setLicenseNumber(driver.license_number || '');
+      setLicenseNumber(driver.licenseNumber || '');
       setError('');
     }
   }, [isOpen, driver]);
@@ -50,9 +50,9 @@ export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfil
       await onSave({
         name: name.trim(),
         phone: phone.trim(),
-        vehicle_type: vehicleType.trim(),
+        vehicleType: vehicleType.trim(),
         radius: radiusNum,
-        license_number: licenseNumber.trim() || undefined,
+        licenseNumber: licenseNumber.trim() || undefined,
       });
       onClose();
     } catch (err) {

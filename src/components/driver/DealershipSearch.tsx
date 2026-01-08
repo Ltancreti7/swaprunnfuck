@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Search, Building2, Phone, MapPin, CheckCircle, Clock, XCircle, Award } from 'lucide-react';
-import { supabase, Dealer, DriverApplication } from '../../lib/supabase';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 import { ApplyToDealershipModal } from './ApplyToDealershipModal';
+import api from '../../lib/api';
+import type { Dealer, DriverApplication } from '../../../shared/schema';
 
 interface DealershipSearchProps {
   driverId: string;
@@ -11,7 +12,7 @@ interface DealershipSearchProps {
 }
 
 interface DealerWithApproval extends Dealer {
-  approved_at?: string;
+  approvedAt?: Date | null;
 }
 
 export function DealershipSearch({ driverId, showToast }: DealershipSearchProps) {
@@ -34,21 +35,9 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
 
   const loadMyDealerships = async () => {
     try {
-      const { data, error } = await supabase
-        .from('approved_driver_dealers')
-        .select(`
-          approved_at,
-          dealer:dealers(*)
-        `)
-        .eq('driver_id', driverId);
-
-      if (error) throw error;
+      const data = await api.drivers.myDealerships();
       if (data) {
-        const dealershipsWithApproval = data.map((item: any) => ({
-          ...item.dealer,
-          approved_at: item.approved_at,
-        }));
-        setMyDealerships(dealershipsWithApproval);
+        setMyDealerships(data);
       }
     } catch (err) {
       console.error('Error loading my dealerships:', err);
@@ -57,12 +46,7 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
 
   const loadDealerships = async () => {
     try {
-      const { data, error } = await supabase
-        .from('dealers')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
+      const data = await api.dealers.list();
       if (data) setDealerships(data);
     } catch (err) {
       console.error('Error loading dealerships:', err);
@@ -72,12 +56,7 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
 
   const loadApplications = async () => {
     try {
-      const { data, error } = await supabase
-        .from('driver_applications')
-        .select('*')
-        .eq('driver_id', driverId);
-
-      if (error) throw error;
+      const data = await api.driverApplications.list();
       if (data) setApplications(data);
     } catch (err) {
       console.error('Error loading applications:', err);
@@ -86,57 +65,25 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
 
   const handleApply = async (dealerId: string, message: string) => {
     try {
-      const { error } = await supabase
-        .from('driver_applications')
-        .insert({
-          driver_id: driverId,
-          dealer_id: dealerId,
-          message: message || '',
-        });
+      await api.driverApplications.create({ dealerId, message: message || '' });
 
-      if (error) {
-        if (error.code === '23505') {
-          showToast('You have already applied to this dealership', 'error');
-          return;
-        }
-        throw error;
-      }
-
-      const { data: dealer } = await supabase
-        .from('dealers')
-        .select('user_id, name')
-        .eq('id', dealerId)
-        .maybeSingle();
-
-      if (dealer?.user_id) {
-        const { data: driver } = await supabase
-          .from('drivers')
-          .select('name')
-          .eq('id', driverId)
-          .maybeSingle();
-
-        await supabase.from('notifications').insert({
-          user_id: dealer.user_id,
-          delivery_id: null,
-          type: 'new_driver_application',
-          title: 'New Driver Application',
-          message: `${driver?.name || 'A driver'} has applied to work with your dealership.`,
-          read: false,
-        });
-      }
-
+      const dealer = dealerships.find(d => d.id === dealerId);
       showToast(`Application submitted to ${dealer?.name || 'dealership'}!`, 'success');
       await loadApplications();
     } catch (err: unknown) {
       console.error('Application error:', err);
       const message = err instanceof Error ? err.message : 'Failed to submit application';
-      showToast(message, 'error');
+      if (message.includes('already applied')) {
+        showToast('You have already applied to this dealership', 'error');
+      } else {
+        showToast(message, 'error');
+      }
       throw err;
     }
   };
 
   const getApplicationStatus = (dealerId: string): DriverApplication | null => {
-    return applications.find(app => app.dealer_id === dealerId) || null;
+    return applications.find(app => app.dealerId === dealerId) || null;
   };
 
   const filteredDealerships = dealerships.filter((dealer) => {
@@ -192,9 +139,9 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
                         <span>{dealer.address}</span>
                       </div>
                     )}
-                    {dealer.approved_at && (
+                    {dealer.approvedAt && (
                       <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
-                        Approved {new Date(dealer.approved_at).toLocaleDateString()}
+                        Approved {new Date(dealer.approvedAt).toLocaleDateString()}
                       </div>
                     )}
                   </div>
@@ -231,6 +178,7 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+          data-testid="input-search-dealerships"
         />
       </div>
 
@@ -257,7 +205,7 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
           {filteredDealerships.map((dealer) => {
             const application = getApplicationStatus(dealer.id);
             return (
-              <Card key={dealer.id} hover={!application}>
+              <Card key={dealer.id} hover={!application} data-testid={`card-dealer-${dealer.id}`}>
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -306,6 +254,7 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
                     <button
                       onClick={() => setSelectedDealer(dealer)}
                       className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition"
+                      data-testid={`button-apply-${dealer.id}`}
                     >
                       Apply Now
                     </button>
@@ -321,6 +270,7 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
                     <button
                       onClick={() => setSelectedDealer(dealer)}
                       className="w-full px-4 py-2 border border-red-600 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
+                      data-testid={`button-reapply-${dealer.id}`}
                     >
                       Reapply
                     </button>

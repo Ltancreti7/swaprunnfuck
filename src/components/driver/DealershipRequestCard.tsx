@@ -1,8 +1,10 @@
 import { MapPin, Building2, Clock, Calendar, User, Star } from 'lucide-react';
-import { Delivery, Dealer } from '../../lib/supabase';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { getTimeframeDisplay, getTimeframeColor } from '../../lib/deliveryUtils';
+import type { Delivery, Dealer, DeliveryTimeframe } from '../../../shared/schema';
+
+type DeliveryStatus = 'pending' | 'pending_driver_acceptance' | 'accepted' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
 
 interface DealershipRequestCardProps {
   delivery: Delivery & { dealer: Dealer; sales?: { name: string } | null };
@@ -24,8 +26,8 @@ export function DealershipRequestCard({ delivery, onAccept, onDecline, dealerCol
     return `${days}d ago`;
   };
 
-  const destination = delivery.dropoff_city && delivery.dropoff_state
-    ? `${delivery.dropoff_city}, ${delivery.dropoff_state}`
+  const destination = delivery.dropoffCity && delivery.dropoffState
+    ? `${delivery.dropoffCity}, ${delivery.dropoffState}`
     : delivery.dropoff;
 
   return (
@@ -57,10 +59,10 @@ export function DealershipRequestCard({ delivery, onAccept, onDecline, dealerCol
             </span>
             <div className="flex items-center gap-1 text-xs text-gray-500">
               <Clock size={14} />
-              {getTimeAgo(delivery.created_at)}
+              {delivery.createdAt && getTimeAgo(delivery.createdAt.toString())}
             </div>
           </div>
-          <Badge status={delivery.status} size="sm" />
+          <Badge status={(delivery.status || 'pending') as DeliveryStatus} size="sm" />
         </div>
 
         <div className="mb-3">
@@ -80,11 +82,11 @@ export function DealershipRequestCard({ delivery, onAccept, onDecline, dealerCol
           </div>
         )}
 
-        {delivery.required_timeframe && (
+        {delivery.requiredTimeframe && (
           <div className="flex items-center gap-2 mb-3">
             <Calendar size={14} className="text-gray-400" />
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${getTimeframeColor(delivery.required_timeframe)}`}>
-              {getTimeframeDisplay(delivery.required_timeframe, delivery.custom_date)}
+            <span className={`text-xs font-bold px-3 py-1 rounded-full ${getTimeframeColor(delivery.requiredTimeframe as DeliveryTimeframe)}`}>
+              {getTimeframeDisplay(delivery.requiredTimeframe as DeliveryTimeframe, delivery.customDate || undefined)}
             </span>
           </div>
         )}

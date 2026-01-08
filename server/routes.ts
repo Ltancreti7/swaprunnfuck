@@ -343,6 +343,33 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/drivers/my-dealerships", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver) {
+        return res.status(404).json({ error: "Driver profile not found" });
+      }
+      
+      const approvals = await storage.getApprovedDriverDealers(driver.id);
+      const dealershipsWithApproval = await Promise.all(
+        approvals.map(async (approval) => {
+          const dealer = await storage.getDealer(approval.dealerId);
+          return dealer ? { ...dealer, approvedAt: approval.approvedAt } : null;
+        })
+      );
+      
+      res.json(dealershipsWithApproval.filter(Boolean));
+    } catch (error) {
+      console.error("Get my dealerships error:", error);
+      res.status(500).json({ error: "Failed to get dealerships" });
+    }
+  });
+
   app.get("/api/drivers/:id", async (req, res) => {
     try {
       const driver = await storage.getDriver(req.params.id);

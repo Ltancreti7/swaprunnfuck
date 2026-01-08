@@ -130,6 +130,7 @@ export const api = {
     get: (id: string) => apiRequest<any>(`/drivers/${id}`),
     current: () => apiRequest<any>('/drivers/current'),
     approvedByDealer: (dealerId: string) => apiRequest<any[]>(`/drivers/approved/${dealerId}`),
+    myDealerships: () => apiRequest<any[]>('/drivers/my-dealerships'),
     statistics: (dealerId: string) => apiRequest<any[]>(`/driver-statistics/${dealerId}`),
     preferences: (dealerId: string) => apiRequest<any[]>(`/driver-preferences/${dealerId}`),
     create: (data: any) =>

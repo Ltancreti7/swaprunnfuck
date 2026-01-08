@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, MessageSquare } from 'lucide-react';
-import { Dealer } from '../../lib/supabase';
+import type { Dealer } from '../../../shared/schema';
 
 interface ApplyToDealershipModalProps {
   dealer: Dealer;

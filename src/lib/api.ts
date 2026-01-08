@@ -225,6 +225,27 @@ export const api = {
     cancel: (id: string) =>
       apiRequest<{ success: boolean }>(`/admin-invitations/${id}`, { method: 'DELETE' }),
   },
+  search: {
+    deliveries: (params: { q?: string; status?: string; dealerId?: string; driverId?: string; dateFrom?: string; dateTo?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params.q) queryParams.set('q', params.q);
+      if (params.status) queryParams.set('status', params.status);
+      if (params.dealerId) queryParams.set('dealerId', params.dealerId);
+      if (params.driverId) queryParams.set('driverId', params.driverId);
+      if (params.dateFrom) queryParams.set('dateFrom', params.dateFrom);
+      if (params.dateTo) queryParams.set('dateTo', params.dateTo);
+      return apiRequest<any[]>(`/search/deliveries?${queryParams.toString()}`);
+    },
+  },
+  export: {
+    deliveriesCsv: (dealerId: string, params?: { status?: string; dateFrom?: string; dateTo?: string }) => {
+      const queryParams = new URLSearchParams({ dealerId });
+      if (params?.status) queryParams.set('status', params.status);
+      if (params?.dateFrom) queryParams.set('dateFrom', params.dateFrom);
+      if (params?.dateTo) queryParams.set('dateTo', params.dateTo);
+      return `/api/deliveries/export/csv?${queryParams.toString()}`;
+    },
+  },
 };
 
 export default api;

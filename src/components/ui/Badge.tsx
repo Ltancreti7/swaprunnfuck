@@ -6,11 +6,14 @@ import {
   XCircle,
   ThumbsUp,
   Star,
+  Navigation,
+  MapPin,
+  Package,
   LucideIcon
 } from 'lucide-react';
 
 interface BadgeProps {
-  status: 'pending' | 'pending_driver_acceptance' | 'accepted' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'pending_driver_acceptance' | 'accepted' | 'assigned' | 'driver_en_route_pickup' | 'arrived_at_pickup' | 'in_transit' | 'arrived_at_dropoff' | 'in_progress' | 'completed' | 'cancelled';
   showIcon?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
@@ -38,6 +41,26 @@ const statusConfig: Record<
     label: 'Assigned',
     color: 'bg-rose-50 text-rose-600 border-rose-200',
     icon: UserCheck,
+  },
+  driver_en_route_pickup: {
+    label: 'En Route to Pickup',
+    color: 'bg-blue-50 text-blue-600 border-blue-200',
+    icon: Navigation,
+  },
+  arrived_at_pickup: {
+    label: 'At Pickup',
+    color: 'bg-blue-100 text-blue-700 border-blue-300',
+    icon: MapPin,
+  },
+  in_transit: {
+    label: 'In Transit',
+    color: 'bg-purple-50 text-purple-600 border-purple-200',
+    icon: Truck,
+  },
+  arrived_at_dropoff: {
+    label: 'At Dropoff',
+    color: 'bg-green-50 text-green-600 border-green-200',
+    icon: Package,
   },
   in_progress: {
     label: 'In Progress',

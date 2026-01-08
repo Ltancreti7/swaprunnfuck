@@ -653,14 +653,31 @@ export function DealerDashboard() {
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="select-status-filter"
                   >
                     <option value="all">All Statuses</option>
                     <option value="pending">Pending</option>
                     <option value="assigned">Assigned</option>
-                    <option value="in_progress">In Progress</option>
+                    <option value="driver_en_route_pickup">En Route to Pickup</option>
+                    <option value="arrived_at_pickup">At Pickup</option>
+                    <option value="in_transit">In Transit</option>
+                    <option value="arrived_at_dropoff">At Dropoff</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
+                  {dealer && (
+                    <a
+                      href={`/api/deliveries/export/csv?dealerId=${dealer.id}${statusFilter !== 'all' ? `&status=${statusFilter}` : ''}`}
+                      download
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm font-medium"
+                      data-testid="button-export-csv"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Export CSV
+                    </a>
+                  )}
                 </div>
 
                 {filteredDeliveries.length === 0 ? (
@@ -693,7 +710,7 @@ export function DealerDashboard() {
                             {delivery.pickup} → {delivery.dropoff}
                           </p>
                         </div>
-                        <Badge status={delivery.status} />
+                        <Badge status={delivery.status || 'pending'} />
                       </div>
                       {delivery.notes && (
                         <p className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded">

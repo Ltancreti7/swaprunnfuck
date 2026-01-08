@@ -5,8 +5,66 @@ import * as schema from "../shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { z } from "zod";
 import { sendPasswordResetEmail, sendAdminInvitationEmail, isEmailConfigured } from "./email";
-import { pollingRateLimiter, authRateLimiter, sensitiveRateLimiter } from "./rateLimit";
+import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
+
+// Validation schemas
+const createDeliverySchema = z.object({
+  dealerId: z.string().uuid(),
+  pickup: z.string().min(1, "Pickup address is required"),
+  dropoff: z.string().min(1, "Dropoff address is required"),
+  vin: z.string().min(1, "VIN is required"),
+  notes: z.string().optional(),
+  salesId: z.string().uuid().optional().nullable(),
+  driverId: z.string().uuid().optional().nullable(),
+  pickupStreet: z.string().optional(),
+  pickupCity: z.string().optional(),
+  pickupState: z.string().optional(),
+  pickupZip: z.string().optional(),
+  dropoffStreet: z.string().optional(),
+  dropoffCity: z.string().optional(),
+  dropoffState: z.string().optional(),
+  dropoffZip: z.string().optional(),
+  year: z.number().optional(),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  transmission: z.string().optional(),
+  serviceType: z.string().optional(),
+  hasTrade: z.boolean().optional(),
+  requiresSecondDriver: z.boolean().optional(),
+  requiredTimeframe: z.string().optional(),
+  customDate: z.string().optional(),
+  scheduledDate: z.string().optional(),
+  scheduledTime: z.string().optional(),
+});
+
+const updateDeliveryStatusSchema = z.object({
+  status: z.enum([
+    "pending",
+    "pending_driver_acceptance",
+    "assigned",
+    "driver_en_route_pickup",
+    "arrived_at_pickup",
+    "in_transit",
+    "arrived_at_dropoff",
+    "completed",
+    "cancelled"
+  ]),
+});
+
+// Valid delivery status transitions - allows cancellation from any state and safe reversions
+const DELIVERY_STATUS_FLOW: Record<string, string[]> = {
+  pending: ["pending_driver_acceptance", "assigned", "cancelled"],
+  pending_driver_acceptance: ["assigned", "pending", "cancelled"], // Can revert to pending if driver declines
+  assigned: ["driver_en_route_pickup", "pending", "cancelled"], // Can revert to pending if driver cancels
+  driver_en_route_pickup: ["arrived_at_pickup", "assigned", "cancelled"],
+  arrived_at_pickup: ["in_transit", "driver_en_route_pickup", "cancelled"],
+  in_transit: ["arrived_at_dropoff", "arrived_at_pickup", "cancelled"],
+  arrived_at_dropoff: ["completed", "in_transit", "cancelled"],
+  completed: [], // Terminal state
+  cancelled: [], // Terminal state
+};
 
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
@@ -553,11 +611,63 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/deliveries", async (req, res) => {
     try {
-      const delivery = await storage.createDelivery(req.body);
+      const parseResult = createDeliverySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: parseResult.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+        });
+      }
+      const delivery = await storage.createDelivery(parseResult.data);
       res.json(delivery);
     } catch (error) {
       console.error("Create delivery error:", error);
       res.status(500).json({ error: "Failed to create delivery" });
+    }
+  });
+
+  // Granular status update with validation
+  app.patch("/api/deliveries/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const parseResult = updateDeliveryStatusSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+
+      const delivery = await storage.getDelivery(id);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+
+      const currentStatus = delivery.status || "pending";
+      const newStatus = parseResult.data.status;
+      const allowedTransitions = DELIVERY_STATUS_FLOW[currentStatus] || [];
+
+      if (!allowedTransitions.includes(newStatus)) {
+        return res.status(400).json({ 
+          error: `Cannot transition from '${currentStatus}' to '${newStatus}'`,
+          allowedTransitions 
+        });
+      }
+
+      const updates: any = { status: newStatus };
+      
+      // Track timestamps for status changes
+      if (newStatus === "driver_en_route_pickup") {
+        updates.startedAt = new Date();
+      } else if (newStatus === "completed") {
+        updates.completedAt = new Date();
+      } else if (newStatus === "cancelled") {
+        updates.cancelledAt = new Date();
+        updates.cancelledBy = (req.session as any)?.userId;
+      }
+
+      const updatedDelivery = await storage.updateDelivery(id, updates);
+      res.json(updatedDelivery);
+    } catch (error) {
+      console.error("Update delivery status error:", error);
+      res.status(500).json({ error: "Failed to update delivery status" });
     }
   });
 
@@ -1361,6 +1471,195 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Update dealer admin error:", error);
       res.status(500).json({ error: "Failed to update admin" });
+    }
+  });
+
+  // Search endpoint for drivers to find deliveries
+  app.get("/api/search/deliveries", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const role = (req.session as any)?.role;
+      if (!userId || !role) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { q, status, dealerId, driverId, dateFrom, dateTo } = req.query;
+      
+      // Get all deliveries and filter based on role authorization
+      let deliveries: any[] = [];
+      
+      if (driverId && typeof driverId === 'string') {
+        // Only drivers can search by driverId, and only for their own deliveries
+        if (role !== 'driver') {
+          return res.status(403).json({ error: "Only drivers can search by driver ID" });
+        }
+        const driver = await storage.getDriverByUserId(userId);
+        if (!driver || driver.id !== driverId) {
+          return res.status(403).json({ error: "Can only search your own deliveries" });
+        }
+        deliveries = await storage.getDeliveriesByDriverId(driverId);
+      } else if (dealerId && typeof dealerId === 'string') {
+        // Only dealers and sales can search by dealerId
+        if (role === 'driver') {
+          return res.status(403).json({ error: "Drivers cannot search by dealer ID" });
+        }
+        // Verify user has access to this dealer's data
+        if (role === 'dealer') {
+          const dealer = await storage.getDealerByUserId(userId);
+          if (!dealer || dealer.id !== dealerId) {
+            return res.status(403).json({ error: "Can only search your own dealership's deliveries" });
+          }
+        } else if (role === 'sales') {
+          const sales = await storage.getSalesByUserId(userId);
+          if (!sales || sales.dealerId !== dealerId) {
+            return res.status(403).json({ error: "Can only search your dealership's deliveries" });
+          }
+        } else {
+          return res.status(403).json({ error: "Not authorized" });
+        }
+        deliveries = await storage.getDeliveriesByDealerId(dealerId);
+      } else {
+        // No scope specified - return empty
+        return res.json([]);
+      }
+
+      // Filter by search query
+      if (q && typeof q === 'string') {
+        const query = q.toLowerCase();
+        deliveries = deliveries.filter(d => 
+          d.vin?.toLowerCase().includes(query) ||
+          d.pickup?.toLowerCase().includes(query) ||
+          d.dropoff?.toLowerCase().includes(query) ||
+          d.pickupCity?.toLowerCase().includes(query) ||
+          d.dropoffCity?.toLowerCase().includes(query) ||
+          d.make?.toLowerCase().includes(query) ||
+          d.model?.toLowerCase().includes(query)
+        );
+      }
+
+      // Filter by status
+      if (status && typeof status === 'string') {
+        const statuses = status.split(',');
+        deliveries = deliveries.filter(d => d.status && statuses.includes(d.status));
+      }
+
+      // Filter by date range
+      if (dateFrom && typeof dateFrom === 'string') {
+        const fromDate = new Date(dateFrom);
+        deliveries = deliveries.filter(d => d.createdAt && new Date(d.createdAt) >= fromDate);
+      }
+      if (dateTo && typeof dateTo === 'string') {
+        const toDate = new Date(dateTo);
+        deliveries = deliveries.filter(d => d.createdAt && new Date(d.createdAt) <= toDate);
+      }
+
+      // Enrich with dealer/driver info
+      const enrichedDeliveries = await Promise.all(
+        deliveries.map(async (d) => {
+          const dealer = await storage.getDealer(d.dealerId);
+          const driver = d.driverId ? await storage.getDriver(d.driverId) : null;
+          const sales = d.salesId ? await storage.getSales(d.salesId) : null;
+          return { ...d, dealer, driver, sales: sales ? { name: sales.name } : null };
+        })
+      );
+
+      res.json(enrichedDeliveries);
+    } catch (error) {
+      console.error("Search deliveries error:", error);
+      res.status(500).json({ error: "Failed to search deliveries" });
+    }
+  });
+
+  // CSV export for delivery history
+  app.get("/api/deliveries/export/csv", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const role = (req.session as any)?.role;
+      if (!userId || !role) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { dealerId, status, dateFrom, dateTo } = req.query;
+      
+      if (!dealerId || typeof dealerId !== 'string') {
+        return res.status(400).json({ error: "dealerId is required" });
+      }
+
+      // Verify user has access to export this dealer's data
+      if (role === 'dealer') {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (!dealer || dealer.id !== dealerId) {
+          return res.status(403).json({ error: "Can only export your own dealership's deliveries" });
+        }
+      } else if (role === 'sales') {
+        const sales = await storage.getSalesByUserId(userId);
+        if (!sales || sales.dealerId !== dealerId) {
+          return res.status(403).json({ error: "Can only export your dealership's deliveries" });
+        }
+      } else {
+        // Drivers cannot export dealer data
+        return res.status(403).json({ error: "Not authorized to export delivery data" });
+      }
+
+      let deliveries = await storage.getDeliveriesByDealerId(dealerId);
+
+      // Apply filters
+      if (status && typeof status === 'string') {
+        const statuses = status.split(',');
+        deliveries = deliveries.filter(d => d.status && statuses.includes(d.status));
+      }
+      if (dateFrom && typeof dateFrom === 'string') {
+        const fromDate = new Date(dateFrom);
+        deliveries = deliveries.filter(d => d.createdAt && new Date(d.createdAt) >= fromDate);
+      }
+      if (dateTo && typeof dateTo === 'string') {
+        const toDate = new Date(dateTo);
+        deliveries = deliveries.filter(d => d.createdAt && new Date(d.createdAt) <= toDate);
+      }
+
+      // Enrich with driver/sales names
+      const enrichedDeliveries = await Promise.all(
+        deliveries.map(async (d) => {
+          const driver = d.driverId ? await storage.getDriver(d.driverId) : null;
+          const sales = d.salesId ? await storage.getSales(d.salesId) : null;
+          return { ...d, driverName: driver?.name || '', salesName: sales?.name || '' };
+        })
+      );
+
+      // Generate CSV
+      const headers = [
+        'VIN', 'Status', 'Pickup Address', 'Dropoff Address', 
+        'Driver', 'Sales Rep', 'Year', 'Make', 'Model',
+        'Created At', 'Accepted At', 'Completed At', 'Notes'
+      ];
+      
+      const rows = enrichedDeliveries.map(d => [
+        d.vin || '',
+        d.status || '',
+        d.pickup || '',
+        d.dropoff || '',
+        d.driverName || '',
+        d.salesName || '',
+        d.year?.toString() || '',
+        d.make || '',
+        d.model || '',
+        d.createdAt ? new Date(d.createdAt).toISOString() : '',
+        d.acceptedAt ? new Date(d.acceptedAt).toISOString() : '',
+        d.completedAt ? new Date(d.completedAt).toISOString() : '',
+        (d.notes || '').replace(/"/g, '""')
+      ]);
+
+      const csvContent = [
+        headers.map(h => `"${h}"`).join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="deliveries-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Export deliveries error:", error);
+      res.status(500).json({ error: "Failed to export deliveries" });
     }
   });
 }

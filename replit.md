@@ -68,6 +68,10 @@ Preferred communication style: Simple, everyday language.
 - **Account Deletion**: Safe cascade deletion across all 15+ dependent tables in a single transaction
 - **Rate Limiting**: In-memory rate limiter on polling endpoints (20 req/10s) and sensitive operations (5 req/hour)
 - **Race Condition Handling**: Atomic delivery acceptance using conditional UPDATE with database-level locking
+- **Security Headers**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, strict CSP in production
+- **Authorization**: Role-based access control on all API endpoints with ownership verification to prevent cross-tenant data exposure
+- **Delivery Tracking**: 8 granular status levels with validated state transitions allowing cancellation and safe backward corrections
+- **Search & Export**: Delivery search with query/status/date filters; CSV export for history reports - both with strict role authorization
 
 ### Project Structure
 ```

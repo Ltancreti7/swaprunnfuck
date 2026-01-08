@@ -15,6 +15,8 @@ import type {
   User, InsertUser,
   DriverStatistics, DriverPreference,
   PasswordResetToken,
+  OnboardingProgress, InsertOnboardingProgress,
+  PushToken, InsertPushToken,
 } from "../shared/schema";
 import crypto from "crypto";
 
@@ -99,6 +101,15 @@ export interface IStorage {
   
   updateUserPassword(userId: string, passwordHash: string): Promise<void>;
   deleteUserAccount(userId: string, role: string): Promise<void>;
+  
+  getOnboardingProgress(userId: string): Promise<OnboardingProgress | undefined>;
+  createOnboardingProgress(progress: InsertOnboardingProgress): Promise<OnboardingProgress>;
+  updateOnboardingProgress(userId: string, updates: Partial<InsertOnboardingProgress>): Promise<OnboardingProgress | undefined>;
+  
+  getPushTokensByUserId(userId: string): Promise<PushToken[]>;
+  createOrUpdatePushToken(token: InsertPushToken): Promise<PushToken>;
+  deletePushToken(userId: string, token: string): Promise<void>;
+  getPushTokensForUsers(userIds: string[]): Promise<PushToken[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -567,6 +578,53 @@ export class DatabaseStorage implements IStorage {
     }
     
     await db.delete(schema.users).where(eq(schema.users.id, userId));
+  }
+  
+  async getOnboardingProgress(userId: string): Promise<OnboardingProgress | undefined> {
+    const [progress] = await db.select().from(schema.onboardingProgress).where(eq(schema.onboardingProgress.userId, userId));
+    return progress;
+  }
+  
+  async createOnboardingProgress(progress: InsertOnboardingProgress): Promise<OnboardingProgress> {
+    const [created] = await db.insert(schema.onboardingProgress).values(progress).returning();
+    return created;
+  }
+  
+  async updateOnboardingProgress(userId: string, updates: Partial<InsertOnboardingProgress>): Promise<OnboardingProgress | undefined> {
+    const [updated] = await db.update(schema.onboardingProgress)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.onboardingProgress.userId, userId))
+      .returning();
+    return updated;
+  }
+  
+  async getPushTokensByUserId(userId: string): Promise<PushToken[]> {
+    return db.select().from(schema.pushTokens).where(eq(schema.pushTokens.userId, userId));
+  }
+  
+  async createOrUpdatePushToken(token: InsertPushToken): Promise<PushToken> {
+    const existing = await db.select().from(schema.pushTokens)
+      .where(and(eq(schema.pushTokens.userId, token.userId), eq(schema.pushTokens.token, token.token)));
+    
+    if (existing.length > 0) {
+      const [updated] = await db.update(schema.pushTokens)
+        .set({ platform: token.platform, updatedAt: new Date() })
+        .where(and(eq(schema.pushTokens.userId, token.userId), eq(schema.pushTokens.token, token.token)))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(schema.pushTokens).values(token).returning();
+    return created;
+  }
+  
+  async deletePushToken(userId: string, token: string): Promise<void> {
+    await db.delete(schema.pushTokens).where(and(eq(schema.pushTokens.userId, userId), eq(schema.pushTokens.token, token)));
+  }
+  
+  async getPushTokensForUsers(userIds: string[]): Promise<PushToken[]> {
+    if (userIds.length === 0) return [];
+    return db.select().from(schema.pushTokens).where(inArray(schema.pushTokens.userId, userIds));
   }
 }
 

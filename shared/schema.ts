@@ -223,6 +223,25 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const onboardingProgress = pgTable("onboarding_progress", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  role: text("role").notNull(),
+  completedSteps: text("completed_steps").array().default(sql`'{}'::text[]`).notNull(),
+  dismissed: boolean("dismissed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const pushTokens = pgTable("push_tokens", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  token: text("token").notNull(),
+  platform: text("platform").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertDealerSchema = createInsertSchema(dealers).omit({ id: true, createdAt: true });
 export const insertSalesSchema = createInsertSchema(sales).omit({ id: true, createdAt: true });
 export const insertDriverSchema = createInsertSchema(drivers).omit({ id: true, createdAt: true, updatedAt: true });
@@ -234,6 +253,8 @@ export const insertApprovedDriverDealerSchema = createInsertSchema(approvedDrive
 export const insertDealerAdminSchema = createInsertSchema(dealerAdmins).omit({ id: true, createdAt: true });
 export const insertAdminInvitationSchema = createInsertSchema(adminInvitations).omit({ id: true, createdAt: true, token: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertOnboardingProgressSchema = createInsertSchema(onboardingProgress).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertDealer = z.infer<typeof insertDealerSchema>;
 export type InsertSales = z.infer<typeof insertSalesSchema>;
@@ -246,6 +267,8 @@ export type InsertApprovedDriverDealer = z.infer<typeof insertApprovedDriverDeal
 export type InsertDealerAdmin = z.infer<typeof insertDealerAdminSchema>;
 export type InsertAdminInvitation = z.infer<typeof insertAdminInvitationSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertOnboardingProgress = z.infer<typeof insertOnboardingProgressSchema>;
+export type InsertPushToken = z.infer<typeof insertPushTokenSchema>;
 
 export type Dealer = typeof dealers.$inferSelect;
 export type Sales = typeof sales.$inferSelect;
@@ -261,6 +284,8 @@ export type User = typeof users.$inferSelect;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type DriverStatistics = typeof driverStatistics.$inferSelect;
 export type DriverPreference = typeof driverPreferences.$inferSelect;
+export type OnboardingProgress = typeof onboardingProgress.$inferSelect;
+export type PushToken = typeof pushTokens.$inferSelect;
 
 export type AdminRole = 'owner' | 'manager' | 'viewer';
 

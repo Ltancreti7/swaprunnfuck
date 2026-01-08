@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, or, desc, asc, isNull, sql } from "drizzle-orm";
+import { eq, and, or, desc, asc, sql, inArray } from "drizzle-orm";
 import * as schema from "../shared/schema";
 import type {
   Dealer, InsertDealer,
@@ -13,6 +13,7 @@ import type {
   DealerAdmin, InsertDealerAdmin,
   AdminInvitation, InsertAdminInvitation,
   User, InsertUser,
+  DriverStatistics, DriverPreference,
 } from "../shared/schema";
 import crypto from "crypto";
 
@@ -77,6 +78,12 @@ export interface IStorage {
   getAdminInvitationByToken(token: string): Promise<AdminInvitation | undefined>;
   createAdminInvitation(invitation: InsertAdminInvitation): Promise<AdminInvitation>;
   updateAdminInvitation(id: string, invitation: Partial<InsertAdminInvitation>): Promise<AdminInvitation | undefined>;
+  
+  getUnreadMessagesCount(userId: string): Promise<number>;
+  getConversations(userId: string): Promise<{ deliveryId: string; lastMessage: Message; unreadCount: number; delivery: Delivery }[]>;
+  getDeliveryWithRelations(deliveryId: string): Promise<{ delivery: Delivery; sales?: Sales; driver?: Driver } | undefined>;
+  getDriverStatisticsByDealerId(dealerId: string): Promise<DriverStatistics[]>;
+  getDriverPreferencesByUserAndDealer(userId: string, dealerId: string): Promise<DriverPreference[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -314,6 +321,65 @@ export class DatabaseStorage implements IStorage {
   async updateAdminInvitation(id: string, invitation: Partial<InsertAdminInvitation>): Promise<AdminInvitation | undefined> {
     const [updated] = await db.update(schema.adminInvitations).set(invitation).where(eq(schema.adminInvitations.id, id)).returning();
     return updated;
+  }
+
+  async getUnreadMessagesCount(userId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(schema.messages)
+      .where(and(eq(schema.messages.recipientId, userId), eq(schema.messages.read, false)));
+    return result[0]?.count || 0;
+  }
+
+  async getConversations(userId: string): Promise<{ deliveryId: string; lastMessage: Message; unreadCount: number; delivery: Delivery }[]> {
+    const allMessages = await db.select()
+      .from(schema.messages)
+      .where(or(eq(schema.messages.senderId, userId), eq(schema.messages.recipientId, userId)))
+      .orderBy(desc(schema.messages.createdAt));
+
+    const deliveryIds = [...new Set(allMessages.map(m => m.deliveryId))];
+    if (deliveryIds.length === 0) return [];
+
+    const deliveries = await db.select().from(schema.deliveries).where(inArray(schema.deliveries.id, deliveryIds));
+
+    const conversations = deliveryIds.map(deliveryId => {
+      const msgs = allMessages.filter(m => m.deliveryId === deliveryId);
+      const lastMessage = msgs[0];
+      const unreadCount = msgs.filter(m => m.recipientId === userId && !m.read).length;
+      const delivery = deliveries.find(d => d.id === deliveryId);
+      if (!delivery || !lastMessage) return null;
+      return { deliveryId, lastMessage, unreadCount, delivery };
+    }).filter((c): c is NonNullable<typeof c> => c !== null);
+
+    return conversations;
+  }
+
+  async getDeliveryWithRelations(deliveryId: string): Promise<{ delivery: Delivery; sales?: Sales; driver?: Driver } | undefined> {
+    const [delivery] = await db.select().from(schema.deliveries).where(eq(schema.deliveries.id, deliveryId));
+    if (!delivery) return undefined;
+
+    let sales: Sales | undefined;
+    let driver: Driver | undefined;
+
+    if (delivery.salesId) {
+      const [salesData] = await db.select().from(schema.sales).where(eq(schema.sales.id, delivery.salesId));
+      sales = salesData;
+    }
+    if (delivery.driverId) {
+      const [driverData] = await db.select().from(schema.drivers).where(eq(schema.drivers.id, delivery.driverId));
+      driver = driverData;
+    }
+
+    return { delivery, sales, driver };
+  }
+
+  async getDriverStatisticsByDealerId(dealerId: string): Promise<DriverStatistics[]> {
+    return db.select().from(schema.driverStatistics).where(eq(schema.driverStatistics.dealerId, dealerId));
+  }
+
+  async getDriverPreferencesByUserAndDealer(userId: string, dealerId: string): Promise<DriverPreference[]> {
+    return db.select().from(schema.driverPreferences).where(
+      and(eq(schema.driverPreferences.userId, userId), eq(schema.driverPreferences.dealerId, dealerId))
+    );
   }
 }
 

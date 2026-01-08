@@ -130,6 +130,8 @@ export const api = {
     get: (id: string) => apiRequest<any>(`/drivers/${id}`),
     current: () => apiRequest<any>('/drivers/current'),
     approvedByDealer: (dealerId: string) => apiRequest<any[]>(`/drivers/approved/${dealerId}`),
+    statistics: (dealerId: string) => apiRequest<any[]>(`/driver-statistics/${dealerId}`),
+    preferences: (dealerId: string) => apiRequest<any[]>(`/driver-preferences/${dealerId}`),
     create: (data: any) =>
       apiRequestWithSnakeBody<any>('/drivers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
@@ -140,7 +142,7 @@ export const api = {
   deliveries: {
     list: () => apiRequest<any[]>('/deliveries'),
     get: (id: string) => apiRequest<any>(`/deliveries/${id}`),
-    getWithRelations: (id: string) => apiRequest<any>(`/deliveries/${id}/full`),
+    getWithRelations: (id: string) => apiRequest<any>(`/deliveries/${id}/with-relations`),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/deliveries/dealer/${dealerId}`),
     bySales: (salesId: string) => apiRequest<any[]>(`/deliveries/sales/${salesId}`),
     byDriver: (driverId: string, status?: string) => 
@@ -161,6 +163,10 @@ export const api = {
       apiRequestWithSnakeBody<any>('/messages', { method: 'POST', body: JSON.stringify(data) }),
     markRead: (deliveryId: string) =>
       apiRequest<{ success: boolean }>(`/messages/${deliveryId}/read`, { method: 'POST' }),
+    unreadCount: () => apiRequest<{ count: number }>('/messages/unread/count'),
+  },
+  conversations: {
+    list: () => apiRequest<any[]>('/conversations'),
   },
   notifications: {
     list: () => apiRequest<any[]>('/notifications'),

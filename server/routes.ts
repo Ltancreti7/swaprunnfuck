@@ -709,6 +709,71 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/messages/unread/count", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const count = await storage.getUnreadMessagesCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Get unread messages count error:", error);
+      res.status(500).json({ error: "Failed to get unread messages count" });
+    }
+  });
+
+  app.get("/api/conversations", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const conversations = await storage.getConversations(userId);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Get conversations error:", error);
+      res.status(500).json({ error: "Failed to get conversations" });
+    }
+  });
+
+  app.get("/api/deliveries/:id/with-relations", async (req, res) => {
+    try {
+      const result = await storage.getDeliveryWithRelations(req.params.id);
+      if (!result) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Get delivery with relations error:", error);
+      res.status(500).json({ error: "Failed to get delivery" });
+    }
+  });
+
+  app.get("/api/driver-statistics/:dealerId", async (req, res) => {
+    try {
+      const stats = await storage.getDriverStatisticsByDealerId(req.params.dealerId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Get driver statistics error:", error);
+      res.status(500).json({ error: "Failed to get driver statistics" });
+    }
+  });
+
+  app.get("/api/driver-preferences/:dealerId", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const preferences = await storage.getDriverPreferencesByUserAndDealer(userId, req.params.dealerId);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Get driver preferences error:", error);
+      res.status(500).json({ error: "Failed to get driver preferences" });
+    }
+  });
+
   app.get("/api/driver-applications", async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;

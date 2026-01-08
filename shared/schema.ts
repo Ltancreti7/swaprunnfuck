@@ -249,6 +249,8 @@ export type ApprovedDriverDealer = typeof approvedDriverDealers.$inferSelect;
 export type DealerAdmin = typeof dealerAdmins.$inferSelect;
 export type AdminInvitation = typeof adminInvitations.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type DriverStatistics = typeof driverStatistics.$inferSelect;
+export type DriverPreference = typeof driverPreferences.$inferSelect;
 
 export type AdminRole = 'owner' | 'manager' | 'viewer';
 

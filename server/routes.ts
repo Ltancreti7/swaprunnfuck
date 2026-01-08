@@ -666,27 +666,29 @@ export function registerRoutes(app: Express): void {
 
       const updatedDelivery = await storage.updateDelivery(id, updates);
       
-      // Send push notifications for status changes
+      // Send push notifications for status changes using the updated delivery
       try {
         const recipientUserIds: string[] = [];
         
         // Notify dealer
-        const dealer = await storage.getDealer(delivery.dealerId);
+        const dealer = await storage.getDealer(updatedDelivery.dealerId);
         if (dealer?.userId) recipientUserIds.push(dealer.userId);
         
-        // Notify driver if assigned
-        if (delivery.driverId) {
-          const driver = await storage.getDriver(delivery.driverId);
+        // Notify driver if assigned (use updatedDelivery to capture newly assigned driver)
+        if (updatedDelivery.driverId) {
+          const driver = await storage.getDriver(updatedDelivery.driverId);
           if (driver?.userId) recipientUserIds.push(driver.userId);
         }
         
         // Notify sales if assigned
-        if (delivery.salesId) {
-          const sales = await storage.getSales(delivery.salesId);
+        if (updatedDelivery.salesId) {
+          const sales = await storage.getSales(updatedDelivery.salesId);
           if (sales?.userId) recipientUserIds.push(sales.userId);
         }
         
-        await notifyDeliveryStatusChange(id, newStatus, recipientUserIds);
+        if (recipientUserIds.length > 0) {
+          await notifyDeliveryStatusChange(id, newStatus, recipientUserIds);
+        }
       } catch (pushError) {
         console.error("Push notification error:", pushError);
       }
@@ -898,18 +900,20 @@ export function registerRoutes(app: Express): void {
         const senderUserId = (req.session as any)?.userId;
         let senderName = "Someone";
         
-        // Get sender name based on role
-        const user = await storage.getUser(senderUserId);
-        if (user) {
-          if (user.role === 'dealer') {
-            const dealer = await storage.getDealerByUserId(senderUserId);
-            senderName = dealer?.name || "Dealership";
-          } else if (user.role === 'sales') {
-            const sales = await storage.getSalesByUserId(senderUserId);
-            senderName = sales?.name || "Sales Rep";
-          } else if (user.role === 'driver') {
-            const driver = await storage.getDriverByUserId(senderUserId);
-            senderName = driver?.name || "Driver";
+        // Get sender name based on role (with safe fallbacks)
+        if (senderUserId) {
+          const user = await storage.getUser(senderUserId);
+          if (user) {
+            if (user.role === 'dealer') {
+              const dealer = await storage.getDealerByUserId(senderUserId);
+              senderName = dealer?.name || "Dealership";
+            } else if (user.role === 'sales') {
+              const sales = await storage.getSalesByUserId(senderUserId);
+              senderName = sales?.name || "Sales Rep";
+            } else if (user.role === 'driver') {
+              const driver = await storage.getDriverByUserId(senderUserId);
+              senderName = driver?.name || "Driver";
+            }
           }
         }
         
@@ -1097,12 +1101,13 @@ export function registerRoutes(app: Express): void {
     try {
       const application = await storage.createDriverApplication(req.body);
       
-      // Send push notification to dealer about new application
+      // Send push notification to dealer about new application (with fallback name)
       try {
         const driver = await storage.getDriver(application.driverId);
         const dealer = await storage.getDealer(application.dealerId);
-        if (dealer?.userId && driver?.name) {
-          await notifyDriverApplication(dealer.userId, driver.name, application.id);
+        if (dealer?.userId) {
+          const driverName = driver?.name || "A driver";
+          await notifyDriverApplication(dealer.userId, driverName, application.id);
         }
       } catch (pushError) {
         console.error("Push notification error:", pushError);
@@ -1126,13 +1131,14 @@ export function registerRoutes(app: Express): void {
         });
       }
       
-      // Send push notification to driver about application decision
+      // Send push notification to driver about application decision (with fallback name)
       if (application && (req.body.status === "approved" || req.body.status === "rejected")) {
         try {
           const driver = await storage.getDriver(application.driverId);
           const dealer = await storage.getDealer(application.dealerId);
-          if (driver?.userId && dealer?.name) {
-            await notifyApplicationDecision(driver.userId, dealer.name, req.body.status === "approved");
+          if (driver?.userId) {
+            const dealerName = dealer?.name || "A dealership";
+            await notifyApplicationDecision(driver.userId, dealerName, req.body.status === "approved");
           }
         } catch (pushError) {
           console.error("Push notification error:", pushError);

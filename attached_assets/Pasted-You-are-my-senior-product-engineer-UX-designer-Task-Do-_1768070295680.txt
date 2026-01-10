@@ -1,0 +1,45 @@
+You are my senior product engineer + UX designer.
+
+Task: Do a full-project audit of this Replit app (frontend + backend). Scan the codebase and running UI and identify improvements in:
+1) Appearance / UI polish (spacing, typography, colors, layout, component consistency, responsiveness, empty states, loading states, micro-interactions, accessibility)
+2) Functionality / product quality (bugs, edge cases, validations, error handling, auth/session, perf, security, DX, logs, analytics readiness, mobile/PWA readiness)
+
+Constraints:
+- Don’t change core business logic unless it fixes a bug.
+- Prefer small, high-ROI changes that materially improve perceived quality.
+- Keep changes incremental and testable. Avoid massive refactors.
+- Use existing stack/tools in the repo (Tailwind/Vite/etc). Don’t introduce heavy new dependencies unless truly worth it.
+
+Deliverables (in this order):
+A) “Top 20 improvements” list with:
+   - Severity (Critical / High / Medium / Low)
+   - ROI (Quick Win / Medium / Long)
+   - Exact file(s) involved
+   - What the user will notice (1 sentence)
+B) UI/Design System check:
+   - Identify inconsistent buttons/inputs/cards/badges/modals
+   - Propose a single design system baseline (colors, type scale, spacing scale, radii, shadows)
+   - Point to the exact Tailwind config/theme tokens to adjust
+C) Functionality audit:
+   - Identify missing validations (forms), broken states, error boundaries, loading states
+   - Identify API/data layer issues (timeouts, retries, optimistic updates, caching)
+   - Identify auth/session edge cases
+   - Identify security issues (RLS assumptions, server routes, secrets, CORS)
+D) Choose the best 5 “Quick Win” fixes and implement them now:
+   - Create a branch/commit per fix with clear messages
+   - After each fix: run tests/lint and provide what to click/verify in the UI
+
+How to audit:
+- Search for TODO/FIXME, console logs, commented code
+- Review Tailwind usage for inconsistency
+- Check routes/pages for missing empty/loading/error states
+- Check forms for schema validation and friendly errors
+- Review server routes and middleware for error handling + status codes
+- Review production readiness items in DEPLOYMENT_CHECKLIST.md, DESIGN_SYSTEM_GUIDE.md, IMPROVEMENTS.md if present
+
+Output format:
+- Use headers and checklists.
+- Be specific. No generic advice.
+- Always reference concrete files and code locations.
+
+Start now by scanning the repo and returning section A (Top 20 improvements). Then wait for my “go” before implementing section D.

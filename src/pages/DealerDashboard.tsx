@@ -45,6 +45,13 @@ export function DealerDashboard() {
   const [pendingDrivers, setPendingDrivers] = useState<Driver[]>([]);
   const [driverApplications, setDriverApplications] = useState<(DriverApplication & { driver: Driver })[]>([]);
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
+  const [approvedDriverDealers, setApprovedDriverDealers] = useState<{
+    driverId: string;
+    dealerId: string;
+    isVerified: boolean;
+    verifiedAt: string | null;
+    verificationNotes: string | null;
+  }[]>([]);
   const [newDelivery, setNewDelivery] = useState({
     pickupAddress: { street: '', city: '', state: '', zip: '' } as AddressFields,
     dropoffAddress: { street: '', city: '', state: '', zip: '' } as AddressFields,
@@ -173,12 +180,39 @@ export function DealerDashboard() {
       setDriverApplications(validApplications as (DriverApplication & { driver: Driver })[]);
       const pendingCount = validApplications.filter((app: any) => app.status === "pending").length;
       setPendingApplicationsCount(pendingCount);
+      
+      const approvals = await api.approvedDriverDealers.list();
+      const dealerApprovals = (approvals || []).filter((a: any) => a.dealerId === dealerId || a.dealer_id === dealerId);
+      setApprovedDriverDealers(dealerApprovals.map((a: any) => ({
+        driverId: a.driverId || a.driver_id,
+        dealerId: a.dealerId || a.dealer_id,
+        isVerified: a.isVerified || a.is_verified || false,
+        verifiedAt: a.verifiedAt || a.verified_at || null,
+        verificationNotes: a.verificationNotes || a.verification_notes || null,
+      })));
     } catch (err: unknown) {
       console.error("Exception loading applications:", err);
       const message = err instanceof Error ? err.message : "Failed to load driver applications";
       showToast(message, "error");
       setDriverApplications([]);
       setPendingApplicationsCount(0);
+    }
+  };
+
+  const handleVerificationToggle = async (driverId: string, currentlyVerified: boolean) => {
+    if (!dealer) return;
+    try {
+      await api.approvedDriverDealers.updateVerification(driverId, dealer.id, !currentlyVerified);
+      showToast(
+        !currentlyVerified 
+          ? "Driver verified - they can now accept deliveries" 
+          : "Driver verification removed",
+        "success"
+      );
+      await loadApplications(dealer.id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update verification";
+      showToast(message, "error");
     }
   };
 
@@ -1003,24 +1037,58 @@ export function DealerDashboard() {
                     <h3 className="text-lg font-semibold mb-4">Application History</h3>
                     {driverApplications.filter(app => app.status === "approved").length > 0 && (
                       <div className="mb-6">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Approved</h4>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Approved Drivers</h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Only verified drivers can accept your deliveries. Toggle verification after you've confirmed their license and insurance.
+                        </p>
                         {driverApplications
                           .filter(app => app.status === "approved" && app.driver)
                           .map((application) => {
                             if (!application.driver) return null;
+                            const driverId = application.driver_id || (application.driver as any).id;
+                            const approval = approvedDriverDealers.find(a => a.driverId === driverId);
+                            const isVerified = approval?.isVerified || false;
 
                             return (
                               <Card key={application.id} className="mb-3">
                                 <div className="flex justify-between items-center">
-                                  <div>
-                                    <div className="flex items-center gap-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <p className="font-semibold">{application.driver.name}</p>
-                                      <StatusBadge status="completed" />
+                                      {isVerified ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                          <Shield className="w-3 h-3" />
+                                          Verified
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                          Needs Verification
+                                        </span>
+                                      )}
                                     </div>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      {application.driver.email} • {application.driver.phone}
+                                    </p>
                                     <p className="text-xs text-gray-500 mt-1">
                                       Approved {new Date(application.reviewed_at || "").toLocaleDateString()}
+                                      {isVerified && approval?.verifiedAt && (
+                                        <> • Verified {new Date(approval.verifiedAt).toLocaleDateString()}</>
+                                      )}
                                     </p>
                                   </div>
+                                  {currentUserRole !== "viewer" && (
+                                    <button
+                                      onClick={() => handleVerificationToggle(driverId, isVerified)}
+                                      className={`ml-4 px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
+                                        isVerified
+                                          ? "border border-gray-300 text-gray-600 hover:bg-gray-50"
+                                          : "bg-green-600 text-white hover:bg-green-700"
+                                      }`}
+                                      data-testid={`button-verify-driver-${driverId}`}
+                                    >
+                                      {isVerified ? "Remove Verification" : "Mark as Verified"}
+                                    </button>
+                                  )}
                                 </div>
                               </Card>
                             );

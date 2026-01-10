@@ -194,6 +194,11 @@ export const api = {
       apiRequestWithSnakeBody<any>('/approved-driver-dealers', { method: 'POST', body: JSON.stringify(data) }),
     delete: (driverId: string, dealerId: string) =>
       apiRequest<{ success: boolean }>(`/approved-driver-dealers/${driverId}/${dealerId}`, { method: 'DELETE' }),
+    updateVerification: (driverId: string, dealerId: string, isVerified: boolean, notes?: string) =>
+      apiRequest<any>(`/approved-driver-dealers/${driverId}/${dealerId}/verification`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isVerified, notes }),
+      }),
   },
   dealerAdmins: {
     list: () => apiRequest<any[]>('/dealer-admins'),

@@ -10,10 +10,15 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, role } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isOutsideMenu = menuRef.current && !menuRef.current.contains(target);
+      const isOutsideButton = buttonRef.current && !buttonRef.current.contains(target);
+      
+      if (isOutsideMenu && isOutsideButton) {
         setMenuOpen(false);
       }
     };
@@ -53,6 +58,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           {user && <NotificationCenter />}
           <button
+            ref={buttonRef}
             onClick={() => setMenuOpen(!menuOpen)}
             className="text-white hover:text-gray-300 transition p-2 touch-target"
             aria-label="Menu"

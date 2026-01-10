@@ -132,6 +132,9 @@ export const approvedDriverDealers = pgTable("approved_driver_dealers", {
   driverId: uuid("driver_id").references(() => drivers.id, { onDelete: "cascade" }).notNull(),
   dealerId: uuid("dealer_id").references(() => dealers.id, { onDelete: "cascade" }).notNull(),
   approvedAt: timestamp("approved_at").defaultNow().notNull(),
+  isVerified: boolean("is_verified").default(false).notNull(),
+  verifiedAt: timestamp("verified_at"),
+  verificationNotes: text("verification_notes"),
 });
 
 export const dealerAdmins = pgTable("dealer_admins", {

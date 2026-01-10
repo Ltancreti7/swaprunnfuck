@@ -73,6 +73,7 @@ Preferred communication style: Simple, everyday language.
 - **Delivery Tracking**: 8 granular status levels with validated state transitions allowing cancellation and safe backward corrections
 - **Search & Export**: Delivery search with query/status/date filters; CSV export for history reports - both with strict role authorization
 - **Legal Compliance**: Privacy Policy (Termly iframe), Terms of Service pages, mandatory checkbox acceptance on all registration forms
+- **Driver Verification**: Dealers can mark approved drivers as "verified" after checking credentials; only verified drivers can accept deliveries
 
 ### Project Structure
 ```

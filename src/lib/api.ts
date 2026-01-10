@@ -109,6 +109,7 @@ export const api = {
   },
   sales: {
     list: () => apiRequest<any[]>('/sales'),
+    get: (id: string) => apiRequest<any>(`/sales/${id}`),
     current: () => apiRequest<any>('/sales/current'),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/sales/dealer/${dealerId}`),
     create: (data: any) =>

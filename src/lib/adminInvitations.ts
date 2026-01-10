@@ -15,24 +15,17 @@ export async function checkAndAcceptPendingInvitations(_userEmail: string, _user
       return { accepted, errors };
     }
 
-    console.log(`Found ${pendingInvitations.length} pending invitation(s)`);
-
     for (const invitation of pendingInvitations) {
       try {
-        console.log(`Processing invitation ${invitation.id} for role: ${invitation.role}`);
-
         const result = await api.adminInvitations.accept(invitation.token);
 
         if (result && result.success) {
-          console.log('Invitation accepted successfully');
           accepted.push(invitation);
         } else {
-          console.warn('Invitation acceptance returned false');
           errors.push('Failed to accept invitation');
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error processing invitation';
-        console.error('Exception processing invitation:', err);
         errors.push(message);
       }
     }
@@ -40,7 +33,6 @@ export async function checkAndAcceptPendingInvitations(_userEmail: string, _user
     return { accepted, errors };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to process invitations';
-    console.error('Exception in checkAndAcceptPendingInvitations:', err);
     errors.push(message);
     return { accepted, errors };
   }
@@ -50,8 +42,7 @@ export async function getUserAdminRoles(_userId: string): Promise<DealerAdmin[]>
   try {
     const roles = await api.user.adminRoles();
     return roles || [];
-  } catch (err: unknown) {
-    console.error('Error fetching admin roles:', err);
+  } catch {
     return [];
   }
 }
@@ -60,8 +51,7 @@ export async function getUserAdminRoleForDealer(userId: string, dealerId: string
   try {
     const roles = await getUserAdminRoles(userId);
     return roles.find(r => r.dealerId === dealerId) || null;
-  } catch (err: unknown) {
-    console.error('Error fetching admin role:', err);
+  } catch {
     return null;
   }
 }

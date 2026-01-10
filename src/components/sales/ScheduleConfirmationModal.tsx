@@ -57,13 +57,10 @@ export function ScheduleConfirmationModal({
     setError('');
 
     try {
-      console.log('[ScheduleModal] Submitting schedule:', { selectedDate, selectedTime });
       await onConfirm(selectedDate, selectedTime);
-      console.log('[ScheduleModal] Schedule confirmed successfully');
       setSelectedDate('');
       setSelectedTime('');
     } catch (err) {
-      console.error('[ScheduleModal] Error confirming schedule:', err);
       setError(err instanceof Error ? err.message : 'Failed to confirm schedule');
     } finally {
       setLoading(false);

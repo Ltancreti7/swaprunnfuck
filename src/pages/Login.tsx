@@ -14,7 +14,16 @@ export function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const { showToast } = useToast();
+
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const emailError = emailTouched && email && !isValidEmail(email) ? 'Please enter a valid email address' : '';
+  const passwordError = passwordTouched && password && password.length < 6 ? 'Password must be at least 6 characters' : '';
 
   useEffect(() => {
     const savedEmail = localStorage.getItem(REMEMBER_ME_KEY);
@@ -114,8 +123,20 @@ export function Login() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-red-600 focus:border-red-600 transition shadow-sm"
+                onBlur={() => setEmailTouched(true)}
+                className={`w-full px-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-red-600 focus:border-red-600 transition shadow-sm ${
+                  emailError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                }`}
+                data-testid="input-email"
               />
+              {emailError && (
+                <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {emailError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -124,7 +145,7 @@ export function Login() {
                 <button
                   type="button"
                   onClick={() => navigate('/forgot-password')}
-                  className="text-sm text-red-600 hover:text-red-700 font-semibold"
+                  className="text-sm text-red-600 hover:text-red-700 font-semibold min-h-[44px] flex items-center"
                 >
                   Forgot password?
                 </button>
@@ -135,8 +156,20 @@ export function Login() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-red-600 focus:border-red-600 transition shadow-sm"
+                onBlur={() => setPasswordTouched(true)}
+                className={`w-full px-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-red-600 focus:border-red-600 transition shadow-sm ${
+                  passwordError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                }`}
+                data-testid="input-password"
               />
+              {passwordError && (
+                <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {passwordError}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center">
@@ -154,10 +187,21 @@ export function Login() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-xl font-bold text-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:bg-gray-400 disabled:transform-none disabled:shadow-none"
+              disabled={loading || !!emailError || !!passwordError}
+              className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-xl font-bold text-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:bg-gray-400 disabled:transform-none disabled:shadow-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 min-h-[56px]"
+              data-testid="button-submit"
             >
-              {loading ? 'Logging in...' : 'Log In'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Logging in...</span>
+                </span>
+              ) : (
+                'Log In'
+              )}
             </button>
           </form>
 
@@ -187,7 +231,8 @@ export function Login() {
                 </div>
                 <button
                   onClick={() => navigate('/signup-sales')}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center"
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center focus:ring-2 focus:ring-red-500 focus:ring-offset-2 min-h-[48px]"
+                  data-testid="button-signup-sales"
                 >
                   <UserPlus size={20} className="mr-2" />
                   Complete First-Time Setup
@@ -204,7 +249,8 @@ export function Login() {
                 </p>
                 <button
                   onClick={() => navigate('/signup-driver')}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center"
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center focus:ring-2 focus:ring-red-500 focus:ring-offset-2 min-h-[48px]"
+                  data-testid="button-signup-driver"
                 >
                   <UserPlus size={20} className="mr-2" />
                   Sign Up as Driver
@@ -221,7 +267,8 @@ export function Login() {
                 </p>
                 <button
                   onClick={() => navigate('/register-dealer')}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center"
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center focus:ring-2 focus:ring-red-500 focus:ring-offset-2 min-h-[48px]"
+                  data-testid="button-register-dealer"
                 >
                   <UserPlus size={20} className="mr-2" />
                   Register Your Dealership

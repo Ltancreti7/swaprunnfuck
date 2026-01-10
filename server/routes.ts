@@ -785,6 +785,22 @@ export function registerRoutes(app: Express): void {
     try {
       const { driverId } = req.body;
       
+      const delivery = await storage.getDelivery(req.params.id);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      
+      const approvals = await storage.getApprovedDriverDealers(driverId);
+      const approval = approvals.find(a => a.dealerId === delivery.dealerId);
+      
+      if (!approval) {
+        return res.status(403).json({ error: "Driver is not approved to work for this dealer" });
+      }
+      
+      if (!approval.isVerified) {
+        return res.status(403).json({ error: "Driver must be verified by the dealer before accepting deliveries. Please contact the dealer to complete your verification." });
+      }
+      
       const updatedDelivery = await storage.atomicAcceptDelivery(req.params.id, driverId);
       
       if (!updatedDelivery) {

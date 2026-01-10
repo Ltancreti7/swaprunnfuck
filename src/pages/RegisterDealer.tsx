@@ -23,6 +23,7 @@ export function RegisterDealer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [passwordStrength, setPasswordStrength] = useState<"weak" | "medium" | "strong">("weak");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const checkPasswordStrength = (password: string) => {
     if (password.length < 6) return "weak";
@@ -309,31 +310,41 @@ export function RegisterDealer() {
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  By registering, you agree to SwapRunn's{' '}
-                  <button
-                    type="button"
-                    onClick={() => window.open('/terms-of-service', '_blank')}
-                    className="text-red-600 hover:text-red-700 font-semibold underline"
-                  >
-                    Terms of Service
-                  </button>
-                  {' '}and{' '}
-                  <button
-                    type="button"
-                    onClick={() => window.open('/privacy-policy', '_blank')}
-                    className="text-red-600 hover:text-red-700 font-semibold underline"
-                  >
-                    Privacy Policy
-                  </button>
-                  . Your dealership information will be used to facilitate vehicle logistics and communication
-                  with drivers and sales staff.
-                </p>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="acceptTerms"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-1 h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-600"
+                    data-testid="checkbox-accept-terms"
+                  />
+                  <label htmlFor="acceptTerms" className="text-sm text-gray-600 leading-relaxed">
+                    I agree to SwapRunn's{' '}
+                    <button
+                      type="button"
+                      onClick={() => window.open('/terms-of-service', '_blank')}
+                      className="text-red-600 hover:text-red-700 font-semibold underline"
+                    >
+                      Terms of Service
+                    </button>
+                    {' '}and{' '}
+                    <button
+                      type="button"
+                      onClick={() => window.open('/privacy-policy', '_blank')}
+                      className="text-red-600 hover:text-red-700 font-semibold underline"
+                    >
+                      Privacy Policy
+                    </button>
+                    . Your dealership information will be used to facilitate vehicle logistics and communication
+                    with drivers and sales staff.
+                  </label>
+                </div>
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !acceptedTerms}
                 className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-lg font-bold text-lg hover:from-red-700 hover:to-red-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                 data-testid="button-submit"
               >

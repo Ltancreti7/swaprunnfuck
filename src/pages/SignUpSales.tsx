@@ -25,6 +25,7 @@ export function SignUpSales() {
     password: "",
     confirmPassword: "",
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     loadDealerships();
@@ -208,9 +209,40 @@ export function SignUpSales() {
                 />
               </div>
 
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="acceptTerms"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-1 h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-600"
+                    data-testid="checkbox-accept-terms"
+                  />
+                  <label htmlFor="acceptTerms" className="text-sm text-gray-600">
+                    I agree to the{' '}
+                    <button
+                      type="button"
+                      onClick={() => window.open('/terms-of-service', '_blank')}
+                      className="text-red-600 hover:text-red-700 font-semibold underline"
+                    >
+                      Terms of Service
+                    </button>
+                    {' '}and{' '}
+                    <button
+                      type="button"
+                      onClick={() => window.open('/privacy-policy', '_blank')}
+                      className="text-red-600 hover:text-red-700 font-semibold underline"
+                    >
+                      Privacy Policy
+                    </button>
+                  </label>
+                </div>
+              </div>
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !acceptedTerms}
                 className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                 data-testid="button-submit"
               >
@@ -242,26 +274,8 @@ export function SignUpSales() {
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mt-4">
-                <p className="text-sm text-blue-800 mb-3">
+                <p className="text-sm text-blue-800">
                   <strong>Note:</strong> Your dealership administrator must add you to the team roster before you can sign up. If you encounter an error, please contact your administrator.
-                </p>
-                <p className="text-xs text-gray-600">
-                  By signing up, you agree to our{' '}
-                  <button
-                    type="button"
-                    onClick={() => window.open('/terms-of-service', '_blank')}
-                    className="text-red-600 hover:text-red-700 font-semibold underline"
-                  >
-                    Terms of Service
-                  </button>
-                  {' '}and{' '}
-                  <button
-                    type="button"
-                    onClick={() => window.open('/privacy-policy', '_blank')}
-                    className="text-red-600 hover:text-red-700 font-semibold underline"
-                  >
-                    Privacy Policy
-                  </button>
                 </p>
               </div>
             </form>

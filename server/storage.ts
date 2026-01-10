@@ -70,6 +70,7 @@ export interface IStorage {
   getApprovedDriversByDealerId(dealerId: string): Promise<ApprovedDriverDealer[]>;
   createApprovedDriverDealer(approval: InsertApprovedDriverDealer): Promise<ApprovedDriverDealer>;
   deleteApprovedDriverDealer(driverId: string, dealerId: string): Promise<void>;
+  updateDriverVerification(driverId: string, dealerId: string, isVerified: boolean, notes?: string): Promise<ApprovedDriverDealer | undefined>;
   
   getDealerAdmins(dealerId: string): Promise<DealerAdmin[]>;
   getDealerAdminByUserId(userId: string): Promise<DealerAdmin | undefined>;
@@ -305,6 +306,23 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schema.approvedDriverDealers).where(
       and(eq(schema.approvedDriverDealers.driverId, driverId), eq(schema.approvedDriverDealers.dealerId, dealerId))
     );
+  }
+
+  async updateDriverVerification(driverId: string, dealerId: string, isVerified: boolean, notes?: string): Promise<ApprovedDriverDealer | undefined> {
+    const updateData: { isVerified: boolean; verifiedAt: Date | null; verificationNotes?: string } = {
+      isVerified,
+      verifiedAt: isVerified ? new Date() : null,
+    };
+    if (notes !== undefined) {
+      updateData.verificationNotes = notes;
+    }
+    const [updated] = await db.update(schema.approvedDriverDealers)
+      .set(updateData)
+      .where(
+        and(eq(schema.approvedDriverDealers.driverId, driverId), eq(schema.approvedDriverDealers.dealerId, dealerId))
+      )
+      .returning();
+    return updated;
   }
 
   async getDealerAdmins(dealerId: string): Promise<DealerAdmin[]> {

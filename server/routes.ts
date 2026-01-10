@@ -1221,6 +1221,46 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.patch("/api/approved-driver-dealers/:driverId/:dealerId/verification", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const dealer = await storage.getDealerByUserId(userId);
+      if (!dealer) {
+        const admin = await storage.getDealerAdminByUserId(userId);
+        if (!admin || admin.dealerId !== req.params.dealerId) {
+          return res.status(403).json({ error: "Forbidden - not authorized for this dealer" });
+        }
+      } else if (dealer.id !== req.params.dealerId) {
+        return res.status(403).json({ error: "Forbidden - not authorized for this dealer" });
+      }
+      
+      const { isVerified, notes } = req.body;
+      if (typeof isVerified !== 'boolean') {
+        return res.status(400).json({ error: "isVerified must be a boolean" });
+      }
+      
+      const updated = await storage.updateDriverVerification(
+        req.params.driverId,
+        req.params.dealerId,
+        isVerified,
+        notes
+      );
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Driver-dealer relationship not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Update driver verification error:", error);
+      res.status(500).json({ error: "Failed to update driver verification" });
+    }
+  });
+
   app.get("/api/dealer-admins", async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;

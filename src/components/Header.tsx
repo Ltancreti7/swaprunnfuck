@@ -63,7 +63,7 @@ export function Header() {
       </div>
 
       {menuOpen && (
-        <div ref={menuRef} className="absolute top-full right-0 bg-neutral-900 text-white shadow-lg w-screen max-w-[280px] sm:w-64 border-t border-neutral-700 animate-slide-in">
+        <div ref={menuRef} className="absolute top-full right-2 sm:right-4 mt-2 bg-zinc-900 text-white shadow-2xl w-64 rounded-lg border border-zinc-700 z-50 overflow-hidden animate-slide-in">
           <nav className="flex flex-col">
             {!user ? (
               <>
@@ -72,7 +72,7 @@ export function Header() {
                     navigate('/register-dealer');
                     setMenuOpen(false);
                   }}
-                  className="px-6 py-3 hover:bg-neutral-800 active:bg-neutral-700 text-left transition border-b border-neutral-700 touch-target"
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition border-b border-zinc-700/50 font-medium touch-target"
                 >
                   Register Dealership
                 </button>
@@ -81,7 +81,7 @@ export function Header() {
                     navigate('/login?type=sales');
                     setMenuOpen(false);
                   }}
-                  className="px-6 py-3 hover:bg-neutral-800 active:bg-neutral-700 text-left transition touch-target"
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition border-b border-zinc-700/50 touch-target"
                 >
                   Sales Login
                 </button>
@@ -90,7 +90,7 @@ export function Header() {
                     navigate('/login?type=driver');
                     setMenuOpen(false);
                   }}
-                  className="px-6 py-3 hover:bg-neutral-800 active:bg-neutral-700 text-left transition touch-target"
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition border-b border-zinc-700/50 touch-target"
                 >
                   Driver Login
                 </button>
@@ -99,7 +99,7 @@ export function Header() {
                     navigate('/login');
                     setMenuOpen(false);
                   }}
-                  className="px-6 py-3 hover:bg-neutral-800 active:bg-neutral-700 text-left transition text-gray-400 text-sm touch-target"
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition text-zinc-400 text-sm touch-target"
                 >
                   Dealership Login
                 </button>
@@ -111,7 +111,7 @@ export function Header() {
                     navigate(role === 'dealer' ? '/dealer' : role === 'sales' ? '/sales' : '/driver');
                     setMenuOpen(false);
                   }}
-                  className="px-6 py-3 hover:bg-neutral-800 active:bg-neutral-700 text-left transition touch-target"
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition border-b border-zinc-700/50 font-medium touch-target"
                 >
                   Dashboard
                 </button>
@@ -120,13 +120,13 @@ export function Header() {
                     navigate('/profile');
                     setMenuOpen(false);
                   }}
-                  className="px-6 py-3 hover:bg-neutral-800 active:bg-neutral-700 text-left transition touch-target"
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition border-b border-zinc-700/50 touch-target"
                 >
                   Profile
                 </button>
                 <button
                   onClick={handleSignOut}
-                  className="px-6 py-3 hover:bg-neutral-800 active:bg-neutral-700 text-left transition text-red-500 touch-target"
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition text-red-400 font-medium touch-target"
                 >
                   Sign Out
                 </button>

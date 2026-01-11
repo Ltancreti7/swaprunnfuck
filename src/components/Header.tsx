@@ -2,13 +2,12 @@ import { Menu } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { signOut } from '../lib/auth';
 import { NotificationCenter } from './NotificationCenter';
 
 export function Header() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user, role } = useAuth();
+  const { user, role, logout } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -33,7 +32,7 @@ export function Header() {
   }, [menuOpen]);
 
   const handleSignOut = async () => {
-    await signOut();
+    await logout();
     navigate('/');
     setMenuOpen(false);
   };

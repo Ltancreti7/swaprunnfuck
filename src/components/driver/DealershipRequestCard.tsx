@@ -1,4 +1,4 @@
-import { MapPin, Building2, Clock, Calendar, User, Star } from 'lucide-react';
+import { MapPin, Building2, Clock, Calendar, User, Star, DollarSign } from 'lucide-react';
 import { StatusBadge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { getTimeframeDisplay, getTimeframeColor } from '../../lib/deliveryUtils';
@@ -121,6 +121,26 @@ export function DealershipRequestCard({ delivery, onAccept, onDecline, dealerCol
           <p className="text-sm text-gray-700">{delivery.notes}</p>
         </div>
       )}
+
+      {delivery.estimatedPayCents && (
+        <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign size={20} className="text-green-600" />
+              <span className="text-sm font-medium text-green-800">Estimated Earnings</span>
+            </div>
+            <span className="text-2xl font-bold text-green-700">
+              ${(delivery.estimatedPayCents / 100).toFixed(2)}
+            </span>
+          </div>
+          {delivery.estimatedDurationMinutes && (
+            <p className="text-xs text-green-600 mt-1 ml-7">
+              ~{Math.round(delivery.estimatedDurationMinutes / 60 * 10) / 10} hours round trip
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-3">
         <button
           onClick={() => onAccept(delivery.id)}

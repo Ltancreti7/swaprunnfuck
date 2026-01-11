@@ -43,7 +43,7 @@ export const drivers = pgTable("drivers", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
-  vehicleType: text("vehicle_type").notNull(),
+  canDriveManual: boolean("can_drive_manual").notNull().default(false),
   licenseNumber: text("license_number"),
   radius: integer("radius").notNull().default(50),
   status: text("status").notNull().default("active"),

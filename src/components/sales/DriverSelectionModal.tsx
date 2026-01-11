@@ -75,7 +75,7 @@ export function DriverSelectionModal({
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(d =>
         d.name.toLowerCase().includes(query) ||
-        d.vehicleType.toLowerCase().includes(query)
+        d.email.toLowerCase().includes(query)
       );
     }
 
@@ -215,7 +215,7 @@ export function DriverSelectionModal({
 
                       <div className="flex flex-wrap gap-4 mb-3">
                         <span className="px-3 py-1 bg-gray-100 text-xs rounded-full font-medium">
-                          {driver.vehicleType}
+                          {driver.canDriveManual ? 'Manual OK' : 'Auto only'}
                         </span>
                         <span className="px-3 py-1 bg-gray-100 text-xs rounded-full font-medium">
                           {driver.radius} mi radius

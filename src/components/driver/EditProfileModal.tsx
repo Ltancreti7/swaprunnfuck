@@ -13,7 +13,7 @@ interface EditProfileModalProps {
 export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfileModalProps) {
   const [name, setName] = useState(driver.name);
   const [phone, setPhone] = useState(driver.phone);
-  const [vehicleType, setVehicleType] = useState(driver.vehicleType);
+  const [canDriveManual, setCanDriveManual] = useState(driver.canDriveManual);
   const [radius, setRadius] = useState(driver.radius.toString());
   const [licenseNumber, setLicenseNumber] = useState(driver.licenseNumber || '');
   const [saving, setSaving] = useState(false);
@@ -23,7 +23,7 @@ export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfil
     if (isOpen) {
       setName(driver.name);
       setPhone(driver.phone);
-      setVehicleType(driver.vehicleType);
+      setCanDriveManual(driver.canDriveManual);
       setRadius(driver.radius.toString());
       setLicenseNumber(driver.licenseNumber || '');
       setError('');
@@ -40,7 +40,7 @@ export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfil
       return;
     }
 
-    if (!name.trim() || !phone.trim() || !vehicleType.trim()) {
+    if (!name.trim() || !phone.trim()) {
       setError('Please fill in all required fields');
       return;
     }
@@ -50,7 +50,7 @@ export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfil
       await onSave({
         name: name.trim(),
         phone: phone.trim(),
-        vehicleType: vehicleType.trim(),
+        canDriveManual,
         radius: radiusNum,
         licenseNumber: licenseNumber.trim() || undefined,
       });
@@ -89,23 +89,17 @@ export function EditProfileModal({ isOpen, onClose, driver, onSave }: EditProfil
           placeholder="(555) 123-4567"
         />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Vehicle Type
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="canDriveManual"
+            checked={canDriveManual}
+            onChange={(e) => setCanDriveManual(e.target.checked)}
+            className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-600"
+          />
+          <label htmlFor="canDriveManual" className="text-sm font-medium text-gray-700">
+            Comfortable driving manual transmission
           </label>
-          <select
-            value={vehicleType}
-            onChange={(e) => setVehicleType(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            required
-          >
-            <option value="">Select vehicle type</option>
-            <option value="car">Car</option>
-            <option value="truck">Truck</option>
-            <option value="trailer">Trailer</option>
-            <option value="van">Van</option>
-            <option value="suv">SUV</option>
-          </select>
         </div>
 
         <Input

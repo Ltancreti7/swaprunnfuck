@@ -384,7 +384,7 @@ export function DriverDashboard() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 truncate">Welcome, {driver?.name}</h1>
               <p className="text-xs sm:text-sm text-gray-600 truncate">
-                {driver?.vehicleType} | {driver?.radius} mi radius
+                {driver?.canDriveManual ? 'Manual OK' : 'Auto only'} | {driver?.radius} mi radius
               </p>
             </div>
             <div className="flex gap-2 sm:gap-3 items-center">

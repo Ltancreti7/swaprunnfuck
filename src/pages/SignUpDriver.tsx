@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, Phone, Truck, MapPin } from "lucide-react";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, User, Phone, MapPin } from "lucide-react";
 import { api } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,7 +18,7 @@ export function SignUpDriver() {
     phone: "",
     password: "",
     confirmPassword: "",
-    vehicleType: "",
+    canDriveManual: false,
     licenseNumber: "",
     radius: "50",
   });
@@ -47,7 +47,7 @@ export function SignUpDriver() {
         name: formData.name,
         email: normalizedEmail,
         phone: formData.phone,
-        vehicleType: formData.vehicleType,
+        canDriveManual: formData.canDriveManual,
         licenseNumber: formData.licenseNumber || null,
         radius: parseInt(formData.radius),
       });
@@ -149,30 +149,6 @@ export function SignUpDriver() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                    <Truck size={16} />
-                    <span>Vehicle Type</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.vehicleType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, vehicleType: e.target.value })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                    data-testid="select-vehicle-type"
-                  >
-                    <option value="">Select vehicle type</option>
-                    <option value="sedan">Sedan</option>
-                    <option value="suv">SUV</option>
-                    <option value="truck">Truck</option>
-                    <option value="van">Van</option>
-                    <option value="flatbed">Flatbed</option>
-                    <option value="enclosed">Enclosed Trailer</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
                     <MapPin size={16} />
                     <span>Service Radius (miles)</span>
                   </label>
@@ -189,6 +165,23 @@ export function SignUpDriver() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
                     data-testid="input-radius"
                   />
+                </div>
+
+                <div className="flex items-center">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.canDriveManual}
+                      onChange={(e) =>
+                        setFormData({ ...formData, canDriveManual: e.target.checked })
+                      }
+                      className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-600"
+                      data-testid="checkbox-manual-transmission"
+                    />
+                    <span className="text-sm font-medium">
+                      Comfortable driving manual transmission
+                    </span>
+                  </label>
                 </div>
               </div>
 

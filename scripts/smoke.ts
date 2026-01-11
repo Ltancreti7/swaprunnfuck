@@ -146,7 +146,7 @@ async function runSmokeTests() {
       name: 'Smoke Test Driver',
       email,
       phone: '555-DRIVE',
-      vehicleType: 'Sedan',
+      canDriveManual: true,
       radius: 50,
     });
     

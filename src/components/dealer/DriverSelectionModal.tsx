@@ -74,7 +74,6 @@ export function DriverSelectionModal({
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(d =>
         d.name.toLowerCase().includes(query) ||
-        d.vehicleType.toLowerCase().includes(query) ||
         d.email.toLowerCase().includes(query)
       );
     }
@@ -220,9 +219,9 @@ export function DriverSelectionModal({
 
                       <div className="flex flex-wrap gap-4 mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-700">Vehicle:</span>
+                          <span className="text-xs font-medium text-gray-700">Transmission:</span>
                           <span className="px-2 py-1 bg-gray-100 text-xs rounded-full font-medium">
-                            {driver.vehicleType}
+                            {driver.canDriveManual ? 'Manual OK' : 'Auto only'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

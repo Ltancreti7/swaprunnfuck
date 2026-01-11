@@ -36,7 +36,7 @@ export interface Driver {
   name: string;
   email: string;
   phone: string;
-  vehicleType: string;
+  canDriveManual: boolean;
   licenseNumber?: string;
   radius: number;
   status: string;

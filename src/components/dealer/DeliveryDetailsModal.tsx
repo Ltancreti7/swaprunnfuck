@@ -83,7 +83,7 @@ export function DeliveryDetailsModal({
                   <p className="text-sm font-medium text-gray-700">Driver</p>
                   <p className="text-gray-900">{driver.name}</p>
                   <p className="text-sm text-gray-600">{driver.phone}</p>
-                  <p className="text-sm text-gray-600">{driver.vehicleType}</p>
+                  <p className="text-sm text-gray-600">{driver.canDriveManual ? 'Can drive manual' : 'Automatic only'}</p>
                 </div>
               </div>
             )}

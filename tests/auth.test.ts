@@ -132,7 +132,7 @@ describe('Registration & Authentication', () => {
           name: 'Test Driver',
           email,
           phone: '555-9999',
-          vehicleType: 'Sedan',
+          canDriveManual: true,
           radius: 50,
         });
       

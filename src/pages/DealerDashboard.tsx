@@ -69,7 +69,7 @@ export function DealerDashboard() {
     email: "",
     phone: "",
     role: "",
-    vehicle_type: "",
+    can_drive_manual: "false",
     radius: "50",
   });
   const [editingMember, setEditingMember] = useState<Sales | Driver | null>(null);
@@ -446,7 +446,7 @@ export function DealerDashboard() {
           name: newTeamMember.name,
           email: newTeamMember.email,
           phone: newTeamMember.phone,
-          vehicleType: newTeamMember.vehicle_type,
+          canDriveManual: newTeamMember.can_drive_manual === "true",
           radius: parseInt(newTeamMember.radius),
           status: "pending_signup",
         });
@@ -463,7 +463,7 @@ export function DealerDashboard() {
         email: "",
         phone: "",
         role: "",
-        vehicle_type: "",
+        can_drive_manual: "false",
         radius: "50",
       });
     } catch (err: unknown) {
@@ -493,7 +493,7 @@ export function DealerDashboard() {
           name: driverMember.name,
           email: driverMember.email,
           phone: driverMember.phone,
-          vehicleType: driverMember.vehicle_type,
+          canDriveManual: driverMember.canDriveManual,
           radius: driverMember.radius,
         });
         await loadDrivers(dealer.id);

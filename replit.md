@@ -75,6 +75,7 @@ Preferred communication style: Simple, everyday language.
 - **Legal Compliance**: Privacy Policy (Termly iframe), Terms of Service pages, mandatory checkbox acceptance on all registration forms
 - **Driver Verification**: Dealers can mark approved drivers as "verified" after checking credentials; only verified drivers can accept deliveries
 - **Estimated Pay Display**: Drivers see estimated earnings before accepting jobs, calculated from round-trip distance × dealer hourly rate (default $25/hr)
+- **Manual Transmission Preference**: Drivers indicate if they can drive manual transmission during signup; replaces irrelevant "vehicle type" field since drivers use dealership vehicles
 
 ### Project Structure
 ```

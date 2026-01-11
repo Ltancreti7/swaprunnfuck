@@ -74,6 +74,7 @@ Preferred communication style: Simple, everyday language.
 - **Search & Export**: Delivery search with query/status/date filters; CSV export for history reports - both with strict role authorization
 - **Legal Compliance**: Privacy Policy (Termly iframe), Terms of Service pages, mandatory checkbox acceptance on all registration forms
 - **Driver Verification**: Dealers can mark approved drivers as "verified" after checking credentials; only verified drivers can accept deliveries
+- **Estimated Pay Display**: Drivers see estimated earnings before accepting jobs, calculated from round-trip distance × dealer hourly rate (default $25/hr)
 
 ### Project Structure
 ```

@@ -14,14 +14,23 @@ export function EditDealerProfileModal({ dealer, onClose, onSave }: EditDealerPr
     address: dealer.address,
     email: dealer.email,
     phone: dealer.phone,
+    hourlyRate: dealer.hourlyRate || 2500,
   });
+  const [hourlyRateInput, setHourlyRateInput] = useState(((dealer.hourlyRate || 2500) / 100).toFixed(2));
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedRate = parseFloat(hourlyRateInput);
+    if (isNaN(parsedRate) || parsedRate < 1) {
+      return;
+    }
     setSaving(true);
     try {
-      await onSave(formData);
+      await onSave({
+        ...formData,
+        hourlyRate: Math.round(parsedRate * 100)
+      });
       onClose();
     } catch (error) {
       console.error("Error saving:", error);
@@ -75,6 +84,25 @@ export function EditDealerProfileModal({ dealer, onClose, onSave }: EditDealerPr
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Driver Hourly Rate</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              required
+              value={hourlyRateInput}
+              onChange={(e) => setHourlyRateInput(e.target.value)}
+              className="w-full pl-8 pr-16 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+              data-testid="input-hourly-rate"
+            />
+            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">/hour</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">This is what drivers see as their estimated earnings per hour</p>
         </div>
 
         <div className="flex gap-3 pt-4">

@@ -10,6 +10,7 @@ export const dealers = pgTable("dealers", {
   address: text("address").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
+  hourlyRate: integer("hourly_rate").default(2500),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -92,6 +93,9 @@ export const deliveries = pgTable("deliveries", {
   completedAt: timestamp("completed_at"),
   cancelledAt: timestamp("cancelled_at"),
   cancelledBy: uuid("cancelled_by"),
+  estimatedDistanceKm: numeric("estimated_distance_km", { precision: 10, scale: 2 }),
+  estimatedDurationMinutes: integer("estimated_duration_minutes"),
+  estimatedPayCents: integer("estimated_pay_cents"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

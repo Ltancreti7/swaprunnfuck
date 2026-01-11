@@ -9,6 +9,7 @@ import { z } from "zod";
 import { sendPasswordResetEmail, sendAdminInvitationEmail, isEmailConfigured } from "./email";
 import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
 import { notifyDeliveryStatusChange, notifyNewMessage, notifyNewDeliveryAvailable, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
+import { calculateRoundTripEstimate, calculateEstimatedPay } from "./distance";
 
 // Validation schemas
 const createDeliverySchema = z.object({
@@ -620,6 +621,33 @@ export function registerRoutes(app: Express): void {
         });
       }
       const delivery = await storage.createDelivery(parseResult.data);
+      
+      // Calculate distance and pay estimates asynchronously
+      const dealer = await storage.getDealer(parseResult.data.dealerId);
+      if (dealer) {
+        const estimate = await calculateRoundTripEstimate(
+          parseResult.data.pickup,
+          parseResult.data.dropoff
+        );
+        
+        if (estimate) {
+          const hourlyRate = dealer.hourlyRate || 2500;
+          const estimatedPay = calculateEstimatedPay(estimate.durationMinutes, hourlyRate);
+          
+          await db.update(schema.deliveries)
+            .set({
+              estimatedDistanceKm: estimate.distanceKm.toString(),
+              estimatedDurationMinutes: estimate.durationMinutes,
+              estimatedPayCents: estimatedPay
+            })
+            .where(eq(schema.deliveries.id, delivery.id));
+          
+          delivery.estimatedDistanceKm = estimate.distanceKm.toString();
+          delivery.estimatedDurationMinutes = estimate.durationMinutes;
+          delivery.estimatedPayCents = estimatedPay;
+        }
+      }
+      
       res.json(delivery);
     } catch (error) {
       console.error("Create delivery error:", error);

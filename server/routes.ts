@@ -1193,6 +1193,10 @@ export function registerRoutes(app: Express): void {
   app.patch("/api/driver-applications/:id", async (req, res) => {
     try {
       const body = toCamelCase(req.body);
+      // Convert reviewedAt string to Date object for Drizzle
+      if (body.reviewedAt && typeof body.reviewedAt === 'string') {
+        body.reviewedAt = new Date(body.reviewedAt);
+      }
       const application = await storage.updateDriverApplication(req.params.id, body);
       
       if (body.status === "approved" && application) {

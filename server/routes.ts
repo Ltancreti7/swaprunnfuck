@@ -21,6 +21,34 @@ function toCamelCase(obj: any): any {
   }, {});
 }
 
+// Known date/timestamp fields that need conversion from ISO strings to Date objects
+const DATE_FIELDS = [
+  'reviewedAt', 'appliedAt', 'activatedAt', 'createdAt', 'updatedAt', 
+  'completedAt', 'scheduledDate', 'customDate', 'verifiedAt', 'expiresAt',
+  'lastActiveAt', 'passwordChangedAt'
+];
+
+// Middleware to normalize request bodies: snake_case -> camelCase + ISO date strings -> Date objects
+function normalizeRequestBody(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(normalizeRequestBody);
+  
+  // First convert snake_case to camelCase
+  const camelCased = toCamelCase(obj);
+  
+  // Then convert known date fields from ISO strings to Date objects
+  for (const field of DATE_FIELDS) {
+    if (camelCased[field] && typeof camelCased[field] === 'string') {
+      const date = new Date(camelCased[field]);
+      if (!isNaN(date.getTime())) {
+        camelCased[field] = date;
+      }
+    }
+  }
+  
+  return camelCased;
+}
+
 // Validation schemas
 const createDeliverySchema = z.object({
   dealerId: z.string().uuid(),
@@ -87,6 +115,14 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 }
 
 export function registerRoutes(app: Express): void {
+  // Middleware to normalize all POST/PATCH request bodies
+  app.use((req, res, next) => {
+    if ((req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT') && req.body) {
+      req.body = normalizeRequestBody(req.body);
+    }
+    next();
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { email, password, role } = req.body;

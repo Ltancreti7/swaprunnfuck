@@ -11,6 +11,16 @@ import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
 import { notifyDeliveryStatusChange, notifyNewMessage, notifyNewDeliveryAvailable, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
 import { calculateRoundTripEstimate, calculateEstimatedPay } from "./distance";
 
+function toCamelCase(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  return Object.keys(obj).reduce((result: any, key) => {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    result[camelKey] = toCamelCase(obj[key]);
+    return result;
+  }, {});
+}
+
 // Validation schemas
 const createDeliverySchema = z.object({
   dealerId: z.string().uuid(),
@@ -323,7 +333,8 @@ export function registerRoutes(app: Express): void {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const sales = await storage.createSales({ ...req.body, userId });
+      const body = toCamelCase(req.body);
+      const sales = await storage.createSales({ ...body, userId });
       res.json(sales);
     } catch (error) {
       console.error("Create sales error:", error);
@@ -333,7 +344,8 @@ export function registerRoutes(app: Express): void {
 
   app.patch("/api/sales/:id", async (req, res) => {
     try {
-      const sales = await storage.updateSales(req.params.id, req.body);
+      const body = toCamelCase(req.body);
+      const sales = await storage.updateSales(req.params.id, body);
       res.json(sales);
     } catch (error) {
       console.error("Update sales error:", error);
@@ -533,7 +545,8 @@ export function registerRoutes(app: Express): void {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const driver = await storage.createDriver({ ...req.body, userId });
+      const body = toCamelCase(req.body);
+      const driver = await storage.createDriver({ ...body, userId });
       res.json(driver);
     } catch (error) {
       console.error("Create driver error:", error);
@@ -543,7 +556,8 @@ export function registerRoutes(app: Express): void {
 
   app.patch("/api/drivers/:id", async (req, res) => {
     try {
-      const driver = await storage.updateDriver(req.params.id, req.body);
+      const body = toCamelCase(req.body);
+      const driver = await storage.updateDriver(req.params.id, body);
       res.json(driver);
     } catch (error) {
       console.error("Update driver error:", error);

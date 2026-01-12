@@ -1366,7 +1366,8 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/sales/check-preregistered", async (req, res) => {
     try {
-      const { email, dealerId } = req.body;
+      const body = toCamelCase(req.body);
+      const { email, dealerId } = body;
       const sales = await storage.getSalesByEmailAndDealerId(email.toLowerCase().trim(), dealerId);
       if (sales && sales.status === "pending_signup") {
         res.json({ preRegistered: true, salesId: sales.id });

@@ -124,6 +124,7 @@ Preferred communication style: Simple, everyday language.
 - **Tailwind Theme Tokens**: Added design system colors (primary, secondary, destructive, accent, muted) and border-radius scale to tailwind.config.js for consistent Button component styling
 - **Debug Log Cleanup**: Removed console.log statements from ScheduleConfirmationModal.tsx and adminInvitations.ts
 - **API Method Fix**: Added missing api.sales.get(id) method
+- **Native App Feel**: iOS-style overscroll bounce, active-press feedback on buttons, smooth momentum scrolling, skeleton loading components, pull-to-refresh hook/component (ready for future integration)
 
 ### Testing Infrastructure (January 2026)
 - **Smoke Runner**: `npm run smoke` - validates 17 core user flows (100% pass rate)

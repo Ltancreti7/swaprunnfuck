@@ -661,9 +661,12 @@ export function registerRoutes(app: Express): void {
     try {
       const parseResult = createDeliverySchema.safeParse(req.body);
       if (!parseResult.success) {
+        const errors = parseResult.error?.errors || [];
+        console.log("Delivery validation failed. Body:", JSON.stringify(req.body, null, 2));
+        console.log("Validation errors:", JSON.stringify(errors, null, 2));
         return res.status(400).json({ 
           error: "Validation failed", 
-          details: parseResult.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+          details: errors.map(e => ({ field: e.path.join('.'), message: e.message }))
         });
       }
       const delivery = await storage.createDelivery(parseResult.data);

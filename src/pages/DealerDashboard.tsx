@@ -226,13 +226,13 @@ export function DealerDashboard() {
       });
 
       await api.approvedDriverDealers.create({
-        driverId: application.driver_id,
+        driverId: application.driverId,
         dealerId: dealer.id,
       });
 
-      if (application.driver.user_id) {
+      if (application.driver.userId) {
         await api.notifications.create({
-          userId: application.driver.user_id,
+          userId: application.driver.userId,
           deliveryId: null,
           type: "application_approved",
           title: "Application Approved",
@@ -258,9 +258,9 @@ export function DealerDashboard() {
         reviewedAt: new Date().toISOString(),
       });
 
-      if (application.driver.user_id && notes) {
+      if (application.driver.userId && notes) {
         await api.notifications.create({
-          userId: application.driver.user_id,
+          userId: application.driver.userId,
           deliveryId: null,
           type: "application_rejected",
           title: "Application Update",
@@ -281,9 +281,9 @@ export function DealerDashboard() {
     if (!dealer || !user) return;
 
     try {
-      if (application.driver.user_id) {
+      if (application.driver.userId) {
         await api.notifications.create({
-          userId: application.driver.user_id,
+          userId: application.driver.userId,
           deliveryId: null,
           type: "application_followup",
           title: `Message from ${dealer.name}`,
@@ -357,7 +357,7 @@ export function DealerDashboard() {
 
   const handleResendNotification = async (deliveryId: string) => {
     try {
-      const availableDrivers = drivers.filter((d: Driver) => d.is_available);
+      const availableDrivers = drivers.filter((d: Driver) => d.isAvailable);
 
       if (availableDrivers.length === 0) {
         showToast("No drivers available to notify.", "info");
@@ -365,9 +365,9 @@ export function DealerDashboard() {
       }
 
       for (const driver of availableDrivers) {
-        if (driver.user_id) {
+        if (driver.userId) {
           await api.notifications.create({
-            userId: driver.user_id,
+            userId: driver.userId,
             deliveryId: deliveryId,
             type: "delivery_reminder",
             title: "Delivery Still Available",
@@ -1069,7 +1069,7 @@ export function DealerDashboard() {
                           .filter(app => app.status === "approved" && app.driver)
                           .map((application) => {
                             if (!application.driver) return null;
-                            const driverId = application.driver_id || (application.driver as any).id;
+                            const driverId = application.driverId || (application.driver as any).id;
                             const approval = approvedDriverDealers.find(a => a.driverId === driverId);
                             const isVerified = approval?.isVerified || false;
 
@@ -1094,7 +1094,7 @@ export function DealerDashboard() {
                                       {application.driver.email} • {application.driver.phone}
                                     </p>
                                     <p className="text-xs text-gray-500 mt-1">
-                                      Approved {new Date(application.reviewed_at || "").toLocaleDateString()}
+                                      Approved {new Date(application.reviewedAt || "").toLocaleDateString()}
                                       {isVerified && approval?.verifiedAt && (
                                         <> • Verified {new Date(approval.verifiedAt).toLocaleDateString()}</>
                                       )}
@@ -1135,11 +1135,11 @@ export function DealerDashboard() {
                                     <StatusBadge status="cancelled" />
                                   </div>
                                   <p className="text-xs text-gray-500 mt-1">
-                                    Rejected {new Date(application.reviewed_at || "").toLocaleDateString()}
+                                    Rejected {new Date(application.reviewedAt || "").toLocaleDateString()}
                                   </p>
-                                  {application.reviewer_notes && (
+                                  {application.reviewerNotes && (
                                     <p className="text-sm text-gray-600 mt-2">
-                                      Note: {application.reviewer_notes}
+                                      Note: {application.reviewerNotes}
                                     </p>
                                   )}
                                 </div>

@@ -169,7 +169,10 @@ export class DatabaseStorage implements IStorage {
 
   async getSalesByEmailAndDealerId(email: string, dealerId: string): Promise<Sales | undefined> {
     const [sales] = await db.select().from(schema.sales).where(
-      and(eq(schema.sales.email, email), eq(schema.sales.dealerId, dealerId))
+      and(
+        sql`LOWER(${schema.sales.email}) = LOWER(${email})`,
+        eq(schema.sales.dealerId, dealerId)
+      )
     );
     return sales;
   }

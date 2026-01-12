@@ -55,15 +55,70 @@ async function runTest(name: string, fn: () => Promise<void>) {
 async function cleanupTestData() {
   console.log('\n🧹 Cleaning up test data...');
   try {
+    const { like, and, inArray, not } = await import('drizzle-orm');
+    
+    const seedUserIds = await db.select({ id: users.id })
+      .from(users)
+      .where(like(users.email, 'seed-%'));
+    const seedUserIdList = seedUserIds.map(u => u.id);
+    
+    const seedDealerIds = seedUserIdList.length > 0 
+      ? (await db.select({ id: dealers.id }).from(dealers).where(inArray(dealers.userId, seedUserIdList))).map(d => d.id)
+      : [];
+    const seedDriverIds = seedUserIdList.length > 0
+      ? (await db.select({ id: drivers.id }).from(drivers).where(inArray(drivers.userId, seedUserIdList))).map(d => d.id)
+      : [];
+    const seedSalesIds = seedUserIdList.length > 0
+      ? (await db.select({ id: sales.id }).from(sales).where(inArray(sales.userId, seedUserIdList))).map(s => s.id)
+      : [];
+    
     await db.delete(messages);
     await db.delete(notifications);
-    await db.delete(approvedDriverDealers);
-    await db.delete(driverApplications);
+    
+    if (seedDealerIds.length > 0 && seedDriverIds.length > 0) {
+      await db.delete(approvedDriverDealers).where(
+        not(and(
+          inArray(approvedDriverDealers.dealerId, seedDealerIds),
+          inArray(approvedDriverDealers.driverId, seedDriverIds)
+        )!)
+      );
+      await db.delete(driverApplications).where(
+        not(and(
+          inArray(driverApplications.dealerId, seedDealerIds),
+          inArray(driverApplications.driverId, seedDriverIds)
+        )!)
+      );
+    } else {
+      await db.delete(approvedDriverDealers);
+      await db.delete(driverApplications);
+    }
+    
     await db.delete(deliveries);
-    await db.delete(sales);
-    await db.delete(drivers);
-    await db.delete(dealers);
-    await db.delete(users);
+    
+    if (seedSalesIds.length > 0) {
+      await db.delete(sales).where(not(inArray(sales.id, seedSalesIds)));
+    } else {
+      await db.delete(sales);
+    }
+    
+    if (seedDriverIds.length > 0) {
+      await db.delete(drivers).where(not(inArray(drivers.id, seedDriverIds)));
+    } else {
+      await db.delete(drivers);
+    }
+    
+    if (seedDealerIds.length > 0) {
+      await db.delete(dealers).where(not(inArray(dealers.id, seedDealerIds)));
+    } else {
+      await db.delete(dealers);
+    }
+    
+    if (seedUserIdList.length > 0) {
+      await db.delete(users).where(not(inArray(users.id, seedUserIdList)));
+    } else {
+      await db.delete(users);
+    }
+    
     console.log('   Cleanup complete\n');
   } catch (error) {
     console.log('   Cleanup error (may be expected on first run):', error);

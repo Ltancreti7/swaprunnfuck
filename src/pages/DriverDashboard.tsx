@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, UserCircle, FileCheck, Search, Settings, Clock, CheckCircle2, Inbox, Building2, Calendar as CalendarIcon, List, LayoutGrid, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -189,7 +189,7 @@ export function DriverDashboard() {
     }
   };
 
-  const loadApplications = async (driverId: string) => {
+  const loadApplications = async (_driverId: string) => {
     try {
       const data = await api.driverApplications.list();
       setApplications(data as ApplicationWithDealer[]);
@@ -259,9 +259,9 @@ export function DriverDashboard() {
         setUpcomingDeliveries(prev => [{
           ...acceptedDelivery,
           driverId: driver.id,
-          status: 'accepted',
-          chatActivatedAt: new Date().toISOString(),
-          acceptedAt: new Date().toISOString()
+          status: 'accepted' as const,
+          chatActivatedAt: new Date(),
+          acceptedAt: new Date()
         }, ...prev]);
       }
       
@@ -290,8 +290,8 @@ export function DriverDashboard() {
         if (completedDelivery) {
           setRecentDeliveries(prev => [{
             ...completedDelivery,
-            status: 'completed',
-            completedAt: new Date().toISOString()
+            status: 'completed' as const,
+            completedAt: new Date()
           }, ...prev]);
         }
       } else {
@@ -377,7 +377,7 @@ export function DriverDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gray-50 pb-12 bounce-scroll">
       <div className="bg-white shadow-md sticky top-16 z-40">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex justify-between items-start gap-2">
@@ -405,7 +405,7 @@ export function DriverDashboard() {
               </button>
               <button
                 onClick={toggleAvailability}
-                className={`touch-target px-4 sm:px-6 py-2 rounded-lg font-semibold transition text-sm sm:text-base ${
+                className={`touch-target active-press px-4 sm:px-6 py-2 rounded-lg font-semibold transition text-sm sm:text-base ${
                   driver?.isAvailable
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-gray-600 text-white hover:bg-gray-700'
@@ -573,8 +573,8 @@ export function DriverDashboard() {
                     onSelectDealership={setSelectedDealershipId}
                     dealershipColors={dealershipColors}
                     requestCounts={requestDeliveries.reduce((map, delivery) => {
-                      const count = map.get(delivery.dealer_id) || 0;
-                      map.set(delivery.dealer_id, count + 1);
+                      const count = map.get(delivery.dealerId) || 0;
+                      map.set(delivery.dealerId, count + 1);
                       return map;
                     }, new Map<string, number>())}
                   />
@@ -593,14 +593,14 @@ export function DriverDashboard() {
 
                   <div className="space-y-4">
                     {requestDeliveries
-                      .filter(delivery => !selectedDealershipId || delivery.dealer_id === selectedDealershipId)
+                      .filter(delivery => !selectedDealershipId || delivery.dealerId === selectedDealershipId)
                       .map((delivery) => (
                         <DealershipRequestCard
                           key={delivery.id}
                           delivery={delivery}
                           onAccept={handleAcceptDelivery}
                           onDecline={handleDeclineDelivery}
-                          dealerColor={getDealershipColor(delivery.dealer_id)}
+                          dealerColor={getDealershipColor(delivery.dealerId)}
                         />
                       ))}
                   </div>
@@ -686,20 +686,20 @@ export function DriverDashboard() {
                                 <span className="ml-2">{delivery.dropoff}</span>
                               </div>
                             </div>
-                            <StatusBadge status={delivery.status} size="md" />
+                            <StatusBadge status={(delivery.status ?? 'pending') as 'pending' | 'accepted' | 'in_progress' | 'completed'} size="md" />
                           </div>
-                          {delivery.scheduled_date && delivery.scheduled_time && (
+                          {delivery.scheduledDate && delivery.scheduledTime && (
                             <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
                               <div className="flex items-center gap-2 mb-2">
                                 <CalendarIcon size={16} className="text-green-600" />
                                 <p className="text-xs font-bold text-green-900">Schedule Confirmed</p>
                               </div>
                               <p className="text-sm font-semibold text-gray-900">
-                                {new Date(delivery.scheduled_date).toLocaleDateString('en-US', {
+                                {new Date(delivery.scheduledDate).toLocaleDateString('en-US', {
                                   month: 'long',
                                   day: 'numeric',
                                   year: 'numeric'
-                                })} at {delivery.scheduled_time}
+                                })} at {delivery.scheduledTime}
                               </p>
                             </div>
                           )}
@@ -778,9 +778,9 @@ export function DriverDashboard() {
                           <MapPin size={16} className="mr-2 text-gray-400" />
                           <span>{delivery.pickup} → {delivery.dropoff}</span>
                         </div>
-                        {delivery.completed_at && (
+                        {delivery.completedAt && (
                           <p className="text-xs text-gray-500 mt-2">
-                            Completed on {new Date(delivery.completed_at).toLocaleDateString()} at {new Date(delivery.completed_at).toLocaleTimeString()}
+                            Completed on {new Date(delivery.completedAt).toLocaleDateString()} at {new Date(delivery.completedAt).toLocaleTimeString()}
                           </p>
                         )}
                       </div>

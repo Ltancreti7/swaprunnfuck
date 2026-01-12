@@ -579,6 +579,7 @@ export function DealerDashboard() {
         currentUserRole={currentUserRole}
         stats={getStats()}
         onEditProfile={() => setShowEditProfile(true)}
+        onApplicationsClick={() => setActiveTab("applications")}
       />
 
       <div className="container mx-auto px-4 py-8">

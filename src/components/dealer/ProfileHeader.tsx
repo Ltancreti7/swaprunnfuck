@@ -11,9 +11,10 @@ interface ProfileHeaderProps {
     pendingApplications: number;
   };
   onEditProfile: () => void;
+  onApplicationsClick?: () => void;
 }
 
-export function ProfileHeader({ dealer, currentUserRole, stats, onEditProfile }: ProfileHeaderProps) {
+export function ProfileHeader({ dealer, currentUserRole, stats, onEditProfile, onApplicationsClick }: ProfileHeaderProps) {
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -116,7 +117,11 @@ export function ProfileHeader({ dealer, currentUserRole, stats, onEditProfile }:
             <p className="text-sm text-gray-600">Active Drivers</p>
           </div>
 
-          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm hover:shadow-md transition">
+          <button
+            onClick={onApplicationsClick}
+            className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm hover:shadow-md transition text-left w-full cursor-pointer"
+            data-testid="button-pending-applications-stat"
+          >
             <div className="flex items-center justify-between mb-2">
               <FileCheck className="text-red-700" size={24} />
               {stats.pendingApplications > 0 && (
@@ -127,7 +132,7 @@ export function ProfileHeader({ dealer, currentUserRole, stats, onEditProfile }:
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats.pendingApplications}</p>
             <p className="text-sm text-gray-600">Pending Applications</p>
-          </div>
+          </button>
         </div>
       </div>
     </div>

@@ -369,8 +369,7 @@ export function registerRoutes(app: Express): void {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const body = toCamelCase(req.body);
-      const sales = await storage.createSales({ ...body, userId });
+      const sales = await storage.createSales({ ...req.body, userId });
       res.json(sales);
     } catch (error) {
       console.error("Create sales error:", error);
@@ -380,8 +379,7 @@ export function registerRoutes(app: Express): void {
 
   app.patch("/api/sales/:id", async (req, res) => {
     try {
-      const body = toCamelCase(req.body);
-      const sales = await storage.updateSales(req.params.id, body);
+      const sales = await storage.updateSales(req.params.id, req.body);
       res.json(sales);
     } catch (error) {
       console.error("Update sales error:", error);
@@ -581,8 +579,7 @@ export function registerRoutes(app: Express): void {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const body = toCamelCase(req.body);
-      const driver = await storage.createDriver({ ...body, userId });
+      const driver = await storage.createDriver({ ...req.body, userId });
       res.json(driver);
     } catch (error) {
       console.error("Create driver error:", error);
@@ -592,8 +589,7 @@ export function registerRoutes(app: Express): void {
 
   app.patch("/api/drivers/:id", async (req, res) => {
     try {
-      const body = toCamelCase(req.body);
-      const driver = await storage.updateDriver(req.params.id, body);
+      const driver = await storage.updateDriver(req.params.id, req.body);
       res.json(driver);
     } catch (error) {
       console.error("Update driver error:", error);
@@ -1203,8 +1199,7 @@ export function registerRoutes(app: Express): void {
         return res.status(404).json({ error: "Driver profile not found" });
       }
       
-      const body = toCamelCase(req.body);
-      body.driverId = driver.id;
+      const body = { ...req.body, driverId: driver.id };
       const application = await storage.createDriverApplication(body);
       
       // Send push notification to dealer about new application (with fallback name)
@@ -1228,14 +1223,11 @@ export function registerRoutes(app: Express): void {
 
   app.patch("/api/driver-applications/:id", async (req, res) => {
     try {
-      const body = toCamelCase(req.body);
-      // Convert reviewedAt string to Date object for Drizzle
-      if (body.reviewedAt && typeof body.reviewedAt === 'string') {
-        body.reviewedAt = new Date(body.reviewedAt);
-      }
-      const application = await storage.updateDriverApplication(req.params.id, body);
+      // Middleware handles snake_case->camelCase and date parsing
+      const { status } = req.body;
+      const application = await storage.updateDriverApplication(req.params.id, req.body);
       
-      if (body.status === "approved" && application) {
+      if (status === "approved" && application) {
         await storage.createApprovedDriverDealer({
           driverId: application.driverId,
           dealerId: application.dealerId,
@@ -1243,13 +1235,13 @@ export function registerRoutes(app: Express): void {
       }
       
       // Send push notification to driver about application decision (with fallback name)
-      if (application && (body.status === "approved" || body.status === "rejected")) {
+      if (application && (status === "approved" || status === "rejected")) {
         try {
           const driver = await storage.getDriver(application.driverId);
           const dealer = await storage.getDealer(application.dealerId);
           if (driver?.userId) {
             const dealerName = dealer?.name || "A dealership";
-            await notifyApplicationDecision(driver.userId, dealerName, body.status === "approved");
+            await notifyApplicationDecision(driver.userId, dealerName, status === "approved");
           }
         } catch (pushError) {
           console.error("Push notification error:", pushError);
@@ -1419,8 +1411,7 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/sales/check-preregistered", async (req, res) => {
     try {
-      const body = toCamelCase(req.body);
-      const { email, dealerId } = body;
+      const { email, dealerId } = req.body;
       const sales = await storage.getSalesByEmailAndDealerId(email.toLowerCase().trim(), dealerId);
       if (sales && sales.status === "pending_signup") {
         res.json({ preRegistered: true, salesId: sales.id });
@@ -1440,8 +1431,7 @@ export function registerRoutes(app: Express): void {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const body = toCamelCase(req.body);
-      const { salesId } = body;
+      const { salesId } = req.body;
       const sales = await storage.updateSales(salesId, {
         userId,
         status: "active",

@@ -133,5 +133,10 @@ Preferred communication style: Simple, everyday language.
   - Delivery Lifecycle: all 8 status transitions from pending to completed
   - Chat/Messaging: send and retrieve messages per delivery
   - Data Retrieval: role-scoped delivery queries
+- **Seed Data**: `npm run seed` - creates persistent test accounts that survive smoke tests
+  - Dealer: seed-dealer@swaprunn.com / TestPass123!
+  - Sales: seed-sales@swaprunn.com / TestPass123!
+  - Driver: seed-driver@swaprunn.com / TestPass123!
+  - Driver is pre-approved and verified for the dealership
 - **Test Plan**: TEST_PLAN.md documents 85 test cases covering auth, roles, deliveries, chat, security
 - **Vitest Tests**: Unit tests in `/tests` directory (database isolation issues under investigation)

@@ -584,6 +584,29 @@ export function DealerDashboard() {
       <div className="container mx-auto px-4 py-8">
         <OnboardingChecklist role="dealer" />
         
+        {/* Onboarding prompt for dealers with no salespeople */}
+        {salesTeam.length === 0 && pendingSales.length === 0 && (
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Get Started with SwapRunn</h3>
+                <p className="text-gray-600 mt-1">Add your first salesperson so they can start requesting vehicle deliveries.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveTab("team");
+                  setTeamTab("sales");
+                }}
+                className="active-press bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 whitespace-nowrap"
+                data-testid="button-add-first-salesperson"
+              >
+                <Plus size={20} />
+                Add Salesperson
+              </button>
+            </div>
+          </div>
+        )}
+        
         <div className="bg-white rounded-lg shadow-lg mb-6">
           <div className="border-b border-gray-200">
             <div className="flex overflow-x-auto">
@@ -636,8 +659,8 @@ export function DealerDashboard() {
                     : "text-gray-600 hover:text-black"
                 }`}
               >
-                <Users size={20} className="mr-2" />
-                Team Management
+                <Plus size={20} className="mr-2" />
+                Add Team Member
               </button>
               <button
                 onClick={() => setActiveTab("applications")}

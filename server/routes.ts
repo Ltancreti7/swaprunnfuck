@@ -1157,7 +1157,18 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/driver-applications", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver) {
+        return res.status(404).json({ error: "Driver profile not found" });
+      }
+      
       const body = toCamelCase(req.body);
+      body.driverId = driver.id;
       const application = await storage.createDriverApplication(body);
       
       // Send push notification to dealer about new application (with fallback name)

@@ -74,9 +74,10 @@ const createDeliverySchema = z.object({
   hasTrade: z.boolean().optional(),
   requiresSecondDriver: z.boolean().optional(),
   requiredTimeframe: z.string().optional(),
-  customDate: z.string().optional(),
+  customDate: z.string().optional().nullable(),
   scheduledDate: z.string().optional(),
   scheduledTime: z.string().optional(),
+  status: z.string().optional(),
 });
 
 const updateDeliveryStatusSchema = z.object({
@@ -661,12 +662,10 @@ export function registerRoutes(app: Express): void {
     try {
       const parseResult = createDeliverySchema.safeParse(req.body);
       if (!parseResult.success) {
-        const errors = parseResult.error?.errors || [];
-        console.log("Delivery validation failed. Body:", JSON.stringify(req.body, null, 2));
-        console.log("Validation errors:", JSON.stringify(errors, null, 2));
+        const issues = parseResult.error?.issues || [];
         return res.status(400).json({ 
           error: "Validation failed", 
-          details: errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+          details: issues.map((e: { path: (string | number)[]; message: string }) => ({ field: e.path.join('.'), message: e.message }))
         });
       }
       const delivery = await storage.createDelivery(parseResult.data);
@@ -1309,7 +1308,11 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/approved-driver-dealers", async (req, res) => {
     try {
-      const approval = await storage.createApprovedDriverDealer(req.body);
+      const { driverId, dealerId } = req.body;
+      if (!driverId || !dealerId) {
+        return res.status(400).json({ error: "driverId and dealerId are required" });
+      }
+      const approval = await storage.createApprovedDriverDealer({ driverId, dealerId });
       res.json(approval);
     } catch (error) {
       console.error("Create approved driver dealer error:", error);

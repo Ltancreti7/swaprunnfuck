@@ -1387,7 +1387,8 @@ export function registerRoutes(app: Express): void {
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const { salesId } = req.body;
+      const body = toCamelCase(req.body);
+      const { salesId } = body;
       const sales = await storage.updateSales(salesId, {
         userId,
         status: "active",

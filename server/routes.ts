@@ -1157,7 +1157,8 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/driver-applications", async (req, res) => {
     try {
-      const application = await storage.createDriverApplication(req.body);
+      const body = toCamelCase(req.body);
+      const application = await storage.createDriverApplication(body);
       
       // Send push notification to dealer about new application (with fallback name)
       try {
@@ -1180,9 +1181,10 @@ export function registerRoutes(app: Express): void {
 
   app.patch("/api/driver-applications/:id", async (req, res) => {
     try {
-      const application = await storage.updateDriverApplication(req.params.id, req.body);
+      const body = toCamelCase(req.body);
+      const application = await storage.updateDriverApplication(req.params.id, body);
       
-      if (req.body.status === "approved" && application) {
+      if (body.status === "approved" && application) {
         await storage.createApprovedDriverDealer({
           driverId: application.driverId,
           dealerId: application.dealerId,
@@ -1190,13 +1192,13 @@ export function registerRoutes(app: Express): void {
       }
       
       // Send push notification to driver about application decision (with fallback name)
-      if (application && (req.body.status === "approved" || req.body.status === "rejected")) {
+      if (application && (body.status === "approved" || body.status === "rejected")) {
         try {
           const driver = await storage.getDriver(application.driverId);
           const dealer = await storage.getDealer(application.dealerId);
           if (driver?.userId) {
             const dealerName = dealer?.name || "A dealership";
-            await notifyApplicationDecision(driver.userId, dealerName, req.body.status === "approved");
+            await notifyApplicationDecision(driver.userId, dealerName, body.status === "approved");
           }
         } catch (pushError) {
           console.error("Push notification error:", pushError);

@@ -70,14 +70,14 @@ async function createSeedAccounts() {
   
   const dealer = await storage.createDealer({
     userId: dealerUser.id,
-    name: 'Demo Dealership',
+    name: 'McGee Toyota of Claremont',
     email: dealerEmail,
-    phone: '555-123-4567',
-    address: '100 Auto Row, Suite 1, Test City, TX 75001',
+    phone: '603-542-7070',
+    address: '175 Charlestown Rd, Claremont, NH 03743',
   });
   
   console.log(`   ✓ Dealer: ${dealerEmail}`);
-  console.log(`     Name: Demo Dealership`);
+  console.log(`     Name: McGee Toyota of Claremont`);
   console.log(`     ID: ${dealer.id}\n`);
   
   const salesEmail = `${SEED_PREFIX}sales@swaprunn.com`;

@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Search, Truck, Clock, CheckCircle, X } from 'lucide-react';
+import { Plus, Package, Search, Truck, Clock, CheckCircle, X, Settings, Mail, Phone, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../lib/api';
-import type { Sales, Delivery, Driver, AddressFields, DeliveryTimeframe } from '../../shared/schema';
+import type { Sales, Delivery, Driver, AddressFields, DeliveryTimeframe, Dealer } from '../../shared/schema';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DashboardSkeleton } from '../components/ui/LoadingSkeleton';
 import { Card } from '../components/ui/Card';
@@ -22,6 +22,7 @@ export function SalesDashboard() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [sales, setSales] = useState<Sales | null>(null);
+  const [dealer, setDealer] = useState<Dealer | null>(null);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [showNewDelivery, setShowNewDelivery] = useState(false);
@@ -69,6 +70,10 @@ export function SalesDashboard() {
       const salesData = await api.sales.current();
       if (salesData) {
         setSales(salesData);
+        if (salesData.dealerId) {
+          const dealerData = await api.dealers.get(salesData.dealerId);
+          if (dealerData) setDealer(dealerData);
+        }
         if (salesData.defaultPickupStreet) {
           setNewDelivery(prev => ({
             ...prev,
@@ -259,49 +264,87 @@ export function SalesDashboard() {
     );
   }
 
+  const initials = sales.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'S';
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Hi, {sales.name?.split(' ')[0]}</h1>
-              <p className="text-sm text-gray-600">{stats.active} active deliveries</p>
+      {/* Profile Header */}
+      <div className="bg-gradient-to-br from-red-600 to-red-700">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-white text-2xl font-bold backdrop-blur">
+              {initials}
+            </div>
+            <div className="flex-1 text-white">
+              <h1 className="text-2xl font-bold">{sales.name}</h1>
+              <p className="text-red-100 flex items-center gap-2 mt-1">
+                <Building2 size={16} />
+                {dealer?.name || 'Dealership'}
+              </p>
+              {sales.role && (
+                <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded-full text-sm">
+                  {sales.role}
+                </span>
+              )}
             </div>
             <button
-              onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
-              data-testid="button-new-delivery"
+              onClick={() => navigate('/profile')}
+              className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
+              data-testid="button-settings"
             >
-              <Plus size={20} />
-              New Request
+              <Settings size={20} />
             </button>
           </div>
+          
+          {/* Contact Info */}
+          <div className="mt-6 flex flex-wrap gap-4 text-sm text-red-100">
+            <div className="flex items-center gap-2">
+              <Mail size={14} />
+              {sales.email}
+            </div>
+            {sales.phone && (
+              <div className="flex items-center gap-2">
+                <Phone size={14} />
+                {sales.phone}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="container mx-auto px-4 -mt-6">
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="p-4 text-center shadow-lg">
+            <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{stats.pending}</p>
+            <p className="text-xs text-gray-600">Pending</p>
+          </Card>
+          <Card className="p-4 text-center shadow-lg">
+            <Truck className="w-6 h-6 text-blue-600 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{stats.active}</p>
+            <p className="text-xs text-gray-600">Active</p>
+          </Card>
+          <Card className="p-4 text-center shadow-lg">
+            <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{stats.completed}</p>
+            <p className="text-xs text-gray-600">Completed</p>
+          </Card>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
         <OnboardingChecklist role="sales" />
         
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <Card className="p-4 text-center">
-            <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{stats.pending}</p>
-            <p className="text-xs text-gray-600">Pending</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <Truck className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{stats.active}</p>
-            <p className="text-xs text-gray-600">Active</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{stats.completed}</p>
-            <p className="text-xs text-gray-600">Completed</p>
-          </Card>
-        </div>
+        {/* New Delivery Button */}
+        <button
+          onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
+          className="w-full mb-6 bg-red-600 text-white py-4 rounded-xl font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg"
+          data-testid="button-new-delivery"
+        >
+          <Plus size={24} />
+          Request New Delivery
+        </button>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">

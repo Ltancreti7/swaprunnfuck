@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, CheckCircle2, Inbox, Building2, Search, Truck, Play, X, MessageCircle } from 'lucide-react';
+import { MapPin, CheckCircle2, Inbox, Building2, Search, Truck, Play, X, MessageCircle, Settings, Mail, Phone, Star, MapPinned } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../lib/api';
@@ -186,27 +186,45 @@ export function DriverDashboard() {
   }
 
   const nextDelivery = upcomingDeliveries[0];
+  const initials = driver.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'D';
+  const verifiedCount = approvedDealerships.filter(d => d.isVerified).length;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Hi, {driver.name?.split(' ')[0]}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`w-2 h-2 rounded-full ${driver.isAvailable ? 'bg-green-500' : 'bg-gray-400'}`} />
-                <span className="text-sm text-gray-600">{driver.isAvailable ? 'Available' : 'Offline'}</span>
+      {/* Profile Header */}
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-white text-2xl font-bold backdrop-blur">
+                {initials}
+              </div>
+              <span className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-gray-800 ${driver.isAvailable ? 'bg-green-500' : 'bg-gray-500'}`} />
+            </div>
+            <div className="flex-1 text-white">
+              <h1 className="text-2xl font-bold">{driver.name}</h1>
+              <p className="text-gray-300 flex items-center gap-2 mt-1">
+                <Truck size={16} />
+                Independent Driver
+              </p>
+              <div className="flex items-center gap-3 mt-2">
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${driver.isAvailable ? 'bg-green-500/20 text-green-300' : 'bg-gray-600 text-gray-300'}`}>
+                  {driver.isAvailable ? 'Available' : 'Offline'}
+                </span>
+                {driver.canDriveManual && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">
+                    Manual Trans
+                  </span>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2">
               <button
                 onClick={() => navigate('/messages')}
-                className="relative p-2 text-gray-600 hover:text-gray-900 transition"
+                className="relative p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
                 data-testid="button-messages"
               >
-                <MessageCircle size={24} />
+                <MessageCircle size={20} />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -214,19 +232,70 @@ export function DriverDashboard() {
                 )}
               </button>
               <button
-                onClick={toggleAvailability}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  driver.isAvailable
-                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-                data-testid="button-toggle-availability"
+                onClick={() => navigate('/profile')}
+                className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
+                data-testid="button-settings"
               >
-                {driver.isAvailable ? 'Go Offline' : 'Go Online'}
+                <Settings size={20} />
               </button>
             </div>
           </div>
+          
+          {/* Contact & Stats */}
+          <div className="mt-6 flex flex-wrap gap-4 text-sm text-gray-300">
+            <div className="flex items-center gap-2">
+              <Mail size={14} />
+              {driver.email}
+            </div>
+            {driver.phone && (
+              <div className="flex items-center gap-2">
+                <Phone size={14} />
+                {driver.phone}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <MapPinned size={14} />
+              {driver.radius || 50} mi radius
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="container mx-auto px-4 -mt-6">
+        <div className="grid grid-cols-4 gap-2">
+          <Card className="p-3 text-center shadow-lg">
+            <p className="text-xl font-bold text-red-600">{requestDeliveries.length}</p>
+            <p className="text-xs text-gray-600">Requests</p>
+          </Card>
+          <Card className="p-3 text-center shadow-lg">
+            <p className="text-xl font-bold text-blue-600">{upcomingDeliveries.length}</p>
+            <p className="text-xs text-gray-600">Active</p>
+          </Card>
+          <Card className="p-3 text-center shadow-lg">
+            <p className="text-xl font-bold text-green-600">{recentDeliveries.length}</p>
+            <p className="text-xs text-gray-600">Completed</p>
+          </Card>
+          <Card className="p-3 text-center shadow-lg">
+            <p className="text-xl font-bold text-purple-600">{verifiedCount}</p>
+            <p className="text-xs text-gray-600">Verified</p>
+          </Card>
+        </div>
+      </div>
+
+      {/* Availability Toggle */}
+      <div className="container mx-auto px-4 py-4">
+        <button
+          onClick={toggleAvailability}
+          className={`w-full py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2 shadow-lg ${
+            driver.isAvailable
+              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              : 'bg-green-600 text-white hover:bg-green-700'
+          }`}
+          data-testid="button-toggle-availability"
+        >
+          {driver.isAvailable ? 'Go Offline' : 'Go Online - Start Accepting Jobs'}
+        </button>
       </div>
 
       {/* Tabs */}
@@ -234,7 +303,7 @@ export function DriverDashboard() {
         <div className="container mx-auto px-4">
           <div className="flex gap-1">
             {[
-              { id: 'action', label: 'Action Center', count: requestDeliveries.length },
+              { id: 'action', label: 'Jobs', count: requestDeliveries.length },
               { id: 'history', label: 'History' },
               { id: 'dealerships', label: 'Dealerships', count: approvedDealerships.length },
             ].map((tab) => (
@@ -261,7 +330,7 @@ export function DriverDashboard() {
       <div className="container mx-auto px-4 py-6">
         <OnboardingChecklist role="driver" />
         
-        {/* ACTION CENTER TAB */}
+        {/* JOBS TAB */}
         {activeTab === 'action' && (
           <div className="space-y-6">
             {/* Next Delivery Card */}
@@ -446,7 +515,8 @@ export function DriverDashboard() {
                         <p className="font-semibold">{item.dealer?.name}</p>
                         <p className="text-sm text-gray-600">{item.dealer?.address}</p>
                         {item.isVerified && (
-                          <span className="inline-flex items-center text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full mt-2">
+                          <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full mt-2">
+                            <Star size={12} />
                             Verified
                           </span>
                         )}

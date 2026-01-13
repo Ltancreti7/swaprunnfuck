@@ -7,6 +7,11 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
+// Trust proxy for production (required for secure cookies behind reverse proxy)
+if (process.env.NODE_ENV === "production") {
+  app.set('trust proxy', 1);
+}
+
 // Security headers
 app.use((req, res, next) => {
   // Prevent clickjacking
@@ -54,6 +59,7 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for persistent sessions
   }
 }));

@@ -121,6 +121,18 @@ Preferred communication style: Simple, everyday language.
 - **Vitest**: Unit testing framework
 - **Supertest**: HTTP endpoint testing
 
+### Dashboard UX Simplification (January 2026)
+All three dashboards refactored for cleaner, mobile-first experience:
+- **DealerDashboard**: 1111 lines (from 1771, 37% reduction), 3 tabs (Overview, Deliveries, Team) instead of 7
+- **SalesDashboard**: 598 lines (from 930, 36% reduction), 3-step modal wizard with strict validation for delivery requests
+- **DriverDashboard**: 498 lines (from 833, 40% reduction), 3 tabs (Action Center, History, Dealerships) instead of 5
+- Added OnboardingChecklist to all dashboards for guided user setup
+- Unread message indicator added to Driver dashboard header
+- Focused on primary actions with clear visual hierarchy
+- Quick stats cards on all dashboards
+- Simplified navigation with fewer tabs
+- Modal-based forms instead of inline forms with enhanced validation
+
 ### Quick Wins Implemented (January 2026)
 - **Tailwind Theme Tokens**: Added design system colors (primary, secondary, destructive, accent, muted) and border-radius scale to tailwind.config.js for consistent Button component styling
 - **Debug Log Cleanup**: Removed console.log statements from ScheduleConfirmationModal.tsx and adminInvitations.ts

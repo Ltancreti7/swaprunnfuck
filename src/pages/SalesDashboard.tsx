@@ -1,21 +1,19 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Package, Search, Truck, Clock, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../lib/api';
 import type { Sales, Delivery, Driver, AddressFields, DeliveryTimeframe } from '../../shared/schema';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DashboardSkeleton } from '../components/ui/LoadingSkeleton';
-import { ProfileHeader } from '../components/sales/ProfileHeader';
+import { Card } from '../components/ui/Card';
+import { StatusBadge } from '../components/ui/Badge';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
-import { DeliveryCard } from '../components/sales/DeliveryCard';
-import { DeliveryFilters } from '../components/sales/DeliveryFilters';
 import { DriverSelectionModal } from '../components/sales/DriverSelectionModal';
 import { AddressInput } from '../components/ui/AddressInput';
 import { getVehicleYears, VEHICLE_MAKES, getModelsForMake, TRANSMISSION_TYPES } from '../lib/vehicleData';
 import { formatAddress } from '../lib/addressUtils';
-import { Calendar } from '../components/ui/Calendar';
 import { validateVIN } from '../lib/validation';
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
 
@@ -27,6 +25,13 @@ export function SalesDashboard() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [showNewDelivery, setShowNewDelivery] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed'>('active');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDriverSelection, setShowDriverSelection] = useState(false);
+  const [deliveryToCancel, setDeliveryToCancel] = useState<string | null>(null);
+  const [vinError, setVinError] = useState('');
+  const [formStep, setFormStep] = useState<1 | 2 | 3>(1);
   const [newDelivery, setNewDelivery] = useState({
     pickupAddress: { street: '', city: '', state: '', zip: '' } as AddressFields,
     dropoffAddress: { street: '', city: '', state: '', zip: '' } as AddressFields,
@@ -41,75 +46,50 @@ export function SalesDashboard() {
     hasTrade: false,
     requiresSecondDriver: false,
     requiredTimeframe: '' as DeliveryTimeframe | '',
-    customDate: '',
   });
-  const [, setIsUsingDefaultLocation] = useState(false);
-  const [saveAsDefault, setSaveAsDefault] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<'pending' | 'accepted' | 'in_progress' | 'completed' | 'all'>('pending');
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [driverMap, setDriverMap] = useState<Map<string, string>>(new Map());
-  const [showDriverSelection, setShowDriverSelection] = useState(false);
-  const [deliveryToCancel, setDeliveryToCancel] = useState<string | null>(null);
-  const [vinError, setVinError] = useState<string>('');
 
   useEffect(() => {
-    if (user) {
-      loadSalesData();
-    }
+    if (user) loadSalesData();
   }, [user]);
 
   useEffect(() => {
-    if (!user || !sales) return undefined;
-
+    if (!user || !sales) return;
     const pollInterval = setInterval(async () => {
       if (document.visibilityState === 'visible') {
         await loadDeliveries(sales.id);
       }
     }, 15000);
-
-    return () => {
-      clearInterval(pollInterval);
-    };
+    return () => clearInterval(pollInterval);
   }, [user, sales?.id]);
 
   const loadSalesData = async () => {
     if (!user) return;
-
     setLoading(true);
     try {
       const salesData = await api.sales.current();
-
       if (salesData) {
         setSales(salesData);
-        if (salesData.defaultPickupStreet || salesData.defaultPickupLocation) {
-          const defaultAddress: AddressFields = {
-            street: salesData.defaultPickupStreet || '',
-            city: salesData.defaultPickupCity || '',
-            state: salesData.defaultPickupState || '',
-            zip: salesData.defaultPickupZip || '',
-          };
-
-          if (defaultAddress.street || salesData.defaultPickupLocation) {
-            setNewDelivery(prev => ({
-              ...prev,
-              pickupAddress: defaultAddress.street ? defaultAddress : prev.pickupAddress
-            }));
-            setIsUsingDefaultLocation(true);
-          }
+        if (salesData.defaultPickupStreet) {
+          setNewDelivery(prev => ({
+            ...prev,
+            pickupAddress: {
+              street: salesData.defaultPickupStreet || '',
+              city: salesData.defaultPickupCity || '',
+              state: salesData.defaultPickupState || '',
+              zip: salesData.defaultPickupZip || '',
+            }
+          }));
         }
         await Promise.all([
           loadDeliveries(salesData.id),
           loadDrivers(salesData.dealerId)
         ]);
       } else {
-        console.warn('No sales profile found for user:', user.id);
         showToast('Sales profile not found. Please contact your administrator.', 'error');
       }
     } catch (err) {
-      console.error('Exception loading sales data:', err);
-      showToast('An unexpected error occurred. Please try again.', 'error');
+      console.error('Error loading sales data:', err);
+      showToast('An unexpected error occurred.', 'error');
     } finally {
       setLoading(false);
     }
@@ -120,26 +100,18 @@ export function SalesDashboard() {
       const data = await api.deliveries.bySales(salesId);
       if (data) setDeliveries(data);
     } catch (err) {
-      console.error('Exception loading deliveries:', err);
+      console.error('Error loading deliveries:', err);
     }
   }, []);
 
   const loadDrivers = async (dealerId: string) => {
     try {
       const data = await api.drivers.approvedByDealer(dealerId);
-
       if (data) {
-        const approvedDrivers = data.filter((driver: Driver) => driver && driver.isAvailable === true);
-
-        setDrivers(approvedDrivers);
-        const map = new Map();
-        approvedDrivers.forEach((driver: Driver) => {
-          map.set(driver.id, driver.name);
-        });
-        setDriverMap(map);
+        setDrivers(data.filter((d: Driver) => d.isAvailable));
       }
     } catch (err) {
-      console.error('Exception loading drivers:', err);
+      console.error('Error loading drivers:', err);
     }
   };
 
@@ -154,16 +126,13 @@ export function SalesDashboard() {
       return;
     }
 
-    const pickupFormatted = formatAddress(newDelivery.pickupAddress);
-    const dropoffFormatted = formatAddress(newDelivery.dropoffAddress);
-
     try {
       const createdDelivery = await api.deliveries.create({
         dealerId: sales.dealerId,
         salesId: sales.id,
         driverId: newDelivery.driverId || null,
-        pickup: pickupFormatted,
-        dropoff: dropoffFormatted,
+        pickup: formatAddress(newDelivery.pickupAddress),
+        dropoff: formatAddress(newDelivery.dropoffAddress),
         pickupStreet: newDelivery.pickupAddress.street,
         pickupCity: newDelivery.pickupAddress.city,
         pickupState: newDelivery.pickupAddress.state,
@@ -183,748 +152,447 @@ export function SalesDashboard() {
         hasTrade: newDelivery.serviceType === 'delivery' ? newDelivery.hasTrade : null,
         requiresSecondDriver: newDelivery.serviceType === 'delivery' ? newDelivery.requiresSecondDriver : null,
         requiredTimeframe: newDelivery.requiredTimeframe || null,
-        customDate: newDelivery.requiredTimeframe === 'custom' ? newDelivery.customDate : null,
       });
 
       if (newDelivery.driverId) {
-        try {
-          const assignedDriver = await api.drivers.get(newDelivery.driverId);
-          if (assignedDriver?.userId) {
-            await api.notifications.create({
-              userId: assignedDriver.userId,
-              deliveryId: createdDelivery?.id ?? null,
-              type: 'delivery_request',
-              title: 'New Delivery Request',
-              message: `${sales.name} has requested you for a delivery (VIN: ${newDelivery.vin}). Please accept or decline.`,
-              read: false,
-            });
-          }
-        } catch (err) {
-          console.error('Error creating assigned driver notification:', err);
-        }
-      } else {
-        try {
-          const approvedDrivers = await api.drivers.approvedByDealer(sales.dealerId);
-          const notificationsPayload = (approvedDrivers || [])
-            .filter((driver: Driver) => driver && driver.userId && driver.isAvailable === true)
-            .map((driver: Driver) => ({
-              userId: driver.userId!,
-              deliveryId: createdDelivery?.id ?? null,
-              type: 'new_delivery_available',
-              title: 'New Delivery Available',
-              message: `A new delivery is available for VIN: ${newDelivery.vin}`,
-              read: false,
-            }));
-
-          for (const notification of notificationsPayload) {
-            await api.notifications.create(notification);
-          }
-        } catch (err) {
-          console.error('Error notifying drivers:', err);
-        }
-      }
-
-      if (saveAsDefault && newDelivery.pickupAddress.street.trim()) {
-        try {
-          await api.sales.update(sales.id, {
-            defaultPickupLocation: pickupFormatted,
-            defaultPickupStreet: newDelivery.pickupAddress.street,
-            defaultPickupCity: newDelivery.pickupAddress.city,
-            defaultPickupState: newDelivery.pickupAddress.state,
-            defaultPickupZip: newDelivery.pickupAddress.zip,
-          });
-          setSales({
-            ...sales,
-            defaultPickupLocation: pickupFormatted,
-            defaultPickupStreet: newDelivery.pickupAddress.street,
-            defaultPickupCity: newDelivery.pickupAddress.city,
-            defaultPickupState: newDelivery.pickupAddress.state,
-            defaultPickupZip: newDelivery.pickupAddress.zip,
-          });
-          showToast('Delivery requested and address saved as default!', 'success');
-        } catch (updateError) {
-          console.error('Error saving default location:', updateError);
-          showToast('Delivery created, but failed to save default address', 'error');
-        }
-      } else {
-        showToast('Delivery requested successfully!', 'success');
-      }
-
-      const resetPickupAddress: AddressFields = {
-        street: sales?.defaultPickupStreet || '',
-        city: sales?.defaultPickupCity || '',
-        state: sales?.defaultPickupState || '',
-        zip: sales?.defaultPickupZip || '',
-      };
-      setNewDelivery({
-        pickupAddress: resetPickupAddress,
-        dropoffAddress: { street: '', city: '', state: '', zip: '' },
-        vin: '',
-        notes: '',
-        driverId: '',
-        year: '',
-        make: '',
-        model: '',
-        transmission: '',
-        serviceType: 'delivery',
-        hasTrade: false,
-        requiresSecondDriver: false,
-        requiredTimeframe: '',
-        customDate: '',
-      });
-      setIsUsingDefaultLocation(!!(sales?.defaultPickupStreet || sales?.defaultPickupLocation));
-      setSaveAsDefault(false);
-      await loadDeliveries(sales.id);
-      setShowNewDelivery(false);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to create delivery';
-      showToast(message, 'error');
-    }
-  };
-
-  const handleCancelDelivery = async (deliveryId: string) => {
-    if (!sales) return;
-
-    try {
-      const delivery = await api.deliveries.get(deliveryId);
-      
-      await api.deliveries.update(deliveryId, {
-        status: 'cancelled',
-        cancelledAt: new Date().toISOString()
-      });
-
-      if (delivery?.driverId) {
-        const driver = await api.drivers.get(delivery.driverId);
-        if (driver?.userId) {
+        const assignedDriver = await api.drivers.get(newDelivery.driverId);
+        if (assignedDriver?.userId) {
           await api.notifications.create({
-            userId: driver.userId,
-            deliveryId: deliveryId,
-            type: 'delivery_cancelled',
-            title: 'Delivery Cancelled',
-            message: `A delivery you accepted (VIN: ${delivery.vin}) has been cancelled by the salesperson.`,
+            userId: assignedDriver.userId,
+            deliveryId: createdDelivery?.id ?? null,
+            type: 'delivery_request',
+            title: 'New Delivery Request',
+            message: `${sales.name} has requested you for a delivery (VIN: ${newDelivery.vin}).`,
             read: false,
           });
         }
       }
 
-      showToast('Delivery cancelled successfully', 'success');
+      showToast('Delivery request created!', 'success');
+      setShowNewDelivery(false);
+      setFormStep(1);
+      resetForm();
       await loadDeliveries(sales.id);
+    } catch (err) {
+      console.error('Error creating delivery:', err);
+      showToast('Failed to create delivery', 'error');
+    }
+  };
+
+  const resetForm = () => {
+    setNewDelivery({
+      pickupAddress: sales?.defaultPickupStreet ? {
+        street: sales.defaultPickupStreet,
+        city: sales.defaultPickupCity || '',
+        state: sales.defaultPickupState || '',
+        zip: sales.defaultPickupZip || '',
+      } : { street: '', city: '', state: '', zip: '' },
+      dropoffAddress: { street: '', city: '', state: '', zip: '' },
+      vin: '',
+      notes: '',
+      driverId: '',
+      year: '',
+      make: '',
+      model: '',
+      transmission: '',
+      serviceType: 'delivery',
+      hasTrade: false,
+      requiresSecondDriver: false,
+      requiredTimeframe: '',
+    });
+    setVinError('');
+  };
+
+  const handleCancelDelivery = async () => {
+    if (!deliveryToCancel || !sales) return;
+    try {
+      await api.deliveries.update(deliveryToCancel, { status: 'cancelled' });
+      showToast('Delivery cancelled', 'success');
       setDeliveryToCancel(null);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to cancel delivery';
-      showToast(message, 'error');
+      await loadDeliveries(sales.id);
+    } catch (err) {
+      showToast('Failed to cancel delivery', 'error');
     }
   };
 
   const filteredDeliveries = useMemo(() => {
-    let filtered = activeFilter === 'all'
-      ? deliveries
-      : deliveries.filter(d => d.status === activeFilter);
-
-    if (searchQuery.trim()) {
+    let filtered = deliveries;
+    if (activeFilter === 'active') {
+      filtered = filtered.filter(d => !['completed', 'cancelled'].includes(d.status || ''));
+    } else if (activeFilter === 'completed') {
+      filtered = filtered.filter(d => d.status === 'completed');
+    }
+    if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(d =>
-        d.vin.toLowerCase().includes(query) ||
-        d.pickup.toLowerCase().includes(query) ||
-        d.dropoff.toLowerCase().includes(query)
+        d.vin?.toLowerCase().includes(query) ||
+        d.pickup?.toLowerCase().includes(query) ||
+        d.dropoff?.toLowerCase().includes(query)
       );
     }
-
     return filtered;
   }, [deliveries, activeFilter, searchQuery]);
 
-  const filterCounts = useMemo(() => {
-    return {
-      pending: deliveries.filter(d => d.status === 'pending').length,
-      accepted: deliveries.filter(d => d.status === 'accepted').length,
-      in_progress: deliveries.filter(d => d.status === 'in_progress').length,
-      completed: deliveries.filter(d => d.status === 'completed').length,
-    };
-  }, [deliveries]);
+  const stats = useMemo(() => ({
+    active: deliveries.filter(d => !['completed', 'cancelled'].includes(d.status || '')).length,
+    pending: deliveries.filter(d => d.status === 'pending' || d.status === 'pending_driver_acceptance').length,
+    completed: deliveries.filter(d => d.status === 'completed').length,
+  }), [deliveries]);
 
-
-  if (loading && !sales) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-12">
-        <div className="bg-white shadow-md sticky top-16 z-40">
-          <div className="container mx-auto px-4 py-4">
-            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-4" />
-            <div className="h-10 w-64 bg-gray-200 rounded animate-pulse" />
-          </div>
-        </div>
-        <div className="container mx-auto px-4 py-8">
-          <DashboardSkeleton />
-        </div>
+      <div className="min-h-screen bg-gray-50 p-4">
+        <DashboardSkeleton />
       </div>
     );
   }
 
   if (!sales) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pb-12">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto">
-            <EmptyState
-              icon={Package}
-              title="Complete your profile"
-              description="Complete your sales registration to access your dashboard."
-            />
-          </div>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full text-center p-8">
+          <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Profile Not Found</h2>
+          <p className="text-gray-600">Please contact your dealership administrator.</p>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12 bounce-scroll">
-      <div className="container mx-auto px-4 py-8">
-        <OnboardingChecklist role="sales" />
-        
-        <ProfileHeader
-          sales={sales}
-          deliveries={deliveries}
-          onFilterChange={(filter) => {
-            if (filter === 'all') {
-              setActiveFilter('all');
-            } else {
-              setActiveFilter(filter as 'pending' | 'accepted' | 'in_progress' | 'completed');
-            }
-            window.scrollTo({ top: document.querySelector('.bg-white.rounded-xl.shadow-sm.border.border-gray-200.p-6')?.getBoundingClientRect().top! + window.scrollY - 100, behavior: 'smooth' });
-          }}
-        />
-
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div className="flex-1">
-      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-        Ready to send a vehicle?
-      </h3>
-      <p className="text-sm text-gray-600">
-        Create a new delivery request for your drivers
-      </p>
-    </div>
-
-    <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-      <button
-        onClick={() => {
-          setShowCalendar(!showCalendar);
-          setShowNewDelivery(false);
-        }}
-        className="w-full md:w-auto px-4 py-2 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
-      >
-        <CalendarIcon size={18} className="mr-2" />
-        {showCalendar ? "Hide Calendar" : "Calendar"}
-      </button>
-
-      <button
-        onClick={() => {
-          setShowNewDelivery(!showNewDelivery);
-          setShowCalendar(false);
-        }}
-        className="w-full md:w-auto bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center justify-center shadow-sm"
-      >
-        <Plus size={20} className="mr-2" />
-        Request Delivery
-      </button>
-    </div>
-  </div>
-</div>
-
-        {showCalendar && (
-          <div className="mb-6">
-            <Calendar
-              deliveries={deliveries.filter(d => d.scheduledDate && d.scheduledTime)}
-              onDeliveryClick={(id) => navigate(`/chat/${id}`)}
-            />
-          </div>
-        )}
-
-        {showNewDelivery && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Request New Delivery</h2>
-              <button
-                onClick={() => setShowNewDelivery(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Plus size={24} className="rotate-45" />
-              </button>
+    <div className="min-h-screen bg-gray-50 pb-12">
+      {/* Header */}
+      <div className="bg-white border-b sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Hi, {sales.name?.split(' ')[0]}</h1>
+              <p className="text-sm text-gray-600">{stats.active} active deliveries</p>
             </div>
-
-            <form onSubmit={handleCreateDelivery} className="space-y-5">
-              <div>
-                <AddressInput
-                  label="Pickup Location"
-                  value={newDelivery.pickupAddress}
-                  onChange={(address) => {
-                    setNewDelivery({ ...newDelivery, pickupAddress: address });
-                    const hasDefault = sales?.defaultPickupStreet || sales?.defaultPickupLocation;
-                    const matchesDefault = hasDefault && (
-                      address.street === sales?.defaultPickupStreet &&
-                      address.city === sales?.defaultPickupCity &&
-                      address.state === sales?.defaultPickupState &&
-                      address.zip === sales?.defaultPickupZip
-                    );
-                    setIsUsingDefaultLocation(!!matchesDefault);
-                  }}
-                  required
-                />
-
-                <div className="mt-3">
-                  <label className="flex items-center cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={saveAsDefault}
-                      onChange={(e) => setSaveAsDefault(e.target.checked)}
-                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 focus:ring-2 transition cursor-pointer"
-                    />
-                    <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-red-600 transition">
-                      Save this Address for future requests
-                    </span>
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1 ml-6">
-                    {sales?.defaultPickupStreet || sales?.defaultPickupLocation
-                      ? 'This will update your saved default pickup location'
-                      : 'This address will be automatically filled for future delivery requests'}
-                  </p>
-                </div>
-                {!(sales?.defaultPickupStreet || sales?.defaultPickupLocation) && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Tip: Save a default pickup location in your{' '}
-                    <button
-                      type="button"
-                      onClick={() => navigate('/profile')}
-                      className="text-red-600 hover:text-red-700 font-medium underline"
-                    >
-                      profile settings
-                    </button>
-                    {' '}to avoid re-entering it every time
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <AddressInput
-                  label="Dropoff Location"
-                  value={newDelivery.dropoffAddress}
-                  onChange={(address) => setNewDelivery({ ...newDelivery, dropoffAddress: address })}
-                  required
-                />
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Vehicle Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Year</label>
-                    <select
-                      required
-                      value={newDelivery.year}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, year: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow shadow-sm bg-white"
-                    >
-                      <option value="">Select Year</option>
-                      {getVehicleYears().map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Make</label>
-                    <select
-                      required
-                      value={newDelivery.make}
-                      onChange={(e) => {
-                        setNewDelivery({ ...newDelivery, make: e.target.value, model: '' });
-                      }}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow shadow-sm bg-white"
-                    >
-                      <option value="">Select Make</option>
-                      {VEHICLE_MAKES.map((make) => (
-                        <option key={make} value={make}>
-                          {make}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Model</label>
-                    <select
-                      required
-                      value={newDelivery.model}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, model: e.target.value })}
-                      disabled={!newDelivery.make}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow shadow-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    >
-                      <option value="">
-                        {newDelivery.make ? 'Select Model' : 'Select Make first'}
-                      </option>
-                      {newDelivery.make &&
-                        getModelsForMake(newDelivery.make).map((model) => (
-                          <option key={model} value={model}>
-                            {model}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Transmission</label>
-                    <select
-                      required
-                      value={newDelivery.transmission}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, transmission: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow shadow-sm bg-white"
-                    >
-                      <option value="">Select Transmission</option>
-                      {TRANSMISSION_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">VIN</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Vehicle Identification Number (17 characters)"
-                  maxLength={17}
-                  value={newDelivery.vin}
-                  onChange={(e) => {
-                    const upperVin = e.target.value.toUpperCase();
-                    setNewDelivery({ ...newDelivery, vin: upperVin });
-                    if (upperVin.length > 0) {
-                      const validation = validateVIN(upperVin);
-                      setVinError(validation.isValid ? '' : validation.message);
-                    } else {
-                      setVinError('');
-                    }
-                  }}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow shadow-sm font-mono ${
-                    vinError ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {vinError && (
-                  <p className="mt-1 text-sm text-red-600">{vinError}</p>
-                )}
-                {newDelivery.vin.length > 0 && !vinError && newDelivery.vin.length === 17 && (
-                  <p className="mt-1 text-sm text-green-600">Valid VIN</p>
-                )}
-              </div>
-
-              <div className="bg-blue-50 rounded-lg p-5 border border-blue-200">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Required Completion Timeframe</h3>
-                <p className="text-sm text-gray-600 mb-4">When does this delivery need to be completed?</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="flex items-start cursor-pointer group border-2 border-gray-300 rounded-lg p-4 hover:border-red-500 transition-all">
-                    <input
-                      type="radio"
-                      name="requiredTimeframe"
-                      value="tomorrow"
-                      checked={newDelivery.requiredTimeframe === 'tomorrow'}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, requiredTimeframe: e.target.value as DeliveryTimeframe, customDate: '' })}
-                      className="w-5 h-5 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer mt-0.5"
-                      required
-                    />
-                    <div className="ml-3">
-                      <span className="block text-base font-bold text-gray-900 group-hover:text-red-600 transition">
-                        Tomorrow
-                      </span>
-                      <span className="block text-xs text-gray-500 mt-1">
-                        High priority, needs completion by tomorrow
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-start cursor-pointer group border-2 border-gray-300 rounded-lg p-4 hover:border-red-500 transition-all">
-                    <input
-                      type="radio"
-                      name="requiredTimeframe"
-                      value="next_few_days"
-                      checked={newDelivery.requiredTimeframe === 'next_few_days'}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, requiredTimeframe: e.target.value as DeliveryTimeframe, customDate: '' })}
-                      className="w-5 h-5 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer mt-0.5"
-                      required
-                    />
-                    <div className="ml-3">
-                      <span className="block text-base font-bold text-gray-900 group-hover:text-red-600 transition">
-                        Next Few Days
-                      </span>
-                      <span className="block text-xs text-gray-500 mt-1">
-                        Flexible timeline, within 2-5 days
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-start cursor-pointer group border-2 border-gray-300 rounded-lg p-4 hover:border-red-500 transition-all">
-                    <input
-                      type="radio"
-                      name="requiredTimeframe"
-                      value="next_week"
-                      checked={newDelivery.requiredTimeframe === 'next_week'}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, requiredTimeframe: e.target.value as DeliveryTimeframe, customDate: '' })}
-                      className="w-5 h-5 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer mt-0.5"
-                      required
-                    />
-                    <div className="ml-3">
-                      <span className="block text-base font-bold text-gray-900 group-hover:text-red-600 transition">
-                        Next Week
-                      </span>
-                      <span className="block text-xs text-gray-500 mt-1">
-                        No rush, completion within next week
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-start cursor-pointer group border-2 border-gray-300 rounded-lg p-4 hover:border-red-500 transition-all">
-                    <input
-                      type="radio"
-                      name="requiredTimeframe"
-                      value="custom"
-                      checked={newDelivery.requiredTimeframe === 'custom'}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, requiredTimeframe: e.target.value as DeliveryTimeframe })}
-                      className="w-5 h-5 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer mt-0.5"
-                      required
-                    />
-                    <div className="ml-3 flex-1">
-                      <span className="block text-base font-bold text-gray-900 group-hover:text-red-600 transition">
-                        Custom Date
-                      </span>
-                      <span className="block text-xs text-gray-500 mt-1 mb-2">
-                        Specify an exact date
-                      </span>
-                      {newDelivery.requiredTimeframe === 'custom' && (
-                        <input
-                          type="date"
-                          value={newDelivery.customDate}
-                          onChange={(e) => setNewDelivery({ ...newDelivery, customDate: e.target.value })}
-                          min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-                          required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
-                        />
-                      )}
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Service Type</h3>
-                <div className="flex gap-6">
-                  <label className="flex items-center cursor-pointer group">
-                    <input
-                      type="radio"
-                      name="serviceType"
-                      value="delivery"
-                      checked={newDelivery.serviceType === 'delivery'}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, serviceType: e.target.value as 'delivery' | 'swap', hasTrade: false, requiresSecondDriver: false })}
-                      className="w-5 h-5 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer"
-                    />
-                    <span className="ml-3 text-base font-medium text-gray-700 group-hover:text-red-600 transition">
-                      Delivery
-                    </span>
-                  </label>
-                  <label className="flex items-center cursor-pointer group">
-                    <input
-                      type="radio"
-                      name="serviceType"
-                      value="swap"
-                      checked={newDelivery.serviceType === 'swap'}
-                      onChange={(e) => setNewDelivery({ ...newDelivery, serviceType: e.target.value as 'delivery' | 'swap', hasTrade: false, requiresSecondDriver: false })}
-                      className="w-5 h-5 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer"
-                    />
-                    <span className="ml-3 text-base font-medium text-gray-700 group-hover:text-red-600 transition">
-                      Swap
-                    </span>
-                  </label>
-                </div>
-
-                {newDelivery.serviceType === 'delivery' && (
-                  <div className="mt-5 pt-5 border-t border-gray-200 space-y-4">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700 mb-3">Is there a trade involved?</p>
-                      <div className="flex gap-6">
-                        <label className="flex items-center cursor-pointer group">
-                          <input
-                            type="radio"
-                            name="hasTrade"
-                            checked={newDelivery.hasTrade === true}
-                            onChange={() => setNewDelivery({ ...newDelivery, hasTrade: true })}
-                            className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer"
-                          />
-                          <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-red-600 transition">
-                            Yes
-                          </span>
-                        </label>
-                        <label className="flex items-center cursor-pointer group">
-                          <input
-                            type="radio"
-                            name="hasTrade"
-                            checked={newDelivery.hasTrade === false}
-                            onChange={() => setNewDelivery({ ...newDelivery, hasTrade: false })}
-                            className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer"
-                          />
-                          <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-red-600 transition">
-                            No
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700 mb-3">Will a second driver be required?</p>
-                      <div className="flex gap-6">
-                        <label className="flex items-center cursor-pointer group">
-                          <input
-                            type="radio"
-                            name="requiresSecondDriver"
-                            checked={newDelivery.requiresSecondDriver === true}
-                            onChange={() => setNewDelivery({ ...newDelivery, requiresSecondDriver: true })}
-                            className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer"
-                          />
-                          <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-red-600 transition">
-                            Yes
-                          </span>
-                        </label>
-                        <label className="flex items-center cursor-pointer group">
-                          <input
-                            type="radio"
-                            name="requiresSecondDriver"
-                            checked={newDelivery.requiresSecondDriver === false}
-                            onChange={() => setNewDelivery({ ...newDelivery, requiresSecondDriver: false })}
-                            className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500 focus:ring-2 transition cursor-pointer"
-                          />
-                          <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-red-600 transition">
-                            No
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Notes (Optional)</label>
-                <textarea
-                  value={newDelivery.notes}
-                  placeholder="Add any special instructions or notes..."
-                  onChange={(e) => setNewDelivery({ ...newDelivery, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-shadow shadow-sm resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Driver (Optional)</label>
-                <button
-                  type="button"
-                  onClick={() => setShowDriverSelection(true)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-left hover:border-red-600 hover:bg-red-50 transition font-medium text-gray-700 hover:text-red-700"
-                >
-                  {newDelivery.driverId ? (
-                    <span className="flex items-center justify-between">
-                      <span>{drivers.find(d => d.id === newDelivery.driverId)?.name || 'Select Driver'}</span>
-                      <span className="text-sm text-gray-500">Click to change</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-between">
-                      <span>Select Driver (or leave unassigned)</span>
-                      <span className="text-sm text-gray-500">Click to choose</span>
-                    </span>
-                  )}
-                </button>
-                <p className="text-xs text-gray-500 mt-1">
-                  Choose your preferred driver based on past performance and your preferences
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded-lg font-semibold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl"
-                >
-                  Create Delivery Request
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowNewDelivery(false)}
-                  className="px-8 py-3 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">My Delivery Requests</h2>
-            <p className="text-sm text-gray-500">Showing {filteredDeliveries.length} requests</p>
-          </div>
-
-          <DeliveryFilters
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            counts={filterCounts}
-          />
-
-          <div className="mt-6 space-y-4">
-            {filteredDeliveries.length === 0 ? (
-              <EmptyState
-                icon={Package}
-                title={searchQuery ? 'No matching deliveries' : 'No deliveries yet'}
-                description={searchQuery ? 'Try adjusting your search query' : 'Request your first delivery to get started'}
-                action={!searchQuery && activeFilter === 'pending' ? { label: 'Request Delivery', onClick: () => setShowNewDelivery(true) } : undefined}
-              />
-            ) : (
-              filteredDeliveries.map((delivery) => (
-                <DeliveryCard
-                  key={delivery.id}
-                  delivery={delivery}
-                  driverName={delivery.driverId ? driverMap.get(delivery.driverId) : undefined}
-                  onChatClick={() => navigate(`/chat/${delivery.id}`)}
-                  onCancelClick={delivery.status === 'pending' ? () => setDeliveryToCancel(delivery.id) : undefined}
-                />
-              ))
-            )}
+            <button
+              onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
+              data-testid="button-new-delivery"
+            >
+              <Plus size={20} />
+              New Request
+            </button>
           </div>
         </div>
       </div>
 
+      <div className="container mx-auto px-4 py-6">
+        <OnboardingChecklist role="sales" />
+        
+        {/* Quick Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <Card className="p-4 text-center">
+            <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{stats.pending}</p>
+            <p className="text-xs text-gray-600">Pending</p>
+          </Card>
+          <Card className="p-4 text-center">
+            <Truck className="w-6 h-6 text-blue-600 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{stats.active}</p>
+            <p className="text-xs text-gray-600">Active</p>
+          </Card>
+          <Card className="p-4 text-center">
+            <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{stats.completed}</p>
+            <p className="text-xs text-gray-600">Completed</p>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex gap-2">
+            {(['active', 'completed', 'all'] as const).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  activeFilter === filter
+                    ? 'bg-red-600 text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+                data-testid={`filter-${filter}`}
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search by VIN or address..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600"
+              data-testid="input-search"
+            />
+          </div>
+        </div>
+
+        {/* Deliveries List */}
+        {filteredDeliveries.length === 0 ? (
+          <EmptyState
+            icon={Truck}
+            title="No deliveries"
+            description={activeFilter === 'active' ? "You don't have any active deliveries" : "No deliveries found"}
+          />
+        ) : (
+          <div className="space-y-3">
+            {filteredDeliveries.map((delivery) => (
+              <Card key={delivery.id} className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold">
+                        {delivery.year} {delivery.make} {delivery.model}
+                      </p>
+                      <StatusBadge status={(delivery.status || 'pending') as any} />
+                    </div>
+                    <p className="text-sm text-gray-600">VIN: {delivery.vin}</p>
+                    <p className="text-xs text-gray-500 mt-1">To: {delivery.dropoff}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/delivery/${delivery.id}`)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                      data-testid={`button-view-${delivery.id}`}
+                    >
+                      View
+                    </button>
+                    {delivery.status === 'pending' && (
+                      <button
+                        onClick={() => setDeliveryToCancel(delivery.id)}
+                        className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* New Delivery Modal */}
+      {showNewDelivery && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Request Delivery</h2>
+                <p className="text-sm text-gray-600">Step {formStep} of 3</p>
+              </div>
+              <button onClick={() => { setShowNewDelivery(false); setFormStep(1); resetForm(); }} className="text-gray-500 hover:text-gray-700">
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDelivery} className="p-6">
+              {/* Step 1: Vehicle Info */}
+              {formStep === 1 && (
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Vehicle Information</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Year</label>
+                      <select
+                        required
+                        value={newDelivery.year}
+                        onChange={(e) => setNewDelivery({ ...newDelivery, year: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Select</option>
+                        {getVehicleYears().map((y) => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Make</label>
+                      <select
+                        required
+                        value={newDelivery.make}
+                        onChange={(e) => setNewDelivery({ ...newDelivery, make: e.target.value, model: '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Select</option>
+                        {VEHICLE_MAKES.map((m) => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Model</label>
+                      <select
+                        required
+                        value={newDelivery.model}
+                        onChange={(e) => setNewDelivery({ ...newDelivery, model: e.target.value })}
+                        disabled={!newDelivery.make}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
+                      >
+                        <option value="">{newDelivery.make ? 'Select' : 'Pick make first'}</option>
+                        {newDelivery.make && getModelsForMake(newDelivery.make).map((m) => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Transmission</label>
+                      <select
+                        required
+                        value={newDelivery.transmission}
+                        onChange={(e) => setNewDelivery({ ...newDelivery, transmission: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Select</option>
+                        {TRANSMISSION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">VIN</label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={17}
+                      placeholder="17-character VIN"
+                      value={newDelivery.vin}
+                      onChange={(e) => {
+                        const v = e.target.value.toUpperCase();
+                        setNewDelivery({ ...newDelivery, vin: v });
+                        setVinError(v.length > 0 && !validateVIN(v).isValid ? validateVIN(v).message : '');
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg font-mono ${vinError ? 'border-red-500' : 'border-gray-300'}`}
+                      data-testid="input-vin"
+                    />
+                    {vinError && <p className="text-sm text-red-600 mt-1">{vinError}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormStep(2)}
+                    disabled={!newDelivery.year || !newDelivery.make || !newDelivery.model || !newDelivery.transmission || !newDelivery.vin || newDelivery.vin.length !== 17 || vinError !== ''}
+                    className="w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                  >
+                    Next: Locations
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2: Locations */}
+              {formStep === 2 && (
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Pickup & Dropoff</h3>
+                  <AddressInput
+                    label="Pickup Location"
+                    value={newDelivery.pickupAddress}
+                    onChange={(addr) => setNewDelivery({ ...newDelivery, pickupAddress: addr })}
+                    required
+                  />
+                  <AddressInput
+                    label="Dropoff Location"
+                    value={newDelivery.dropoffAddress}
+                    onChange={(addr) => setNewDelivery({ ...newDelivery, dropoffAddress: addr })}
+                    required
+                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Notes (optional)</label>
+                    <textarea
+                      value={newDelivery.notes}
+                      onChange={(e) => setNewDelivery({ ...newDelivery, notes: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      rows={2}
+                      placeholder="Any special instructions..."
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button type="button" onClick={() => setFormStep(1)} className="flex-1 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50">
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(3)}
+                      disabled={
+                        !newDelivery.pickupAddress.street || !newDelivery.pickupAddress.city || !newDelivery.pickupAddress.state || !newDelivery.pickupAddress.zip ||
+                        !newDelivery.dropoffAddress.street || !newDelivery.dropoffAddress.city || !newDelivery.dropoffAddress.state || !newDelivery.dropoffAddress.zip
+                      }
+                      className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:bg-gray-300 transition"
+                    >
+                      Next: Review
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Review & Submit */}
+              {formStep === 3 && (
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Review & Submit</h3>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                    <p><span className="font-medium">Vehicle:</span> {newDelivery.year} {newDelivery.make} {newDelivery.model}</p>
+                    <p><span className="font-medium">VIN:</span> {newDelivery.vin}</p>
+                    <p><span className="font-medium">From:</span> {formatAddress(newDelivery.pickupAddress)}</p>
+                    <p><span className="font-medium">To:</span> {formatAddress(newDelivery.dropoffAddress)}</p>
+                    {newDelivery.notes && <p><span className="font-medium">Notes:</span> {newDelivery.notes}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Assign Driver (optional)</label>
+                    {newDelivery.driverId ? (
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <span>{drivers.find(d => d.id === newDelivery.driverId)?.name}</span>
+                        <button type="button" onClick={() => setNewDelivery({ ...newDelivery, driverId: '' })} className="text-red-600 text-sm">Remove</button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowDriverSelection(true)}
+                        className="w-full px-4 py-2 border border-dashed border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+                      >
+                        + Select a Driver
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={() => setFormStep(2)} className="flex-1 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50">
+                      Back
+                    </button>
+                    <button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition" data-testid="button-submit-delivery">
+                      Submit Request
+                    </button>
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Driver Selection Modal */}
       {showDriverSelection && sales && user && (
         <DriverSelectionModal
           isOpen={showDriverSelection}
           onClose={() => setShowDriverSelection(false)}
-          onSelectDriver={(driverId) => {
+          onSelectDriver={(driverId: string) => {
             setNewDelivery({ ...newDelivery, driverId });
             setShowDriverSelection(false);
           }}
           dealerId={sales.dealerId}
           currentUserId={user.id}
-          selectedDriverId={newDelivery.driverId}
         />
       )}
 
-      <ConfirmationModal
-        isOpen={!!deliveryToCancel}
-        onClose={() => setDeliveryToCancel(null)}
-        onConfirm={() => deliveryToCancel && handleCancelDelivery(deliveryToCancel)}
-        title="Cancel Delivery Request"
-        message="Are you sure you want to cancel this delivery request? If a driver has already accepted it, they will be notified of the cancellation."
-        confirmText="Cancel Delivery"
-        cancelText="Keep Request"
-        variant="danger"
-      />
+      {/* Cancel Confirmation */}
+      {deliveryToCancel && (
+        <ConfirmationModal
+          isOpen={true}
+          onClose={() => setDeliveryToCancel(null)}
+          title="Cancel Delivery"
+          message="Are you sure you want to cancel this delivery request?"
+          confirmText="Yes, Cancel"
+          onConfirm={handleCancelDelivery}
+          variant="danger"
+        />
+      )}
     </div>
   );
 }

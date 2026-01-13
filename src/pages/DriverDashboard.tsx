@@ -1,40 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, UserCircle, FileCheck, Search, Settings, Clock, CheckCircle2, Inbox, Building2, Calendar as CalendarIcon, List, LayoutGrid, MessageCircle } from 'lucide-react';
+import { MapPin, CheckCircle2, Inbox, Building2, Search, Truck, Play, X, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../lib/api';
-import type { Driver, Delivery, Dealer, DriverApplication, ApprovedDriverDealer } from '../../shared/schema';
+import type { Driver, Delivery, Dealer, ApprovedDriverDealer } from '../../shared/schema';
 import { StatusBadge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DashboardSkeleton } from '../components/ui/LoadingSkeleton';
 import { DealershipSearch } from '../components/driver/DealershipSearch';
 import { EditProfileModal } from '../components/driver/EditProfileModal';
-import { DealershipRequestCard } from '../components/driver/DealershipRequestCard';
-import { DealershipFilter } from '../components/driver/DealershipFilter';
-import { MyDealerships } from '../components/driver/MyDealerships';
-import { NotificationService } from '../lib/notificationService';
-import { DeliveryCardWithChat } from '../components/driver/DeliveryCardWithChat';
-import { Calendar } from '../components/ui/Calendar';
-import { UnreadBadge } from '../components/ui/UnreadBadge';
-import { useUnreadMessagesCount } from '../hooks/useUnreadMessagesCount';
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
+import { useUnreadMessagesCount } from '../hooks/useUnreadMessagesCount';
 
 interface DeliveryWithDealer extends Delivery {
   dealer: Dealer;
   sales?: { name: string } | null;
 }
 
-interface ApplicationWithDealer extends DriverApplication {
-  dealer: Dealer;
-}
-
 interface DealershipWithStats extends ApprovedDriverDealer {
   dealer: Dealer;
-  pendingCount?: number;
-  upcomingCount?: number;
-  completedCount?: number;
 }
 
 export function DriverDashboard() {
@@ -46,92 +32,50 @@ export function DriverDashboard() {
   const [requestDeliveries, setRequestDeliveries] = useState<DeliveryWithDealer[]>([]);
   const [upcomingDeliveries, setUpcomingDeliveries] = useState<DeliveryWithDealer[]>([]);
   const [recentDeliveries, setRecentDeliveries] = useState<DeliveryWithDealer[]>([]);
-  const [, setApplications] = useState<ApplicationWithDealer[]>([]);
   const [approvedDealerships, setApprovedDealerships] = useState<DealershipWithStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'requests' | 'upcoming' | 'recent' | 'search' | 'dealerships'>('requests');
+  const [activeTab, setActiveTab] = useState<'action' | 'history' | 'dealerships'>('action');
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [selectedDealershipId, setSelectedDealershipId] = useState<string | null>(null);
-  const [dealershipColors] = useState<Map<string, string>>(new Map());
-  const [hasRequestedNotificationPermission, setHasRequestedNotificationPermission] = useState(false);
-  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connected');
-  const [loadingRequests, setLoadingRequests] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
-  const [upcomingViewMode, setUpcomingViewMode] = useState<'list' | 'calendar'>('list');
+  const [showDealerSearch, setShowDealerSearch] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const getDealershipColor = (dealershipId: string) => {
-    if (!dealershipColors.has(dealershipId)) {
-      const colors = [
-        '#DC2626', '#2563EB', '#059669', '#D97706', '#7C3AED',
-        '#DB2777', '#0891B2', '#EA580C', '#4F46E5', '#0D9488'
-      ];
-      const index = dealershipColors.size % colors.length;
-      dealershipColors.set(dealershipId, colors[index]);
-    }
-    return dealershipColors.get(dealershipId) || '#6B7280';
-  };
+  useEffect(() => {
+    if (user) loadDriverData();
+  }, [user]);
 
   useEffect(() => {
-    if (user) {
-      loadDriverData();
-      if (!hasRequestedNotificationPermission && NotificationService.isSupported) {
-        NotificationService.requestPermission();
-        setHasRequestedNotificationPermission(true);
-      }
-    }
-  }, [user, hasRequestedNotificationPermission]);
-
-  useEffect(() => {
-    if (!user || !driver) {
-      console.log('[Polling] Skipping setup - missing user or driver');
-      return;
-    }
-
-    console.log('[Polling] Setting up polling for driver:', driver.id);
-    setRealtimeStatus('connected');
-
+    if (!user || !driver) return;
     const POLLING_INTERVAL = 15000;
     let isVisible = true;
 
     const pollDeliveries = async () => {
       if (!isVisible) return;
-      
-      console.log('[Polling] Fetching deliveries...');
       try {
         await Promise.all([
           loadRequestDeliveries(driver.id),
           loadUpcomingDeliveries(driver.id),
-          loadRecentDeliveries(driver.id),
         ]);
-        setLastUpdateTime(new Date());
       } catch (error) {
-        console.error('[Polling] Error fetching deliveries:', error);
+        console.error('Polling error:', error);
       }
     };
 
-    const handleVisibilityChange = () => {
+    const handleVisibility = () => {
       isVisible = document.visibilityState === 'visible';
-      if (isVisible) {
-        pollDeliveries();
-      }
+      if (isVisible) pollDeliveries();
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibility);
     pollingIntervalRef.current = setInterval(pollDeliveries, POLLING_INTERVAL);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
   }, [user, driver?.id]);
 
   const loadDriverData = async () => {
     if (!user) return;
-
     setLoading(true);
     try {
       const driverData = await api.drivers.current();
@@ -141,11 +85,8 @@ export function DriverDashboard() {
           loadRequestDeliveries(driverData.id),
           loadUpcomingDeliveries(driverData.id),
           loadRecentDeliveries(driverData.id),
-          loadApplications(driverData.id),
           loadApprovedDealerships(driverData.id),
         ]);
-      } else {
-        console.warn('No driver data found for user:', user.id);
       }
     } catch (error) {
       console.error('Error loading driver data:', error);
@@ -155,647 +96,313 @@ export function DriverDashboard() {
 
   const loadRequestDeliveries = async (driverId: string) => {
     try {
-      console.log('[LoadRequests] Loading request deliveries for driver:', driverId);
-      setLoadingRequests(true);
-
       const data = await api.deliveries.requestsForDriver(driverId);
-      console.log('[LoadRequests] Found', data?.length || 0, 'request deliveries');
-      setRequestDeliveries(data as DeliveryWithDealer[]);
+      setRequestDeliveries((data || []) as DeliveryWithDealer[]);
     } catch (error) {
-      console.error('[LoadRequests] Failed to load request deliveries:', error);
-      showToast('Failed to load delivery requests', 'error');
-      setRequestDeliveries([]);
-    } finally {
-      setLoadingRequests(false);
+      console.error('Error loading requests:', error);
     }
   };
 
   const loadUpcomingDeliveries = async (driverId: string) => {
     try {
       const data = await api.deliveries.byDriver(driverId, 'accepted,assigned,in_progress');
-      console.log('[LoadUpcoming] Loaded upcoming deliveries:', data?.length || 0);
-      setUpcomingDeliveries(data as DeliveryWithDealer[]);
+      setUpcomingDeliveries((data || []) as DeliveryWithDealer[]);
     } catch (error) {
-      console.error('[LoadUpcoming] Failed to load upcoming deliveries:', error);
+      console.error('Error loading upcoming:', error);
     }
   };
 
   const loadRecentDeliveries = async (driverId: string) => {
     try {
       const data = await api.deliveries.byDriver(driverId, 'completed');
-      setRecentDeliveries(data as DeliveryWithDealer[]);
+      setRecentDeliveries(((data || []) as DeliveryWithDealer[]).slice(0, 10));
     } catch (error) {
-      console.error('[LoadRecent] Failed to load recent deliveries:', error);
-    }
-  };
-
-  const loadApplications = async (_driverId: string) => {
-    try {
-      const data = await api.driverApplications.list();
-      setApplications(data as ApplicationWithDealer[]);
-    } catch (error) {
-      console.error('[LoadApplications] Failed to load applications:', error);
+      console.error('Error loading recent:', error);
     }
   };
 
   const loadApprovedDealerships = async (driverId: string) => {
     try {
       const data = await api.approvedDriverDealers.byDriver(driverId);
-      setApprovedDealerships(data as DealershipWithStats[]);
+      setApprovedDealerships((data || []) as DealershipWithStats[]);
     } catch (error) {
-      console.error('[LoadApprovedDealerships] Failed to load dealerships:', error);
-    }
-  };
-
-  const handleManualRefresh = async () => {
-    if (!driver) return;
-
-    console.log('[Manual] Manually refreshing deliveries');
-    showToast('Refreshing deliveries...', 'success');
-
-    try {
-      await Promise.all([
-        loadRequestDeliveries(driver.id),
-        loadUpcomingDeliveries(driver.id),
-        loadRecentDeliveries(driver.id),
-      ]);
-      setLastUpdateTime(new Date());
-      showToast('Deliveries refreshed successfully', 'success');
-    } catch (error) {
-      console.error('[Manual] Error refreshing:', error);
-      showToast('Failed to refresh deliveries', 'error');
-    }
-  };
-
-  const handleDeclineDelivery = async (deliveryId: string) => {
-    if (!driver) {
-      showToast('Driver profile not found', 'error');
-      return;
-    }
-
-    try {
-      await api.deliveries.decline(deliveryId, driver.id);
-      setRequestDeliveries(prev => prev.filter(d => d.id !== deliveryId));
-      showToast('Delivery request declined', 'success');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to decline delivery';
-      showToast(message, 'error');
+      console.error('Error loading dealerships:', error);
     }
   };
 
   const handleAcceptDelivery = async (deliveryId: string) => {
-    if (!driver) {
-      showToast('Driver profile not found', 'error');
-      return;
-    }
-
+    if (!driver) return;
     try {
       await api.deliveries.accept(deliveryId, driver.id);
-      
-      const acceptedDelivery = requestDeliveries.find(d => d.id === deliveryId);
-      setRequestDeliveries(prev => prev.filter(d => d.id !== deliveryId));
-      
-      if (acceptedDelivery) {
-        setUpcomingDeliveries(prev => [{
-          ...acceptedDelivery,
-          driverId: driver.id,
-          status: 'accepted' as const,
-          chatActivatedAt: new Date(),
-          acceptedAt: new Date()
-        }, ...prev]);
-      }
-      
-      showToast('Delivery accepted successfully!', 'success');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to accept delivery';
-      showToast(message, 'error');
+      showToast('Delivery accepted!', 'success');
       await loadRequestDeliveries(driver.id);
+      await loadUpcomingDeliveries(driver.id);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to accept delivery', 'error');
     }
   };
 
-  const handleUpdateStatus = async (deliveryId: string, newStatus: string) => {
+  const handleDeclineDelivery = async (deliveryId: string) => {
     if (!driver) return;
-
     try {
-      const updateData: { status: string; completedAt?: string } = { status: newStatus };
-      if (newStatus === 'completed') {
-        updateData.completedAt = new Date().toISOString();
-      }
-
-      await api.deliveries.update(deliveryId, updateData);
-
-      if (newStatus === 'completed') {
-        setUpcomingDeliveries(prev => prev.filter(d => d.id !== deliveryId));
-        const completedDelivery = upcomingDeliveries.find(d => d.id === deliveryId);
-        if (completedDelivery) {
-          setRecentDeliveries(prev => [{
-            ...completedDelivery,
-            status: 'completed' as const,
-            completedAt: new Date()
-          }, ...prev]);
-        }
-      } else {
-        loadUpcomingDeliveries(driver.id);
-      }
-
-      showToast('Status updated successfully!', 'success');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to update status';
-      showToast(message, 'error');
+      await api.deliveries.decline(deliveryId, driver.id);
+      showToast('Delivery declined', 'info');
+      await loadRequestDeliveries(driver.id);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to decline', 'error');
     }
   };
 
   const toggleAvailability = async () => {
     if (!driver) return;
-
     try {
-      await api.drivers.update(driver.id, { isAvailable: !driver.isAvailable });
-      setDriver({ ...driver, isAvailable: !driver.isAvailable } as Driver);
-      showToast(
-        `You are now ${!driver.isAvailable ? 'available' : 'unavailable'}`,
-        'success'
-      );
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to update availability';
-      showToast(message, 'error');
+      const newStatus = !driver.isAvailable;
+      await api.drivers.update(driver.id, { isAvailable: newStatus });
+      setDriver({ ...driver, isAvailable: newStatus });
+      showToast(newStatus ? "You're now available" : "You're now offline", 'success');
+    } catch (err) {
+      showToast('Failed to update availability', 'error');
     }
   };
 
-  const handleSaveProfile = async (updatedDriver: Partial<Driver>) => {
-    if (!driver) return;
-
-    try {
-      await api.drivers.update(driver.id, updatedDriver);
-      setDriver({ ...driver, ...updatedDriver });
-      showToast('Profile updated successfully!', 'success');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile';
-      showToast(message, 'error');
-      throw err;
-    }
-  };
-
-  if (loading && !driver) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-12">
-        <div className="bg-white shadow-md sticky top-16 z-40">
-          <div className="container mx-auto px-4 py-4">
-            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-4" />
-            <div className="h-10 w-64 bg-gray-200 rounded animate-pulse" />
-          </div>
-        </div>
-        <div className="container mx-auto px-4 py-8">
-          <DashboardSkeleton />
-        </div>
+      <div className="min-h-screen bg-gray-50 p-4">
+        <DashboardSkeleton />
       </div>
     );
   }
 
   if (!driver) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-12">
-        <div className="bg-white shadow-md sticky top-16 z-40">
-          <div className="container mx-auto px-4 py-4">
-            <h1 className="text-3xl font-bold">Driver profile not found</h1>
-            <p className="text-gray-600 mt-2">
-              We couldn&apos;t load your driver profile. Please finish registration or contact support.
-            </p>
-          </div>
-        </div>
-        <div className="container mx-auto px-4 py-8">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
-            <EmptyState
-              icon={UserCircle}
-              title="Profile Not Found"
-              description="Your driver profile could not be loaded. Please contact support for assistance."
-            />
-          </div>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full text-center p-8">
+          <Truck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Driver Profile Not Found</h2>
+          <p className="text-gray-600">Please complete your registration.</p>
+        </Card>
       </div>
     );
   }
 
+  const nextDelivery = upcomingDeliveries[0];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12 bounce-scroll">
-      <div className="bg-white shadow-md sticky top-16 z-40">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div className="flex justify-between items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 truncate">Welcome, {driver?.name}</h1>
-              <p className="text-xs sm:text-sm text-gray-600 truncate">
-                {driver?.canDriveManual ? 'Manual OK' : 'Auto only'} | {driver?.radius} mi radius
-              </p>
+    <div className="min-h-screen bg-gray-50 pb-12">
+      {/* Header */}
+      <div className="bg-white border-b sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Hi, {driver.name?.split(' ')[0]}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`w-2 h-2 rounded-full ${driver.isAvailable ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <span className="text-sm text-gray-600">{driver.isAvailable ? 'Available' : 'Offline'}</span>
+              </div>
             </div>
-            <div className="flex gap-2 sm:gap-3 items-center">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate('/conversations')}
-                className="touch-target relative p-2 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-lg transition"
-                title="All Conversations"
+                onClick={() => navigate('/messages')}
+                className="relative p-2 text-gray-600 hover:text-gray-900 transition"
+                data-testid="button-messages"
               >
-                <MessageCircle size={20} />
-                <UnreadBadge count={unreadCount} variant="button" />
-              </button>
-              <button
-                onClick={() => setIsEditProfileOpen(true)}
-                className="touch-target p-2 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-lg transition"
-                title="Edit Profile"
-              >
-                <Settings size={20} />
+                <MessageCircle size={24} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </button>
               <button
                 onClick={toggleAvailability}
-                className={`touch-target active-press px-4 sm:px-6 py-2 rounded-lg font-semibold transition text-sm sm:text-base ${
-                  driver?.isAvailable
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-600 text-white hover:bg-gray-700'
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  driver.isAvailable
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-green-600 text-white hover:bg-green-700'
                 }`}
+                data-testid="button-toggle-availability"
               >
-                {driver?.isAvailable ? 'Available' : 'Unavailable'}
+                {driver.isAvailable ? 'Go Offline' : 'Go Online'}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <OnboardingChecklist role="driver" />
-        
-        <div className="bg-white rounded-lg shadow-lg mb-6">
-          <div className="border-b border-gray-200">
-            <div className="flex overflow-x-auto scrollbar-hide">
+      {/* Tabs */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex gap-1">
+            {[
+              { id: 'action', label: 'Action Center', count: requestDeliveries.length },
+              { id: 'history', label: 'History' },
+              { id: 'dealerships', label: 'Dealerships', count: approvedDealerships.length },
+            ].map((tab) => (
               <button
-                onClick={() => setActiveTab('requests')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold transition flex items-center whitespace-nowrap relative touch-target ${
-                  activeTab === 'requests'
-                    ? 'text-red-600 border-b-2 border-red-600'
-                    : 'text-gray-600 hover:text-black'
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-4 font-medium transition border-b-2 flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'text-red-600 border-red-600'
+                    : 'text-gray-600 border-transparent hover:text-gray-900'
                 }`}
+                data-testid={`tab-${tab.id}`}
               >
-                <Inbox size={18} className="mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="hidden xs:inline sm:inline">Requests</span>
-                <span className="inline xs:hidden sm:hidden">Req</span>
-                {requestDeliveries.length > 0 && (
-                  <span className="absolute -top-1 -right-1 sm:static sm:ml-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                    {requestDeliveries.length}
-                  </span>
+                {tab.label}
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
                 )}
               </button>
-              <button
-                onClick={() => setActiveTab('upcoming')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold transition flex items-center whitespace-nowrap touch-target ${
-                  activeTab === 'upcoming'
-                    ? 'text-red-600 border-b-2 border-red-600'
-                    : 'text-gray-600 hover:text-black'
-                }`}
-              >
-                <Clock size={18} className="mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="hidden xs:inline">Upcoming</span>
-                <span className="inline xs:hidden">Up</span>
-                {upcomingDeliveries.length > 0 && (
-                  <span className="ml-1.5 sm:ml-2 bg-blue-100 text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
-                    {upcomingDeliveries.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('recent')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold transition flex items-center whitespace-nowrap touch-target ${
-                  activeTab === 'recent'
-                    ? 'text-red-600 border-b-2 border-red-600'
-                    : 'text-gray-600 hover:text-black'
-                }`}
-              >
-                <CheckCircle2 size={18} className="mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="hidden xs:inline">Recent</span>
-                <span className="inline xs:hidden">Rec</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('search')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold transition flex items-center whitespace-nowrap touch-target ${
-                  activeTab === 'search'
-                    ? 'text-red-600 border-b-2 border-red-600'
-                    : 'text-gray-600 hover:text-black'
-                }`}
-              >
-                <Search size={18} className="mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="hidden xs:inline sm:inline">Search</span>
-                <span className="inline xs:hidden sm:hidden">Find</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('dealerships')}
-                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold transition flex items-center whitespace-nowrap touch-target ${
-                  activeTab === 'dealerships'
-                    ? 'text-red-600 border-b-2 border-red-600'
-                    : 'text-gray-600 hover:text-black'
-                }`}
-              >
-                <Building2 size={18} className="mr-1.5 sm:mr-2 flex-shrink-0" />
-                <span className="hidden xs:inline">Dealers</span>
-                <span className="inline xs:hidden">My</span>
-                {approvedDealerships.length > 0 && (
-                  <span className="ml-1.5 sm:ml-2 bg-gray-100 text-gray-700 text-xs font-bold px-2 py-1 rounded-full">
-                    {approvedDealerships.length}
-                  </span>
-                )}
-              </button>
-            </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        {activeTab === 'requests' && (
+      <div className="container mx-auto px-4 py-6">
+        <OnboardingChecklist role="driver" />
+        
+        {/* ACTION CENTER TAB */}
+        {activeTab === 'action' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${
-                      realtimeStatus === 'connected' ? 'bg-green-500 animate-pulse' :
-                      realtimeStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-                      'bg-red-500'
-                    }`} />
-                    <span className="text-sm font-medium text-gray-700">
-                      {realtimeStatus === 'connected' ? 'Real-time Connected' :
-                       realtimeStatus === 'connecting' ? 'Connecting...' :
-                       'Offline - Using Polling'}
-                    </span>
+            {/* Next Delivery Card */}
+            {nextDelivery && (
+              <div>
+                <h2 className="text-lg font-semibold mb-3">Your Next Delivery</h2>
+                <Card className="p-4 border-l-4 border-l-green-500">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-semibold text-lg">
+                        {nextDelivery.year} {nextDelivery.make} {nextDelivery.model}
+                      </p>
+                      <p className="text-sm text-gray-600">{nextDelivery.dealer?.name}</p>
+                    </div>
+                    <StatusBadge status={(nextDelivery.status || 'assigned') as any} />
                   </div>
-                  {lastUpdateTime && (
-                    <span className="text-xs text-gray-500">
-                      Last update: {lastUpdateTime.toLocaleTimeString()}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={handleManualRefresh}
-                  disabled={loadingRequests}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                >
-                  <svg
-                    className={`w-4 h-4 ${loadingRequests ? 'animate-spin' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <MapPin size={16} className="text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-gray-600">Pickup</p>
+                        <p className="font-medium">{nextDelivery.pickup}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin size={16} className="text-red-500 mt-0.5" />
+                      <div>
+                        <p className="text-gray-600">Dropoff</p>
+                        <p className="font-medium">{nextDelivery.dropoff}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/delivery/${nextDelivery.id}`)}
+                    className="w-full mt-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2"
+                    data-testid="button-start-delivery"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                  <span>Refresh</span>
-                </button>
+                    <Play size={20} />
+                    View Delivery
+                  </button>
+                </Card>
               </div>
+            )}
+
+            {/* Pending Requests */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3">
+                Delivery Requests {requestDeliveries.length > 0 && `(${requestDeliveries.length})`}
+              </h2>
+              {requestDeliveries.length === 0 ? (
+                <Card className="p-6 text-center">
+                  <Inbox className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">No pending requests</p>
+                  <p className="text-sm text-gray-500 mt-1">New delivery requests will appear here</p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {requestDeliveries.map((delivery) => (
+                    <Card key={delivery.id} className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-semibold">{delivery.year} {delivery.make} {delivery.model}</p>
+                          <p className="text-sm text-gray-600">{delivery.dealer?.name}</p>
+                        </div>
+                        <StatusBadge status="pending" />
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">VIN: {delivery.vin}</p>
+                      <p className="text-sm text-gray-600 mb-3">To: {delivery.dropoff}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAcceptDelivery(delivery.id)}
+                          className="flex-1 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition"
+                          data-testid={`button-accept-${delivery.id}`}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleDeclineDelivery(delivery.id)}
+                          className="flex-1 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
+                          data-testid={`button-decline-${delivery.id}`}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-            {approvedDealerships.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <EmptyState
-                  icon={FileCheck}
-                  title="No approved dealerships"
-                  description="Once a dealership approves your application, their delivery requests will appear here"
-                />
-              </div>
-            ) : requestDeliveries.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <EmptyState
-                  icon={Inbox}
-                  title="No available requests"
-                  description="New delivery requests from your approved dealerships will appear here"
-                />
-              </div>
-            ) : (
-              <>
-                {approvedDealerships.length > 1 && (
-                  <DealershipFilter
-                    dealerships={approvedDealerships.map(ad => ad.dealer)}
-                    selectedDealershipId={selectedDealershipId}
-                    onSelectDealership={setSelectedDealershipId}
-                    dealershipColors={dealershipColors}
-                    requestCounts={requestDeliveries.reduce((map, delivery) => {
-                      const count = map.get(delivery.dealerId) || 0;
-                      map.set(delivery.dealerId, count + 1);
-                      return map;
-                    }, new Map<string, number>())}
-                  />
-                )}
 
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h2 className="text-2xl font-bold mb-6 flex items-center">
-                    <Inbox size={28} className="mr-3 text-red-600" />
-                    Available Requests
-                    {selectedDealershipId && (
-                      <span className="ml-3 text-sm font-normal text-gray-600">
-                        for {approvedDealerships.find(ad => ad.dealer.id === selectedDealershipId)?.dealer.name}
-                      </span>
-                    )}
-                  </h2>
-
-                  <div className="space-y-4">
-                    {requestDeliveries
-                      .filter(delivery => !selectedDealershipId || delivery.dealerId === selectedDealershipId)
-                      .map((delivery) => (
-                        <DealershipRequestCard
-                          key={delivery.id}
-                          delivery={delivery}
-                          onAccept={handleAcceptDelivery}
-                          onDecline={handleDeclineDelivery}
-                          dealerColor={getDealershipColor(delivery.dealerId)}
-                        />
-                      ))}
-                  </div>
+            {/* Upcoming Deliveries */}
+            {upcomingDeliveries.length > 1 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingDeliveries.length - 1})</h2>
+                <div className="space-y-3">
+                  {upcomingDeliveries.slice(1).map((delivery) => (
+                    <Card key={delivery.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{delivery.year} {delivery.make} {delivery.model}</p>
+                          <p className="text-sm text-gray-600">{delivery.dealer?.name}</p>
+                        </div>
+                        <button
+                          onClick={() => navigate(`/delivery/${delivery.id}`)}
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
 
-        {activeTab === 'upcoming' && (
-          <div className="space-y-6">
-            {upcomingDeliveries.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-2xl font-bold mb-6 flex items-center">
-                  <Clock size={28} className="mr-3 text-red-600" />
-                  Upcoming Drives
-                </h2>
-                <EmptyState
-                  icon={Clock}
-                  title="No upcoming drives"
-                  description="Accept a request from the Requests tab to see it here"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold flex items-center">
-                      <Clock size={28} className="mr-3 text-red-600" />
-                      Upcoming Drives
-                    </h2>
-                    <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                      <button
-                        onClick={() => setUpcomingViewMode('list')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md font-semibold transition ${
-                          upcomingViewMode === 'list'
-                            ? 'bg-white text-red-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <List size={18} />
-                        List
-                      </button>
-                      <button
-                        onClick={() => setUpcomingViewMode('calendar')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md font-semibold transition ${
-                          upcomingViewMode === 'calendar'
-                            ? 'bg-white text-red-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <LayoutGrid size={18} />
-                        Calendar
-                      </button>
-                    </div>
-                  </div>
-
-                  {upcomingViewMode === 'list' ? (
-                    <div className="space-y-4">
-                      {upcomingDeliveries.map((delivery) => (
-                        <Card key={delivery.id} hover>
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <p className="font-bold text-lg">VIN: {delivery.vin}</p>
-                                <span className="text-xs bg-gray-100 px-3 py-1 rounded-full font-semibold text-gray-700">
-                                  {delivery.dealer.name}
-                                </span>
-                                {delivery.sales?.name && (
-                                  <span className="text-xs bg-blue-100 px-3 py-1 rounded-full font-semibold text-blue-700">
-                                    {delivery.sales.name}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center text-sm text-gray-600 mb-1">
-                                <MapPin size={16} className="mr-2 text-gray-400" />
-                                <span className="font-medium">Pickup:</span>
-                                <span className="ml-2">{delivery.pickup}</span>
-                              </div>
-                              <div className="flex items-center text-sm text-gray-600">
-                                <MapPin size={16} className="mr-2 text-gray-400" />
-                                <span className="font-medium">Dropoff:</span>
-                                <span className="ml-2">{delivery.dropoff}</span>
-                              </div>
-                            </div>
-                            <StatusBadge status={(delivery.status ?? 'pending') as 'pending' | 'accepted' | 'in_progress' | 'completed'} size="md" />
-                          </div>
-                          {delivery.scheduledDate && delivery.scheduledTime && (
-                            <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
-                              <div className="flex items-center gap-2 mb-2">
-                                <CalendarIcon size={16} className="text-green-600" />
-                                <p className="text-xs font-bold text-green-900">Schedule Confirmed</p>
-                              </div>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {new Date(delivery.scheduledDate).toLocaleDateString('en-US', {
-                                  month: 'long',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })} at {delivery.scheduledTime}
-                              </p>
-                            </div>
-                          )}
-                          {delivery.notes && (
-                            <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                              <p className="text-sm text-gray-700">{delivery.notes}</p>
-                            </div>
-                          )}
-                          <div className="flex gap-3 flex-wrap">
-                            {(delivery.status === 'accepted' || delivery.status === 'assigned') && (
-                              <button
-                                onClick={() => handleUpdateStatus(delivery.id, 'in_progress')}
-                                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-sm hover:shadow-md"
-                              >
-                                Start Drive
-                              </button>
-                            )}
-                            {delivery.status === 'in_progress' && (
-                              <button
-                                onClick={() => handleUpdateStatus(delivery.id, 'completed')}
-                                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition shadow-sm hover:shadow-md"
-                              >
-                                Drive Complete
-                              </button>
-                            )}
-                            <DeliveryCardWithChat
-                              deliveryId={delivery.id}
-                            />
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <Calendar
-                      deliveries={upcomingDeliveries}
-                      onDeliveryClick={(deliveryId) => navigate(`/chat/${deliveryId}`)}
-                    />
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'recent' && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold mb-6 flex items-center">
-              <CheckCircle2 size={28} className="mr-3 text-red-600" />
-              Recent Drives
-            </h2>
-
+        {/* HISTORY TAB */}
+        {activeTab === 'history' && (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Completed Deliveries</h2>
             {recentDeliveries.length === 0 ? (
               <EmptyState
                 icon={CheckCircle2}
-                title="No recent drives"
+                title="No completed deliveries"
                 description="Your completed deliveries will appear here"
               />
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {recentDeliveries.map((delivery) => (
-                  <Card key={delivery.id}>
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <p className="font-bold text-lg">VIN: {delivery.vin}</p>
-                          <span className="text-xs bg-gray-100 px-3 py-1 rounded-full font-semibold text-gray-700">
-                            {delivery.dealer.name}
-                          </span>
-                          {delivery.sales?.name && (
-                            <span className="text-xs bg-blue-100 px-3 py-1 rounded-full font-semibold text-blue-700">
-                              {delivery.sales.name}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600 mb-1">
-                          <MapPin size={16} className="mr-2 text-gray-400" />
-                          <span>{delivery.pickup} → {delivery.dropoff}</span>
-                        </div>
-                        {delivery.completedAt && (
-                          <p className="text-xs text-gray-500 mt-2">
-                            Completed on {new Date(delivery.completedAt).toLocaleDateString()} at {new Date(delivery.completedAt).toLocaleTimeString()}
-                          </p>
-                        )}
+                  <Card key={delivery.id} className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{delivery.year} {delivery.make} {delivery.model}</p>
+                        <p className="text-sm text-gray-600">{delivery.dealer?.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {delivery.completedAt && new Date(delivery.completedAt).toLocaleDateString()}
+                        </p>
                       </div>
-                      <StatusBadge status="completed" size="md" />
+                      <StatusBadge status="completed" />
                     </div>
-                    {delivery.notes && (
-                      <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-sm text-gray-700">{delivery.notes}</p>
-                      </div>
-                    )}
-                    <DeliveryCardWithChat
-                      deliveryId={delivery.id}
-                      buttonLabel="View Chat History"
-                      buttonClass="w-full px-4 py-2.5 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg font-medium hover:bg-gray-200 transition flex items-center justify-center"
-                    />
                   </Card>
                 ))}
               </div>
@@ -803,30 +410,89 @@ export function DriverDashboard() {
           </div>
         )}
 
-        {activeTab === 'search' && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <DealershipSearch driverId={driver.id} showToast={showToast} />
-          </div>
-        )}
-
+        {/* DEALERSHIPS TAB */}
         {activeTab === 'dealerships' && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <MyDealerships
-              approvedDealerships={approvedDealerships}
-              dealershipColors={dealershipColors}
-              onSelectDealership={setSelectedDealershipId}
-              onNavigateToTab={setActiveTab}
-            />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Your Dealerships</h2>
+              <button
+                onClick={() => setShowDealerSearch(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition flex items-center gap-2"
+                data-testid="button-find-dealerships"
+              >
+                <Search size={18} />
+                Find More
+              </button>
+            </div>
+
+            {approvedDealerships.length === 0 ? (
+              <Card className="p-8 text-center">
+                <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Dealerships Yet</h3>
+                <p className="text-gray-600 mb-4">Apply to dealerships to start receiving delivery requests</p>
+                <button
+                  onClick={() => setShowDealerSearch(true)}
+                  className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+                >
+                  Find Dealerships
+                </button>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-4">
+                {approvedDealerships.map((item) => (
+                  <Card key={item.dealerId} className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">{item.dealer?.name}</p>
+                        <p className="text-sm text-gray-600">{item.dealer?.address}</p>
+                        {item.isVerified && (
+                          <span className="inline-flex items-center text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full mt-2">
+                            Verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      <EditProfileModal
-        isOpen={isEditProfileOpen}
-        onClose={() => setIsEditProfileOpen(false)}
-        driver={driver}
-        onSave={handleSaveProfile}
-      />
+      {/* Dealership Search Modal */}
+      {showDealerSearch && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+          <div className="bg-white rounded-t-lg sm:rounded-lg w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b sticky top-0 bg-white flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Find Dealerships</h2>
+              <button onClick={() => setShowDealerSearch(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <DealershipSearch
+                driverId={driver.id}
+                showToast={showToast}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Profile Modal */}
+      {isEditProfileOpen && driver && (
+        <EditProfileModal
+          isOpen={isEditProfileOpen}
+          driver={driver}
+          onClose={() => setIsEditProfileOpen(false)}
+          onSave={async (updates) => {
+            await api.drivers.update(driver.id, updates);
+            setDriver({ ...driver, ...updates });
+            showToast('Profile updated!', 'success');
+          }}
+        />
+      )}
     </div>
   );
 }

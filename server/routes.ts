@@ -149,6 +149,80 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  // Validation schema for dealer registration
+  const registerDealerSchema = z.object({
+    email: z.string().email("Valid email is required"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    name: z.string().min(1, "Dealership name is required"),
+    address: z.string().optional().default(""),
+    phone: z.string().optional().default(""),
+  });
+
+  // Combined dealer registration endpoint - creates user and dealer in one atomic request
+  // This avoids cross-site cookie issues on production domains
+  app.post("/api/auth/register-dealer", async (req, res) => {
+    try {
+      // Validate request body
+      const parseResult = registerDealerSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errorMessage = parseResult.error.errors.map(e => e.message).join(", ");
+        return res.status(400).json({ error: errorMessage });
+      }
+      
+      const { email, password, name, address, phone } = parseResult.data;
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User already exists" });
+      }
+      
+      // Hash password before transaction
+      const passwordHash = await hashPassword(password);
+      
+      // Use a transaction to ensure atomicity - if any step fails, all are rolled back
+      const result = await db.transaction(async (tx) => {
+        // Create user with dealer role
+        const [user] = await tx.insert(schema.users).values({
+          email,
+          passwordHash,
+          role: "dealer",
+        }).returning();
+        
+        // Create the dealer record
+        const [dealer] = await tx.insert(schema.dealers).values({
+          userId: user.id,
+          name,
+          address,
+          email,
+          phone,
+        }).returning();
+        
+        // Create dealer admin record (owner)
+        await tx.insert(schema.dealerAdmins).values({
+          dealerId: dealer.id,
+          userId: user.id,
+          role: "owner",
+          invitedBy: user.id,
+        });
+        
+        return { user, dealer };
+      });
+      
+      // Set session
+      (req.session as any).userId = result.user.id;
+      (req.session as any).role = result.user.role;
+      
+      res.json({ 
+        user: { id: result.user.id, email: result.user.email, role: result.user.role },
+        dealer: result.dealer 
+      });
+    } catch (error) {
+      console.error("Dealer registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;

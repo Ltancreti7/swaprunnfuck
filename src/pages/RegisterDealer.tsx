@@ -57,12 +57,13 @@ export function RegisterDealer() {
 
       const fullAddress = `${formData.address}, ${formData.city}, ${formData.state} ${formData.zip}`.trim();
 
-      await api.auth.register(formData.email, formData.password, "dealer");
-
-      await api.dealers.create({
+      // Use the combined endpoint that creates user and dealer in one atomic request
+      // This avoids cross-site cookie issues on production domains
+      await api.auth.registerDealer({
+        email: formData.email,
+        password: formData.password,
         name: formData.name,
         address: fullAddress,
-        email: formData.email,
         phone: formData.phone,
       });
 

@@ -93,6 +93,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, password, role }),
       }),
+    registerDealer: (data: { email: string; password: string; name: string; address?: string; phone?: string }) =>
+      apiRequest<{ user: { id: string; email: string; role: string }; dealer: any }>('/auth/register-dealer', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     logout: () =>
       apiRequest<{ success: boolean }>('/auth/logout', { method: 'POST' }),
     me: () =>

@@ -1,0 +1,103 @@
+You are acting as a senior full-stack auditor.
+
+IMPORTANT RULES:
+- DO NOT modify, create, delete, or refactor any code, files, database rows, schema, or configuration.
+- DO NOT run migrations.
+- DO NOT “fix” anything.
+- DO NOT suggest changes inline.
+- This is a READ-ONLY AUDIT ONLY.
+
+Your job is to inspect the entire SwapRunn codebase and environment and report findings only.
+
+AUDIT SCOPE (inspect everything, change nothing):
+
+1. DATABASE & DATA LAYER
+- Tables, relationships, foreign keys
+- Supabase schema consistency
+- Required vs optional fields
+- Orphaned records
+- RLS policies (what is protected, what is exposed)
+- Role scoping (dealer / sales / driver)
+- Any fields referenced in code but missing in DB
+- Any DB fields unused by the app
+
+2. BACKEND / API
+- All API routes and handlers
+- Auth enforcement on routes
+- Role authorization gaps
+- Error handling (silent failures, uncaught errors)
+- Data validation issues
+- Duplicate or dead endpoints
+- Performance risks (N+1 queries, over-fetching)
+
+3. FRONTEND FUNCTIONALITY
+- All major user flows:
+  - Dealer registration
+  - Sales signup/login
+  - Driver signup/login
+  - Creating deliveries
+  - Accepting / confirming deliveries
+  - Scheduling / calendar
+  - Dashboards
+- Identify:
+  - What works end-to-end
+  - What partially works
+  - What breaks or errors
+  - What relies on assumptions that may fail
+
+4. AUTHENTICATION & STATE
+- Login / logout reliability
+- Session handling
+- Role detection
+- Redirect logic
+- Pages accessible without auth that should not be
+- Pages blocked that shouldn’t be
+
+5. UI / UX / PRODUCT
+- Inconsistent flows
+- Confusing states
+- Missing empty states
+- Missing loading states
+- UX mismatches between Sales / Driver / Dealer
+- Anything that feels “duct taped”
+
+6. CONFIG / DEPLOYMENT
+- Environment variables
+- Secrets usage
+- Dev vs prod mismatches
+- Capacitor / mobile readiness red flags
+- Anything that would break App Store submission
+
+OUTPUT FORMAT (STRICT):
+
+Return a single structured report with **no code changes**.
+
+Use this exact structure:
+
+### ✅ WORKING (Safe & Reliable)
+- Bullet list of features that work end-to-end
+
+### ⚠️ PARTIALLY WORKING (Fragile / Edge-Case)
+- Bullet list + why it’s fragile
+
+### ❌ BROKEN (Actively Failing or Dangerous)
+- Bullet list + where it breaks + impact
+
+### 🧠 ARCHITECTURAL CONCERNS
+- Design or scaling risks
+
+### 🔐 SECURITY / DATA RISK
+- Anything that could expose data or allow misuse
+
+### 🚨 LAUNCH BLOCKERS
+- Items that must be fixed before App Store or paid users
+
+### 📈 QUICK WINS (High ROI Fixes)
+- Small fixes with big impact (do NOT implement)
+
+### 🧱 LONG-TERM IMPROVEMENTS
+- Larger refactors or future work
+
+Do not sugarcoat.
+Assume this app is going live with paying dealerships.
+Be blunt, specific, and honest.

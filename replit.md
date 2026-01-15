@@ -70,6 +70,11 @@ Preferred communication style: Simple, everyday language.
 - **Race Condition Handling**: Atomic delivery acceptance using conditional UPDATE with database-level locking
 - **Security Headers**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, strict CSP in production
 - **Authorization**: Role-based access control on all API endpoints with ownership verification to prevent cross-tenant data exposure
+  - `isDeliveryParticipant()` helper validates user is driver, sales, or dealer admin on the delivery
+  - `canAccessDealerData()` helper validates user has access to dealer-scoped data
+  - All /api/messages endpoints require delivery participant authorization
+  - All /api/deliveries endpoints require role-appropriate authorization
+  - Driver/dealer-scoped endpoints (applications, approved drivers, statistics) require matching access
 - **Delivery Tracking**: 8 granular status levels with validated state transitions allowing cancellation and safe backward corrections
 - **Search & Export**: Delivery search with query/status/date filters; CSV export for history reports - both with strict role authorization
 - **Legal Compliance**: Privacy Policy (Termly iframe), Terms of Service pages, mandatory checkbox acceptance on all registration forms

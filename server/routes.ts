@@ -682,6 +682,63 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/deliveries/scheduled", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const role = (req.session as any)?.role;
+      if (!userId || !role) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { year, month } = req.query;
+      if (!year || !month) {
+        return res.status(400).json({ error: "Year and month are required" });
+      }
+
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDate = `${year}-${String(Number(month) + 1).padStart(2, '0')}-01`;
+
+      let deliveries: any[] = [];
+      
+      if (role === "dealer") {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (dealer) {
+          deliveries = await storage.getDeliveriesByDealerId(dealer.id);
+        }
+      } else if (role === "sales") {
+        const sales = await storage.getSalesByUserId(userId);
+        if (sales) {
+          deliveries = await storage.getDeliveriesBySalesId(sales.id);
+        }
+      } else if (role === "driver") {
+        const driver = await storage.getDriverByUserId(userId);
+        if (driver) {
+          deliveries = await storage.getDeliveriesByDriverId(driver.id);
+        }
+      }
+
+      const scheduledDeliveries = deliveries.filter(d => 
+        d.scheduledDate && 
+        d.scheduledDate >= startDate && 
+        d.scheduledDate < endDate
+      );
+
+      const enrichedDeliveries = await Promise.all(scheduledDeliveries.map(async (d) => {
+        const [dealer, driver, sales] = await Promise.all([
+          d.dealerId ? storage.getDealer(d.dealerId) : null,
+          d.driverId ? storage.getDriver(d.driverId) : null,
+          d.salesId ? storage.getSales(d.salesId) : null,
+        ]);
+        return { ...d, dealer, driver, sales };
+      }));
+
+      res.json(enrichedDeliveries);
+    } catch (error) {
+      console.error("Get scheduled deliveries error:", error);
+      res.status(500).json({ error: "Failed to get scheduled deliveries" });
+    }
+  });
+
   app.get("/api/deliveries", async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;

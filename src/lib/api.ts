@@ -165,6 +165,8 @@ export const api = {
       apiRequestWithSnakeBody<any>(`/deliveries/${id}/accept`, { method: 'POST', body: JSON.stringify({ driverId }) }),
     decline: (id: string, driverId: string) =>
       apiRequestWithSnakeBody<any>(`/deliveries/${id}/decline`, { method: 'POST', body: JSON.stringify({ driverId }) }),
+    scheduled: (year: number, month: number) =>
+      apiRequest<any[]>(`/deliveries/scheduled?year=${year}&month=${month}`),
   },
   messages: {
     list: (deliveryId: string) => apiRequest<any[]>(`/messages/${deliveryId}`),

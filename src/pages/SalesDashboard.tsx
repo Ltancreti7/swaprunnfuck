@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Search, Truck, Clock, CheckCircle, X, Settings, Mail, Phone, Building2 } from 'lucide-react';
+import { Plus, Package, Search, Truck, Clock, CheckCircle, X, Settings, Mail, Phone, Building2, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../lib/api';
@@ -287,13 +287,22 @@ export function SalesDashboard() {
                 </span>
               )}
             </div>
-            <button
-              onClick={() => navigate('/profile')}
-              className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
-              data-testid="button-settings"
-            >
-              <Settings size={20} />
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => navigate('/calendar')}
+                className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
+                data-testid="button-calendar"
+              >
+                <Calendar size={20} />
+              </button>
+              <button
+                onClick={() => navigate('/profile')}
+                className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
+                data-testid="button-settings"
+              >
+                <Settings size={20} />
+              </button>
+            </div>
           </div>
           
           {/* Contact Info */}

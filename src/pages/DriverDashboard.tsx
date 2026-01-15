@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, CheckCircle2, Inbox, Building2, Search, Truck, Play, X, MessageCircle, Settings, Mail, Phone, Star, MapPinned } from 'lucide-react';
+import { MapPin, CheckCircle2, Inbox, Building2, Search, Truck, Play, X, MessageCircle, Settings, Mail, Phone, Star, MapPinned, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../lib/api';
@@ -230,6 +230,13 @@ export function DriverDashboard() {
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => navigate('/calendar')}
+                className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
+                data-testid="button-calendar"
+              >
+                <Calendar size={20} />
               </button>
               <button
                 onClick={() => navigate('/profile')}

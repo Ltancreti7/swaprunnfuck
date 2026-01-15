@@ -21,6 +21,7 @@ import { SignUpDriver } from './pages/SignUpDriver';
 import { CompleteProfile } from './pages/CompleteProfile';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
+import { Calendar } from './pages/Calendar';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { user, role, loading } = useAuth();
@@ -147,6 +148,15 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute allowedRoles={['sales', 'driver', 'dealer']}>
+                <Calendar />
               </ProtectedRoute>
             }
           />

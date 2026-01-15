@@ -134,6 +134,13 @@ All three dashboards refactored for cleaner, mobile-first experience:
 - Settings button in header for easy profile access
 - Modal-based forms instead of inline forms with enhanced validation
 
+### Calendar & Scheduling (January 2026)
+- **Calendar Page**: Month view calendar accessible from Sales and Driver dashboard headers showing scheduled deliveries
+- **Delivery Scheduling**: ScheduleConfirmationModal allows sales staff to confirm delivery date/time after driver accepts
+- **Driver Availability Check**: When scheduling, shows if driver has other deliveries on selected date with time conflicts displayed
+- **Role-Scoped Access**: Calendar API endpoints enforce role-based access - sales/drivers only see their own deliveries; availability check restricted to approved drivers
+- **Navigation**: Calendar icon buttons added to Sales (red header) and Driver (gray header) dashboards for quick access
+
 ### Quick Wins Implemented (January 2026)
 - **Tailwind Theme Tokens**: Added design system colors (primary, secondary, destructive, accent, muted) and border-radius scale to tailwind.config.js for consistent Button component styling
 - **Debug Log Cleanup**: Removed console.log statements from ScheduleConfirmationModal.tsx and adminInvitations.ts

@@ -65,9 +65,9 @@ Preferred communication style: Simple, everyday language.
 - **Password Reset**: SHA-256 hashed tokens, 1-hour expiry, single-use enforcement, email delivery via Resend
 - **Session Persistence**: PostgreSQL-backed sessions via connect-pg-simple, 7-day cookie expiry
 - **Email Service**: Resend API integration (requires RESEND_API_KEY env variable), graceful degradation when not configured
-  - Driver job alerts: All verified drivers get email when new delivery is created with job details and estimated pay
-  - Acceptance notifications: Sales staff get email when driver accepts with driver info and chat link
-  - Dealer visibility: Dealers get email when deliveries are accepted
+- **In-App Notifications**: Real-time alerts via NotificationCenter component with 15-second polling
+  - Driver job alerts: All verified drivers get notification when new delivery is created with vehicle info and estimated pay
+  - Acceptance notifications: Sales staff and dealers get notification when driver accepts their delivery request
 - **Account Deletion**: Safe cascade deletion across all 15+ dependent tables in a single transaction
 - **Rate Limiting**: In-memory rate limiter on polling endpoints (20 req/10s) and sensitive operations (5 req/hour)
 - **Race Condition Handling**: Atomic delivery acceptance using conditional UPDATE with database-level locking

@@ -1,6 +1,14 @@
-import { useState } from 'react';
-import { Calendar, Clock, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Clock, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
+import { api } from '../../lib/api';
+
+interface ScheduledDelivery {
+  id: string;
+  scheduledTime: string | null;
+  status: string;
+  dropoff: string;
+}
 
 interface ScheduleConfirmationModalProps {
   isOpen: boolean;
@@ -8,6 +16,7 @@ interface ScheduleConfirmationModalProps {
   onConfirm: (date: string, time: string) => Promise<void>;
   deliveryVin: string;
   driverName: string;
+  driverId?: string;
   requiredTimeframe?: string;
   customDate?: string;
 }
@@ -18,6 +27,7 @@ export function ScheduleConfirmationModal({
   onConfirm,
   deliveryVin,
   driverName,
+  driverId,
   requiredTimeframe,
   customDate,
 }: ScheduleConfirmationModalProps) {
@@ -25,6 +35,44 @@ export function ScheduleConfirmationModal({
   const [selectedTime, setSelectedTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [driverAvailability, setDriverAvailability] = useState<{
+    isAvailable: boolean;
+    scheduledDeliveries: ScheduledDelivery[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!selectedDate || !driverId) {
+      setDriverAvailability(null);
+      return;
+    }
+
+    const checkAvailability = async () => {
+      setCheckingAvailability(true);
+      try {
+        const result = await api.drivers.checkAvailability(driverId, selectedDate);
+        setDriverAvailability({
+          isAvailable: result.isAvailable,
+          scheduledDeliveries: result.scheduledDeliveries
+        });
+      } catch (err) {
+        console.error('Failed to check driver availability:', err);
+        setDriverAvailability(null);
+      }
+      setCheckingAvailability(false);
+    };
+
+    checkAvailability();
+  }, [selectedDate, driverId]);
+
+  const formatTime = (time: string | null) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
+  };
 
   const getSuggestedDate = () => {
     const today = new Date();
@@ -102,6 +150,42 @@ export function ScheduleConfirmationModal({
             <p className="text-xs text-gray-500 mt-1">
               Suggested based on timeframe: {getSuggestedDate()}
             </p>
+          )}
+          
+          {selectedDate && driverId && (
+            <div className="mt-3">
+              {checkingAvailability ? (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Loader2 size={14} className="animate-spin" />
+                  Checking driver availability...
+                </div>
+              ) : driverAvailability ? (
+                driverAvailability.isAvailable ? (
+                  <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+                    <CheckCircle size={16} className="flex-shrink-0" />
+                    <span>{driverName} is available on this date</span>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2 text-sm text-yellow-800">
+                      <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold mb-1">{driverName} has {driverAvailability.scheduledDeliveries.length} other delivery(s) on this date</p>
+                        <ul className="text-xs space-y-1">
+                          {driverAvailability.scheduledDeliveries.map((d) => (
+                            <li key={d.id}>
+                              {d.scheduledTime ? `${formatTime(d.scheduledTime)} - ` : ''}
+                              {d.dropoff?.substring(0, 40)}...
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-xs mt-2">You can still schedule, but coordinate timing carefully</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : null}
+            </div>
           )}
         </div>
 

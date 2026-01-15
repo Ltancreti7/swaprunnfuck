@@ -409,8 +409,9 @@ export function Chat() {
         onConfirm={handleConfirmSchedule}
         deliveryVin={delivery.vin}
         driverName={driver?.name || ''}
-        requiredTimeframe={delivery.requiredTimeframe}
-        customDate={delivery.customDate}
+        driverId={delivery.driverId ?? undefined}
+        requiredTimeframe={delivery.requiredTimeframe ?? undefined}
+        customDate={delivery.customDate ?? undefined}
       />
     </div>
   );

@@ -147,6 +147,8 @@ export const api = {
       apiRequestWithSnakeBody<any>(`/drivers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) =>
       apiRequest<{ success: boolean }>(`/drivers/${id}`, { method: 'DELETE' }),
+    checkAvailability: (driverId: string, date: string) => 
+      apiRequest<{ driverId: string; date: string; isAvailable: boolean; scheduledDeliveries: { id: string; scheduledTime: string | null; status: string; dropoff: string }[] }>(`/drivers/${driverId}/availability?date=${date}`),
   },
   deliveries: {
     list: () => apiRequest<any[]>('/deliveries'),

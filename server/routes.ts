@@ -1255,6 +1255,74 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/drivers/:driverId/availability", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { date } = req.query;
+      if (!date || typeof date !== 'string') {
+        return res.status(400).json({ error: "Date parameter required" });
+      }
+
+      const driverId = req.params.driverId;
+      const driver = await storage.getDriver(driverId);
+      if (!driver) {
+        return res.status(404).json({ error: "Driver not found" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      let hasAccess = false;
+      if (user.role === 'driver') {
+        const currentDriver = await storage.getDriverByUserId(userId);
+        hasAccess = currentDriver?.id === driverId;
+      } else if (user.role === 'sales') {
+        const sales = await storage.getSalesByUserId(userId);
+        if (sales?.dealerId) {
+          const approvedDrivers = await storage.getApprovedDriversByDealerId(sales.dealerId);
+          hasAccess = approvedDrivers.some(ad => ad.driverId === driverId);
+        }
+      } else if (user.role === 'dealer') {
+        const dealer = await storage.getDealerByUserId(userId);
+        if (dealer) {
+          const approvedDrivers = await storage.getApprovedDriversByDealerId(dealer.id);
+          hasAccess = approvedDrivers.some(ad => ad.driverId === driverId);
+        }
+      }
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Not authorized to view this driver's availability" });
+      }
+
+      const driverDeliveries = await storage.getDeliveriesByDriverId(driverId);
+      const scheduledOnDate = driverDeliveries.filter(d => 
+        d.scheduledDate === date && 
+        !['completed', 'cancelled'].includes(d.status || '')
+      );
+
+      res.json({
+        driverId,
+        date,
+        isAvailable: scheduledOnDate.length === 0,
+        scheduledDeliveries: scheduledOnDate.map(d => ({
+          id: d.id,
+          scheduledTime: d.scheduledTime,
+          status: d.status,
+          dropoff: d.dropoff
+        }))
+      });
+    } catch (error) {
+      console.error("Check driver availability error:", error);
+      res.status(500).json({ error: "Failed to check availability" });
+    }
+  });
+
   app.get("/api/driver-preferences/:dealerId", async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;

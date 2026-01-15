@@ -174,14 +174,15 @@ export function registerRoutes(app: Express): void {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { email, password, role } = req.body;
+      const normalizedEmail = email?.toLowerCase().trim();
       
-      const existingUser = await storage.getUserByEmail(email);
+      const existingUser = await storage.getUserByEmail(normalizedEmail);
       if (existingUser) {
         return res.status(400).json({ error: "User already exists" });
       }
       
       const user = await storage.createUser({
-        email,
+        email: normalizedEmail,
         passwordHash: await hashPassword(password),
         role,
       });
@@ -217,9 +218,10 @@ export function registerRoutes(app: Express): void {
       }
       
       const { email, password, name, address, phone } = parseResult.data;
+      const normalizedEmail = email.toLowerCase().trim();
       
       // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
+      const existingUser = await storage.getUserByEmail(normalizedEmail);
       if (existingUser) {
         return res.status(400).json({ error: "User already exists" });
       }
@@ -231,7 +233,7 @@ export function registerRoutes(app: Express): void {
       const result = await db.transaction(async (tx) => {
         // Create user with dealer role
         const [user] = await tx.insert(schema.users).values({
-          email,
+          email: normalizedEmail,
           passwordHash,
           role: "dealer",
         }).returning();
@@ -241,7 +243,7 @@ export function registerRoutes(app: Express): void {
           userId: user.id,
           name,
           address,
-          email,
+          email: normalizedEmail,
           phone,
         }).returning();
         
@@ -273,8 +275,9 @@ export function registerRoutes(app: Express): void {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
+      const normalizedEmail = email?.toLowerCase().trim();
       
-      const user = await storage.getUserByEmail(email);
+      const user = await storage.getUserByEmail(normalizedEmail);
       if (!user || !await verifyPassword(password, user.passwordHash)) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
@@ -334,11 +337,12 @@ export function registerRoutes(app: Express): void {
   app.post("/api/auth/forgot-password", sensitiveRateLimiter, async (req, res) => {
     try {
       const { email } = req.body;
+      const normalizedEmail = email?.toLowerCase().trim();
       
-      const user = await storage.getUserByEmail(email);
+      const user = await storage.getUserByEmail(normalizedEmail);
       if (user) {
         const { token } = await storage.createPasswordResetToken(user.id);
-        const emailSent = await sendPasswordResetEmail(email, token);
+        const emailSent = await sendPasswordResetEmail(normalizedEmail, token);
         if (!emailSent) {
           console.warn('Password reset email could not be sent - email service not configured');
         }

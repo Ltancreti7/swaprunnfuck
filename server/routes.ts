@@ -6,7 +6,15 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
-import { sendPasswordResetEmail, sendAdminInvitationEmail, isEmailConfigured } from "./email";
+import { 
+  sendPasswordResetEmail, 
+  sendAdminInvitationEmail, 
+  isEmailConfigured,
+  sendNewDeliveryAlertToDrivers,
+  sendDeliveryAcceptedToSales,
+  sendDeliveryAcceptedToDealer,
+  DeliveryEmailData
+} from "./email";
 import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
 import { notifyDeliveryStatusChange, notifyNewMessage, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
 import { calculateRoundTripEstimate, calculateEstimatedPay } from "./distance";
@@ -902,6 +910,8 @@ export function registerRoutes(app: Express): void {
       
       // Calculate distance and pay estimates asynchronously
       const dealer = await storage.getDealer(parseResult.data.dealerId);
+      let estimatedPayFormatted: string | undefined;
+      
       if (dealer) {
         const estimate = await calculateRoundTripEstimate(
           parseResult.data.pickup,
@@ -911,6 +921,7 @@ export function registerRoutes(app: Express): void {
         if (estimate) {
           const hourlyRate = dealer.hourlyRate || 2500;
           const estimatedPay = calculateEstimatedPay(estimate.durationMinutes, hourlyRate);
+          estimatedPayFormatted = `$${(estimatedPay / 100).toFixed(2)}`;
           
           await db.update(schema.deliveries)
             .set({
@@ -924,6 +935,44 @@ export function registerRoutes(app: Express): void {
           delivery.estimatedDurationMinutes = estimate.durationMinutes;
           delivery.estimatedPayCents = estimatedPay;
         }
+      }
+      
+      // Send email alerts to all approved & verified drivers for this dealership
+      try {
+        const approvedDriverDealers = await storage.getApprovedDriversByDealerId(parseResult.data.dealerId);
+        const verifiedDrivers = approvedDriverDealers.filter(ad => ad.isVerified);
+        
+        if (verifiedDrivers.length > 0 && dealer) {
+          const driverEmails: { email: string; name: string }[] = [];
+          
+          for (const ad of verifiedDrivers) {
+            const driver = await storage.getDriver(ad.driverId);
+            if (driver) {
+              const user = await storage.getUser(driver.userId);
+              if (user?.email) {
+                driverEmails.push({ email: user.email, name: driver.name });
+              }
+            }
+          }
+          
+          if (driverEmails.length > 0) {
+            const emailData: DeliveryEmailData = {
+              vehicleInfo: `${parseResult.data.year || ''} ${parseResult.data.make || ''} ${parseResult.data.model || ''}`.trim() || 'Vehicle',
+              vin: parseResult.data.vin,
+              pickup: parseResult.data.pickup,
+              dropoff: parseResult.data.dropoff,
+              scheduledDate: parseResult.data.scheduledDate?.toString(),
+              estimatedPay: estimatedPayFormatted,
+              deliveryId: delivery.id,
+              notes: parseResult.data.notes
+            };
+            
+            sendNewDeliveryAlertToDrivers(driverEmails, dealer.name, emailData)
+              .catch(err => console.error('Failed to send driver alerts:', err));
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending driver email alerts:', emailError);
       }
       
       res.json(delivery);
@@ -1182,6 +1231,48 @@ export function registerRoutes(app: Express): void {
           message: `${driver?.name || "A driver"} has accepted your delivery request.`,
           read: false,
         });
+      }
+      
+      // Send email notifications
+      try {
+        const emailData: DeliveryEmailData = {
+          vehicleInfo: `${updatedDelivery.year || ''} ${updatedDelivery.make || ''} ${updatedDelivery.model || ''}`.trim() || 'Vehicle',
+          vin: updatedDelivery.vin,
+          pickup: updatedDelivery.pickup,
+          dropoff: updatedDelivery.dropoff,
+          deliveryId: updatedDelivery.id,
+          notes: updatedDelivery.notes || undefined
+        };
+        
+        // Email the salesperson
+        if (sales?.userId) {
+          const salesUser = await storage.getUser(sales.userId);
+          if (salesUser?.email) {
+            sendDeliveryAcceptedToSales(
+              salesUser.email,
+              sales.name,
+              driver?.name || 'A driver',
+              driver?.phone || null,
+              emailData
+            ).catch(err => console.error('Failed to send acceptance email to sales:', err));
+          }
+        }
+        
+        // Email the dealer
+        if (dealer?.userId) {
+          const dealerUser = await storage.getUser(dealer.userId);
+          if (dealerUser?.email) {
+            sendDeliveryAcceptedToDealer(
+              dealerUser.email,
+              dealer.name,
+              driver?.name || 'A driver',
+              sales?.name || null,
+              emailData
+            ).catch(err => console.error('Failed to send acceptance email to dealer:', err));
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending acceptance emails:', emailError);
       }
       
       res.json(updatedDelivery);

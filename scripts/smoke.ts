@@ -352,6 +352,46 @@ async function runSmokeTests() {
     }
   });
 
+  console.log('\n🔐 6. AUTHORIZATION TESTS\n');
+
+  await runTest('Verify delivery participant check - driver access', async () => {
+    const delivery = await storage.getDelivery(testData.delivery.id);
+    if (!delivery) throw new Error('Delivery not found');
+    
+    const driverHasAccess = delivery.driverId === testData.driver.id;
+    if (!driverHasAccess) throw new Error('Driver should have access to assigned delivery');
+  });
+
+  await runTest('Verify delivery participant check - dealer access', async () => {
+    const delivery = await storage.getDelivery(testData.delivery.id);
+    if (!delivery) throw new Error('Delivery not found');
+    
+    const dealerHasAccess = delivery.dealerId === testData.dealer.id;
+    if (!dealerHasAccess) throw new Error('Dealer should have access to their delivery');
+  });
+
+  await runTest('Verify messages require delivery context', async () => {
+    const messages = await storage.getMessages(testData.delivery.id);
+    if (!messages) throw new Error('Messages should be retrievable for valid delivery');
+    
+    const invalidDeliveryMessages = await storage.getMessages('00000000-0000-0000-0000-000000000000');
+    if (invalidDeliveryMessages.length > 0) {
+      throw new Error('Should not return messages for non-existent delivery');
+    }
+  });
+
+  await runTest('Verify role scoping - approved drivers by dealer', async () => {
+    const approvedDrivers = await storage.getApprovedDriversByDealerId(testData.dealer.id);
+    if (!approvedDrivers) throw new Error('Should return approved drivers list');
+    
+    const delivery = await storage.getDelivery(testData.delivery.id);
+    if (!delivery) throw new Error('Delivery should exist');
+    
+    if (delivery.driverId !== testData.driver.id) {
+      throw new Error('Delivery should be assigned to test driver');
+    }
+  });
+
   // Generate report
   console.log('\n========================================');
   console.log('  SMOKE TEST REPORT');

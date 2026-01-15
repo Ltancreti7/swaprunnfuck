@@ -8,7 +8,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { sendPasswordResetEmail, sendAdminInvitationEmail, isEmailConfigured } from "./email";
 import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
-import { notifyDeliveryStatusChange, notifyNewMessage, notifyNewDeliveryAvailable, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
+import { notifyDeliveryStatusChange, notifyNewMessage, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
 import { calculateRoundTripEstimate, calculateEstimatedPay } from "./distance";
 
 function toCamelCase(obj: any): any {
@@ -115,6 +115,49 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return bcrypt.compare(password, hash);
 }
 
+async function isDeliveryParticipant(userId: string, delivery: { dealerId: string; driverId: string | null; salesId: string | null }): Promise<boolean> {
+  const dealer = await storage.getDealerByUserId(userId);
+  if (dealer && dealer.id === delivery.dealerId) {
+    return true;
+  }
+  
+  const dealerAdmin = await storage.getDealerAdminByUserId(userId);
+  if (dealerAdmin && dealerAdmin.dealerId === delivery.dealerId) {
+    return true;
+  }
+  
+  const sales = await storage.getSalesByUserId(userId);
+  if (sales && sales.id === delivery.salesId) {
+    return true;
+  }
+  
+  const driver = await storage.getDriverByUserId(userId);
+  if (driver && driver.id === delivery.driverId) {
+    return true;
+  }
+  
+  return false;
+}
+
+async function canAccessDealerData(userId: string, dealerId: string): Promise<boolean> {
+  const dealer = await storage.getDealerByUserId(userId);
+  if (dealer && dealer.id === dealerId) {
+    return true;
+  }
+  
+  const dealerAdmin = await storage.getDealerAdminByUserId(userId);
+  if (dealerAdmin && dealerAdmin.dealerId === dealerId) {
+    return true;
+  }
+  
+  const sales = await storage.getSalesByUserId(userId);
+  if (sales && sales.dealerId === dealerId) {
+    return true;
+  }
+  
+  return false;
+}
+
 export function registerRoutes(app: Express): void {
   // Middleware to normalize all POST/PATCH request bodies
   app.use((req, res, next) => {
@@ -165,7 +208,7 @@ export function registerRoutes(app: Express): void {
       // Validate request body
       const parseResult = registerDealerSchema.safeParse(req.body);
       if (!parseResult.success) {
-        const errorMessage = parseResult.error.errors.map(e => e.message).join(", ");
+        const errorMessage = parseResult.error.issues.map((e: { message: string }) => e.message).join(", ");
         return res.status(400).json({ error: errorMessage });
       }
       
@@ -518,6 +561,16 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/sales/dealer/:dealerId", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const hasAccess = await canAccessDealerData(userId, req.params.dealerId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const sales = await storage.getSalesByDealerId(req.params.dealerId);
       res.json(sales);
     } catch (error) {
@@ -528,6 +581,22 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/deliveries/sales/:salesId", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const sales = await storage.getSales(req.params.salesId);
+      if (!sales) {
+        return res.status(404).json({ error: "Sales not found" });
+      }
+      
+      const currentSales = await storage.getSalesByUserId(userId);
+      const hasAccess = currentSales?.id === req.params.salesId || await canAccessDealerData(userId, sales.dealerId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const deliveries = await storage.getDeliveriesBySalesId(req.params.salesId);
       res.json(deliveries);
     } catch (error) {
@@ -538,6 +607,16 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/drivers/approved/:dealerId", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const hasAccess = await canAccessDealerData(userId, req.params.dealerId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const approvals = await storage.getApprovedDriversByDealerId(req.params.dealerId);
       const drivers = await Promise.all(
         approvals.map(async (a) => {
@@ -554,6 +633,16 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/deliveries/dealer/:dealerId", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const hasAccess = await canAccessDealerData(userId, req.params.dealerId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const deliveries = await storage.getDeliveriesByDealerId(req.params.dealerId);
       res.json(deliveries);
     } catch (error) {
@@ -564,6 +653,16 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/driver-applications/dealer/:dealerId", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const hasAccess = await canAccessDealerData(userId, req.params.dealerId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const applications = await storage.getDriverApplicationsByDealerId(req.params.dealerId);
       const applicationsWithDrivers = await Promise.all(
         applications.map(async (app) => {
@@ -796,7 +895,7 @@ export function registerRoutes(app: Express): void {
         const issues = parseResult.error?.issues || [];
         return res.status(400).json({ 
           error: "Validation failed", 
-          details: issues.map((e: { path: (string | number)[]; message: string }) => ({ field: e.path.join('.'), message: e.message }))
+          details: issues.map((e) => ({ field: String(e.path.join('.')), message: e.message }))
         });
       }
       const delivery = await storage.createDelivery(parseResult.data);
@@ -872,6 +971,9 @@ export function registerRoutes(app: Express): void {
       }
 
       const updatedDelivery = await storage.updateDelivery(id, updates);
+      if (!updatedDelivery) {
+        return res.status(404).json({ error: "Failed to update delivery" });
+      }
       
       // Send push notifications for status changes using the updated delivery
       try {
@@ -919,11 +1021,21 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/deliveries/driver/:driverId", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver || driver.id !== req.params.driverId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const { status } = req.query;
       let deliveries = await storage.getDeliveriesByDriverId(req.params.driverId);
       if (status && typeof status === "string") {
         const statuses = status.split(",");
-        deliveries = deliveries.filter(d => statuses.includes(d.status));
+        deliveries = deliveries.filter(d => statuses.includes(d.status || ""));
       }
       const enrichedDeliveries = await Promise.all(
         deliveries.map(async (d) => {
@@ -941,6 +1053,16 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/deliveries/driver/:driverId/requests", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver || driver.id !== req.params.driverId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const driverId = req.params.driverId;
       const approvedDealers = await storage.getApprovedDriverDealers(driverId);
       const dealerIds = approvedDealers.map(a => a.dealerId);
@@ -975,10 +1097,21 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/deliveries/:id/full", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
       const delivery = await storage.getDelivery(req.params.id);
       if (!delivery) {
         return res.status(404).json({ error: "Delivery not found" });
       }
+      
+      const isParticipant = await isDeliveryParticipant(userId, delivery);
+      if (!isParticipant) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const dealer = await storage.getDealer(delivery.dealerId);
       const sales = delivery.salesId ? await storage.getSales(delivery.salesId) : null;
       res.json({ ...delivery, dealer, sales: sales ? { name: sales.name, userId: sales.userId } : null });
@@ -1106,6 +1239,21 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/messages/:deliveryId", pollingRateLimiter, async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const delivery = await storage.getDelivery(req.params.deliveryId);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      
+      const isParticipant = await isDeliveryParticipant(userId, delivery);
+      if (!isParticipant) {
+        return res.status(403).json({ error: "Access denied - not a participant in this delivery" });
+      }
+      
       const messages = await storage.getMessages(req.params.deliveryId);
       res.json(messages);
     } catch (error) {
@@ -1116,31 +1264,39 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/messages", async (req, res) => {
     try {
+      const senderUserId = (req.session as any)?.userId;
+      if (!senderUserId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const delivery = await storage.getDelivery(req.body.deliveryId);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      
+      const isParticipant = await isDeliveryParticipant(senderUserId, delivery);
+      if (!isParticipant) {
+        return res.status(403).json({ error: "Access denied - not a participant in this delivery" });
+      }
+      
       const message = await storage.createMessage(req.body);
       
-      // Send push notification to recipient
       try {
-        const senderUserId = (req.session as any)?.userId;
         let senderName = "Someone";
-        
-        // Get sender name based on role (with safe fallbacks)
-        if (senderUserId) {
-          const user = await storage.getUser(senderUserId);
-          if (user) {
-            if (user.role === 'dealer') {
-              const dealer = await storage.getDealerByUserId(senderUserId);
-              senderName = dealer?.name || "Dealership";
-            } else if (user.role === 'sales') {
-              const sales = await storage.getSalesByUserId(senderUserId);
-              senderName = sales?.name || "Sales Rep";
-            } else if (user.role === 'driver') {
-              const driver = await storage.getDriverByUserId(senderUserId);
-              senderName = driver?.name || "Driver";
-            }
+        const user = await storage.getUser(senderUserId);
+        if (user) {
+          if (user.role === 'dealer') {
+            const dealer = await storage.getDealerByUserId(senderUserId);
+            senderName = dealer?.name || "Dealership";
+          } else if (user.role === 'sales') {
+            const sales = await storage.getSalesByUserId(senderUserId);
+            senderName = sales?.name || "Sales Rep";
+          } else if (user.role === 'driver') {
+            const driver = await storage.getDriverByUserId(senderUserId);
+            senderName = driver?.name || "Driver";
           }
         }
         
-        // Get recipient user ID
         const recipientId = req.body.recipientId;
         if (recipientId) {
           await notifyNewMessage(message.deliveryId, senderName, recipientId);
@@ -1162,6 +1318,17 @@ export function registerRoutes(app: Express): void {
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+      
+      const delivery = await storage.getDelivery(req.params.deliveryId);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+      
+      const isParticipant = await isDeliveryParticipant(userId, delivery);
+      if (!isParticipant) {
+        return res.status(403).json({ error: "Access denied - not a participant in this delivery" });
+      }
+      
       await storage.markMessagesAsRead(req.params.deliveryId, userId);
       res.json({ success: true });
     } catch (error) {
@@ -1234,10 +1401,21 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/deliveries/:id/with-relations", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
       const result = await storage.getDeliveryWithRelations(req.params.id);
       if (!result) {
         return res.status(404).json({ error: "Delivery not found" });
       }
+      
+      const isParticipant = await isDeliveryParticipant(userId, result.delivery);
+      if (!isParticipant) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       res.json(result);
     } catch (error) {
       console.error("Get delivery with relations error:", error);
@@ -1247,6 +1425,16 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/driver-statistics/:dealerId", async (req, res) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const hasAccess = await canAccessDealerData(userId, req.params.dealerId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const stats = await storage.getDriverStatisticsByDealerId(req.params.dealerId);
       res.json(stats);
     } catch (error) {
@@ -1884,8 +2072,8 @@ export function registerRoutes(app: Express): void {
           const user = await storage.getUser(admin.userId);
           return {
             ...admin,
-            email: user?.email || admin.email,
-            name: admin.name || user?.email?.split("@")[0] || "Unknown",
+            email: user?.email || "Unknown",
+            name: user?.email?.split("@")[0] || "Unknown",
           };
         })
       );

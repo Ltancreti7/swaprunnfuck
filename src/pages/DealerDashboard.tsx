@@ -22,6 +22,7 @@ import { AddressInput } from "../components/ui/AddressInput";
 import { formatAddress } from "../lib/addressUtils";
 import { StatusBadge } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
 import { EmptyState } from "../components/ui/EmptyState";
 import { DashboardSkeleton } from "../components/ui/LoadingSkeleton";
 import { ApplicationActionModal } from "../components/dealer/ApplicationActionModal";
@@ -483,14 +484,14 @@ export function DealerDashboard() {
         <div className="container mx-auto px-4">
           <div className="flex gap-1">
             {[
-              { id: "overview", label: "Overview" },
-              { id: "deliveries", label: "Deliveries" },
-              { id: "team", label: "Team" },
+              { id: "overview", label: "Overview", badge: 0 },
+              { id: "deliveries", label: "Deliveries", badge: 0 },
+              { id: "team", label: "Team", badge: pendingSales.length },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-6 py-4 font-medium transition border-b-2 ${
+                className={`px-6 py-4 font-medium transition border-b-2 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? "text-red-600 border-red-600"
                     : "text-gray-600 border-transparent hover:text-gray-900"
@@ -498,6 +499,14 @@ export function DealerDashboard() {
                 data-testid={`tab-${tab.id}`}
               >
                 {tab.label}
+                {tab.badge > 0 && (
+                  <span 
+                    className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center"
+                    data-testid={`badge-${tab.id}-pending`}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -510,6 +519,34 @@ export function DealerDashboard() {
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="space-y-6">
+            {/* Pending Sales Alert */}
+            {pendingSales.length > 0 && (
+              <Card className="p-4 bg-yellow-50 border-yellow-300">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-yellow-200 rounded-full">
+                      <AlertCircle className="w-5 h-5 text-yellow-700" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-yellow-800" data-testid="text-pending-sales-count">
+                        {pendingSales.length} Sales Staff Pending Approval
+                      </p>
+                      <p className="text-sm text-yellow-700" data-testid="text-pending-sales-names">
+                        {pendingSales.map(s => s.name).join(', ')} signed up and {pendingSales.length === 1 ? 'needs' : 'need'} your approval
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setActiveTab("team")}
+                    className="bg-yellow-600"
+                    data-testid="button-review-pending-sales"
+                  >
+                    Review
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="p-4 text-center">

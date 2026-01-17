@@ -42,6 +42,25 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Global middleware to normalize snake_case request bodies to camelCase
+// This ensures frontend snake_case payloads work with backend camelCase validation
+function toCamelCase(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  return Object.keys(obj).reduce((result: any, key) => {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    result[camelKey] = toCamelCase(obj[key]);
+    return result;
+  }, {});
+}
+
+app.use((req, res, next) => {
+  if (['POST', 'PATCH', 'PUT'].includes(req.method) && req.body && typeof req.body === 'object') {
+    req.body = toCamelCase(req.body);
+  }
+  next();
+});
+
 const PgSession = connectPgSimple(session);
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

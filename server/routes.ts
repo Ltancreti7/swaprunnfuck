@@ -898,7 +898,8 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/deliveries", async (req, res) => {
     try {
-      const parseResult = createDeliverySchema.safeParse(req.body);
+      const normalizedBody = normalizeRequestBody(req.body);
+      const parseResult = createDeliverySchema.safeParse(normalizedBody);
       if (!parseResult.success) {
         const issues = parseResult.error?.issues || [];
         return res.status(400).json({ 

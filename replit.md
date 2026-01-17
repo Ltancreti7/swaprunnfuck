@@ -85,6 +85,7 @@ Preferred communication style: Simple, everyday language.
 - **Estimated Pay Display**: Drivers see estimated earnings before accepting jobs, calculated from round-trip distance × dealer hourly rate (default $25/hr)
 - **Manual Transmission Preference**: Drivers indicate if they can drive manual transmission during signup; replaces irrelevant "vehicle type" field since drivers use dealership vehicles
 - **Atomic Dealer Registration**: Combined /api/auth/register-dealer endpoint creates user, dealer, and admin records in a single database transaction with Zod validation - avoids cross-site cookie issues on production domains
+- **Simplified Sales Signup**: Self-registration flow where sales staff pick their dealership from dropdown, create account with "pending" status, and wait for dealer approval. PendingApproval page polls for status change. Dealers see pending sales in Team tab with Approve/Reject buttons.
 
 ### Project Structure
 ```

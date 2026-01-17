@@ -1617,6 +1617,8 @@ export function registerRoutes(app: Express): void {
         await storage.createApprovedDriverDealer({
           driverId: application.driverId,
           dealerId: application.dealerId,
+          isVerified: true,
+          verifiedAt: new Date(),
         });
       }
       

@@ -81,7 +81,7 @@ Preferred communication style: Simple, everyday language.
 - **Delivery Tracking**: 8 granular status levels with validated state transitions allowing cancellation and safe backward corrections
 - **Search & Export**: Delivery search with query/status/date filters; CSV export for history reports - both with strict role authorization
 - **Legal Compliance**: Privacy Policy (Termly iframe), Terms of Service pages, mandatory checkbox acceptance on all registration forms
-- **Driver Verification**: Dealers can mark approved drivers as "verified" after checking credentials; only verified drivers can accept deliveries
+- **Driver Verification**: Drivers are automatically verified when their application is approved by a dealer; no separate verification step needed
 - **Estimated Pay Display**: Drivers see estimated earnings before accepting jobs, calculated from round-trip distance × dealer hourly rate (default $25/hr)
 - **Manual Transmission Preference**: Drivers indicate if they can drive manual transmission during signup; replaces irrelevant "vehicle type" field since drivers use dealership vehicles
 - **Atomic Dealer Registration**: Combined /api/auth/register-dealer endpoint creates user, dealer, and admin records in a single database transaction with Zod validation - avoids cross-site cookie issues on production domains

@@ -22,9 +22,10 @@ import { CompleteProfile } from './pages/CompleteProfile';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { Calendar } from './pages/Calendar';
+import { PendingApproval } from './pages/PendingApproval';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, sales } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -47,11 +48,16 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to={dashboardPath} replace />;
   }
 
+  // Redirect unapproved sales users to pending approval page
+  if (role === 'sales' && sales && sales.status !== 'active' && location.pathname !== '/pending-approval') {
+    return <Navigate to="/pending-approval" replace />;
+  }
+
   return <>{children}</>;
 }
 
 function RootRedirect() {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, sales } = useAuth();
 
   if (loading) {
     return (
@@ -65,6 +71,10 @@ function RootRedirect() {
   }
 
   if (user && role) {
+    // Redirect pending sales to approval page
+    if (role === 'sales' && sales && sales.status !== 'active') {
+      return <Navigate to="/pending-approval" replace />;
+    }
     const dashboardPath = role === 'dealer' ? '/dealer' : role === 'sales' ? '/sales' : '/driver';
     return <Navigate to={dashboardPath} replace />;
   }
@@ -88,6 +98,14 @@ function AppContent() {
           <Route path="/signup-driver" element={<SignUpDriver />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route
+            path="/pending-approval"
+            element={
+              <ProtectedRoute allowedRoles={['sales']}>
+                <PendingApproval />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/complete-profile"

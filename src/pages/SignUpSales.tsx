@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Building2, Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
 import { api } from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -21,7 +21,9 @@ export function SignUpSales() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     dealershipId: "",
+    name: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -56,28 +58,25 @@ export function SignUpSales() {
         throw new Error(passwordValidation.message);
       }
 
-      const normalizedEmail = formData.email.toLowerCase().trim();
-
-      const checkResult = await api.sales.checkPreregistered(normalizedEmail, formData.dealershipId);
-
-      if (!checkResult.preRegistered) {
-        throw new Error(
-          "Unable to create account. Please contact your dealership administrator to be added to the team roster."
-        );
+      if (!formData.name.trim()) {
+        throw new Error("Please enter your name");
       }
 
-      await api.auth.register(normalizedEmail, formData.password, "sales");
-
-      await api.sales.activate(checkResult.salesId!);
+      await api.auth.registerSales({
+        email: formData.email.toLowerCase().trim(),
+        password: formData.password,
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        dealerId: formData.dealershipId,
+      });
 
       await refreshAuth();
 
-      showToast("Account created successfully! Welcome to SwapRunn.", "success");
-      navigate("/sales");
+      navigate("/pending-approval");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to create account";
       if (message.includes("already exists")) {
-        showToast("An account with this email already exists.", "error");
+        showToast("An account with this email already exists. Try logging in instead.", "error");
         setTimeout(() => {
           navigate("/login?type=sales");
         }, 2000);
@@ -105,7 +104,7 @@ export function SignUpSales() {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Sales Sign Up</h1>
             <p className="text-gray-600">
-              Create your account to start managing deliveries
+              Join your dealership on SwapRunn
             </p>
           </div>
 
@@ -113,8 +112,16 @@ export function SignUpSales() {
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
             </div>
+          ) : dealerships.length === 0 ? (
+            <div className="text-center py-8">
+              <Building2 size={48} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-600 mb-2">No dealerships available yet</p>
+              <p className="text-sm text-gray-500">
+                Ask your dealership manager to register on SwapRunn first.
+              </p>
+            </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium mb-2">
                   <Building2 size={16} />
@@ -140,6 +147,24 @@ export function SignUpSales() {
 
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                  <User size={16} />
+                  <span>Your Name</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder="John Smith"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  data-testid="input-name"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium mb-2">
                   <Mail size={16} />
                   <span>Email Address</span>
                 </label>
@@ -150,13 +175,27 @@ export function SignUpSales() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  placeholder="your.email@dealership.com"
+                  placeholder="your.email@example.com"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
                   data-testid="input-email"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Use the email your administrator added to the team roster
-                </p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                  <Phone size={16} />
+                  <span>Phone Number (Optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  placeholder="(555) 123-4567"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  data-testid="input-phone"
+                />
               </div>
 
               <div>
@@ -184,11 +223,8 @@ export function SignUpSales() {
                     {showPassword ? <EyeOff size={24} /> : <Eye size={24} />}
                   </button>
                 </div>
-                <p className="text-sm text-gray-600 mt-2 flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  <span>At least 8 characters with uppercase, lowercase, and number</span>
+                <p className="text-sm text-gray-600 mt-2">
+                  At least 8 characters with uppercase, lowercase, and number
                 </p>
               </div>
 
@@ -255,7 +291,7 @@ export function SignUpSales() {
                     <span>Creating Account...</span>
                   </span>
                 ) : (
-                  "Create Account"
+                  "Sign Up"
                 )}
               </button>
 
@@ -273,9 +309,9 @@ export function SignUpSales() {
                 </p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mt-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Your dealership administrator must add you to the team roster before you can sign up. If you encounter an error, please contact your administrator.
+                  <strong>What happens next?</strong> Your dealership manager will review your request and approve your account. You'll receive a notification once approved.
                 </p>
               </div>
             </form>

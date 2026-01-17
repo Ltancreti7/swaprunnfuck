@@ -1799,6 +1799,171 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  // Sales self-signup - creates user and sales record with pending status
+  app.post("/api/auth/register-sales", async (req, res) => {
+    try {
+      const { email, password, name, phone, dealerId } = req.body;
+      
+      if (!email || !password || !name || !dealerId) {
+        return res.status(400).json({ error: "Email, password, name, and dealership are required" });
+      }
+      
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(normalizedEmail);
+      if (existingUser) {
+        return res.status(400).json({ error: "An account with this email already exists" });
+      }
+      
+      // Verify the dealership exists
+      const dealer = await storage.getDealer(dealerId);
+      if (!dealer) {
+        return res.status(400).json({ error: "Invalid dealership selected" });
+      }
+      
+      // Hash password
+      const passwordHash = await hashPassword(password);
+      
+      // Create user and sales record in transaction
+      const result = await db.transaction(async (tx) => {
+        // Create user with sales role
+        const [user] = await tx.insert(schema.users).values({
+          email: normalizedEmail,
+          passwordHash,
+          role: "sales",
+        }).returning();
+        
+        // Create sales record with pending status
+        const [sales] = await tx.insert(schema.sales).values({
+          userId: user.id,
+          dealerId,
+          name,
+          email: normalizedEmail,
+          phone: phone || "",
+          status: "pending", // Needs dealer approval
+        }).returning();
+        
+        return { user, sales };
+      });
+      
+      // Set session
+      (req.session as any).userId = result.user.id;
+      (req.session as any).role = result.user.role;
+      
+      res.json({ 
+        user: { id: result.user.id, email: result.user.email, role: result.user.role },
+        sales: result.sales,
+        status: "pending"
+      });
+    } catch (error) {
+      console.error("Sales registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
+  // Approve a sales person (dealer/manager only)
+  app.post("/api/sales/:id/approve", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const salesId = req.params.id;
+      const salesRecord = await storage.getSales(salesId);
+      if (!salesRecord) {
+        return res.status(404).json({ error: "Sales record not found" });
+      }
+      
+      // Check if user has permission to approve (dealer owner/manager)
+      const dealer = await storage.getDealerByUserId(userId);
+      const dealerAdmin = await storage.getDealerAdminByUserId(userId);
+      
+      const hasAccess = 
+        (dealer && dealer.id === salesRecord.dealerId) ||
+        (dealerAdmin && dealerAdmin.dealerId === salesRecord.dealerId && 
+         (dealerAdmin.role === "owner" || dealerAdmin.role === "manager"));
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Not authorized to approve sales staff" });
+      }
+      
+      const updatedSales = await storage.updateSales(salesId, {
+        status: "active",
+        activatedAt: new Date(),
+      });
+      
+      // Notify the sales person
+      if (salesRecord.userId) {
+        await storage.createNotification({
+          userId: salesRecord.userId,
+          deliveryId: null,
+          type: "sales_approved",
+          title: "Account Approved!",
+          message: `Your account has been approved. You can now request deliveries.`,
+          read: false,
+        });
+      }
+      
+      res.json(updatedSales);
+    } catch (error) {
+      console.error("Approve sales error:", error);
+      res.status(500).json({ error: "Failed to approve sales staff" });
+    }
+  });
+
+  // Reject a sales person (dealer/manager only)
+  app.post("/api/sales/:id/reject", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const salesId = req.params.id;
+      const { reason } = req.body;
+      const salesRecord = await storage.getSales(salesId);
+      if (!salesRecord) {
+        return res.status(404).json({ error: "Sales record not found" });
+      }
+      
+      // Check if user has permission
+      const dealer = await storage.getDealerByUserId(userId);
+      const dealerAdmin = await storage.getDealerAdminByUserId(userId);
+      
+      const hasAccess = 
+        (dealer && dealer.id === salesRecord.dealerId) ||
+        (dealerAdmin && dealerAdmin.dealerId === salesRecord.dealerId && 
+         (dealerAdmin.role === "owner" || dealerAdmin.role === "manager"));
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Not authorized to reject sales staff" });
+      }
+      
+      const updatedSales = await storage.updateSales(salesId, {
+        status: "rejected",
+      });
+      
+      // Notify the sales person
+      if (salesRecord.userId) {
+        await storage.createNotification({
+          userId: salesRecord.userId,
+          deliveryId: null,
+          type: "sales_rejected",
+          title: "Account Not Approved",
+          message: reason || "Your request to join this dealership was not approved.",
+          read: false,
+        });
+      }
+      
+      res.json(updatedSales);
+    } catch (error) {
+      console.error("Reject sales error:", error);
+      res.status(500).json({ error: "Failed to reject sales staff" });
+    }
+  });
+
   app.post("/api/sales/check-preregistered", async (req, res) => {
     try {
       const { email, dealerId } = req.body;

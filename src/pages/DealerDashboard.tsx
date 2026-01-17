@@ -136,13 +136,40 @@ export function DealerDashboard() {
     try {
       const data = await api.sales.byDealer(dealerId);
       const activeSales = (data || []).filter((s: Sales) => s.status === "active");
-      const pendingSalesData = (data || []).filter((s: Sales) => s.status === "pending_signup");
+      // Include both pending_signup (invited) and pending (self-signup) statuses
+      const pendingSalesData = (data || []).filter((s: Sales) => 
+        s.status === "pending_signup" || s.status === "pending"
+      );
       setSalesTeam(activeSales);
       setPendingSales(pendingSalesData);
     } catch (err) {
       console.error("Error loading sales team:", err);
       setSalesTeam([]);
       setPendingSales([]);
+    }
+  };
+
+  const handleApproveSales = async (salesId: string) => {
+    if (!dealer) return;
+    try {
+      await api.sales.approve(salesId);
+      showToast("Sales staff approved!", "success");
+      await loadSalesTeam(dealer.id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to approve";
+      showToast(message, "error");
+    }
+  };
+
+  const handleRejectSales = async (salesId: string) => {
+    if (!dealer) return;
+    try {
+      await api.sales.reject(salesId, "Your request was not approved by the dealership.");
+      showToast("Sales staff rejected", "success");
+      await loadSalesTeam(dealer.id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reject";
+      showToast(message, "error");
     }
   };
 
@@ -720,30 +747,61 @@ export function DealerDashboard() {
                 </Card>
               ) : (
                 <div className="grid md:grid-cols-2 gap-3">
-                  {[...salesTeam, ...pendingSales].map((member) => (
-                    <Card key={member.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{member.name}</p>
-                            {member.status === "pending_signup" && (
-                              <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Pending</span>
-                            )}
+                  {[...salesTeam, ...pendingSales].map((member) => {
+                    const isPending = member.status === "pending" || member.status === "pending_signup";
+                    const isNewSignup = member.status === "pending";
+                    return (
+                      <Card key={member.id} className={`p-4 ${isNewSignup ? 'border-yellow-300 bg-yellow-50' : ''}`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{member.name}</p>
+                              {isPending && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                  isNewSignup 
+                                    ? 'bg-yellow-200 text-yellow-800' 
+                                    : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {isNewSignup ? 'Needs Approval' : 'Invited'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600">{member.email}</p>
+                            {member.role && <p className="text-xs text-gray-500">{member.role}</p>}
                           </div>
-                          <p className="text-sm text-gray-600">{member.email}</p>
-                          {member.role && <p className="text-xs text-gray-500">{member.role}</p>}
+                          {currentUserRole !== "viewer" && (
+                            <div className="flex items-center gap-2">
+                              {isNewSignup ? (
+                                <>
+                                  <button
+                                    onClick={() => handleApproveSales(member.id)}
+                                    className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
+                                    data-testid={`button-approve-sales-${member.id}`}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectSales(member.id)}
+                                    className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
+                                    data-testid={`button-reject-sales-${member.id}`}
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => handleDeleteTeamMember(member.id, "sales")}
+                                  className="text-red-600 text-sm hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {currentUserRole !== "viewer" && (
-                          <button
-                            onClick={() => handleDeleteTeamMember(member.id, "sales")}
-                            className="text-red-600 text-sm hover:underline"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </div>

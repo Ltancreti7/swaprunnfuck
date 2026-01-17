@@ -98,6 +98,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    registerSales: (data: { email: string; password: string; name: string; phone?: string; dealerId: string }) =>
+      apiRequest<{ user: { id: string; email: string; role: string }; sales: any; status: string }>('/auth/register-sales', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     logout: () =>
       apiRequest<{ success: boolean }>('/auth/logout', { method: 'POST' }),
     me: () =>
@@ -130,6 +135,10 @@ export const api = {
       }),
     activate: (salesId: string) =>
       apiRequestWithSnakeBody<any>('/sales/activate', { method: 'POST', body: JSON.stringify({ salesId }) }),
+    approve: (id: string) =>
+      apiRequest<any>(`/sales/${id}/approve`, { method: 'POST' }),
+    reject: (id: string, reason?: string) =>
+      apiRequest<any>(`/sales/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
   },
   drivers: {
     list: () => apiRequest<any[]>('/drivers'),

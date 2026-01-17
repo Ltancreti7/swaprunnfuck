@@ -547,6 +547,37 @@ export function DealerDashboard() {
               </Card>
             )}
 
+            {/* Pending Driver Applications Alert */}
+            {pendingApplicationsCount > 0 && (
+              <Card className="p-4 bg-orange-50 border-orange-300">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-200 rounded-full">
+                      <UserCircle className="w-5 h-5 text-orange-700" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-orange-800" data-testid="text-pending-drivers-count">
+                        {pendingApplicationsCount} Driver Application{pendingApplicationsCount !== 1 ? 's' : ''} Pending
+                      </p>
+                      <p className="text-sm text-orange-700" data-testid="text-pending-drivers-names">
+                        {driverApplications
+                          .filter(app => app.status === "pending")
+                          .map(app => app.driver?.name || 'Unknown')
+                          .join(', ')} applied to work with your dealership
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setShowApplicationsPanel(true)}
+                    className="bg-orange-600"
+                    data-testid="button-review-pending-drivers"
+                  >
+                    Review
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="p-4 text-center">

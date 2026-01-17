@@ -135,11 +135,13 @@ export function DealerDashboard() {
   const loadSalesTeam = async (dealerId: string) => {
     try {
       const data = await api.sales.byDealer(dealerId);
+      console.log("Sales data received:", JSON.stringify(data, null, 2));
       const activeSales = (data || []).filter((s: Sales) => s.status === "active");
       // Include both pending_signup (invited) and pending (self-signup) statuses
       const pendingSalesData = (data || []).filter((s: Sales) => 
         s.status === "pending_signup" || s.status === "pending"
       );
+      console.log("Pending sales found:", pendingSalesData.length, pendingSalesData);
       setSalesTeam(activeSales);
       setPendingSales(pendingSalesData);
     } catch (err) {

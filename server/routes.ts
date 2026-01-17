@@ -15,43 +15,7 @@ import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
 import { notifyDeliveryStatusChange, notifyNewMessage, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
 import { calculateRoundTripEstimate, calculateEstimatedPay } from "./distance";
 
-function toCamelCase(obj: any): any {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(toCamelCase);
-  return Object.keys(obj).reduce((result: any, key) => {
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    result[camelKey] = toCamelCase(obj[key]);
-    return result;
-  }, {});
-}
-
-// Known date/timestamp fields that need conversion from ISO strings to Date objects
-const DATE_FIELDS = [
-  'reviewedAt', 'appliedAt', 'activatedAt', 'createdAt', 'updatedAt', 
-  'completedAt', 'scheduledDate', 'customDate', 'verifiedAt', 'expiresAt',
-  'lastActiveAt', 'passwordChangedAt'
-];
-
-// Middleware to normalize request bodies: snake_case -> camelCase + ISO date strings -> Date objects
-function normalizeRequestBody(obj: any): any {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(normalizeRequestBody);
-  
-  // First convert snake_case to camelCase
-  const camelCased = toCamelCase(obj);
-  
-  // Then convert known date fields from ISO strings to Date objects
-  for (const field of DATE_FIELDS) {
-    if (camelCased[field] && typeof camelCased[field] === 'string') {
-      const date = new Date(camelCased[field]);
-      if (!isNaN(date.getTime())) {
-        camelCased[field] = date;
-      }
-    }
-  }
-  
-  return camelCased;
-}
+// Note: Request body normalization (snake_case -> camelCase + date conversion) is handled by global middleware in index.ts
 
 // Validation schemas - use .nullable().optional() for fields where frontend may send null
 const createDeliverySchema = z.object({
@@ -163,13 +127,7 @@ async function canAccessDealerData(userId: string, dealerId: string): Promise<bo
 }
 
 export function registerRoutes(app: Express): void {
-  // Middleware to normalize all POST/PATCH request bodies
-  app.use((req, res, next) => {
-    if ((req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT') && req.body) {
-      req.body = normalizeRequestBody(req.body);
-    }
-    next();
-  });
+  // Note: Request body normalization middleware is in index.ts (runs before routes)
 
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -898,8 +856,8 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/deliveries", async (req, res) => {
     try {
-      const normalizedBody = normalizeRequestBody(req.body);
-      const parseResult = createDeliverySchema.safeParse(normalizedBody);
+      // req.body is already normalized by global middleware in index.ts
+      const parseResult = createDeliverySchema.safeParse(req.body);
       if (!parseResult.success) {
         const issues = parseResult.error?.issues || [];
         return res.status(400).json({ 

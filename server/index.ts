@@ -42,8 +42,14 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Global middleware to normalize snake_case request bodies to camelCase
+// Global middleware to normalize snake_case request bodies to camelCase + convert date strings
 // This ensures frontend snake_case payloads work with backend camelCase validation
+const DATE_FIELDS = [
+  'reviewedAt', 'appliedAt', 'activatedAt', 'createdAt', 'updatedAt', 
+  'completedAt', 'scheduledDate', 'customDate', 'verifiedAt', 'expiresAt',
+  'lastActiveAt', 'passwordChangedAt'
+];
+
 function toCamelCase(obj: any): any {
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toCamelCase);
@@ -54,9 +60,27 @@ function toCamelCase(obj: any): any {
   }, {});
 }
 
+function normalizeRequestBody(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(normalizeRequestBody);
+  
+  const camelCased = toCamelCase(obj);
+  
+  for (const field of DATE_FIELDS) {
+    if (camelCased[field] && typeof camelCased[field] === 'string') {
+      const date = new Date(camelCased[field]);
+      if (!isNaN(date.getTime())) {
+        camelCased[field] = date;
+      }
+    }
+  }
+  
+  return camelCased;
+}
+
 app.use((req, res, next) => {
   if (['POST', 'PATCH', 'PUT'].includes(req.method) && req.body && typeof req.body === 'object') {
-    req.body = toCamelCase(req.body);
+    req.body = normalizeRequestBody(req.body);
   }
   next();
 });

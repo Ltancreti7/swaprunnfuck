@@ -301,6 +301,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createApprovedDriverDealer(approval: InsertApprovedDriverDealer): Promise<ApprovedDriverDealer> {
+    // Check if already exists to prevent duplicates
+    const existing = await db.select().from(schema.approvedDriverDealers)
+      .where(and(
+        eq(schema.approvedDriverDealers.driverId, approval.driverId),
+        eq(schema.approvedDriverDealers.dealerId, approval.dealerId)
+      ));
+    if (existing.length > 0) {
+      // Update existing record with verification status if provided
+      const [updated] = await db.update(schema.approvedDriverDealers)
+        .set({ isVerified: approval.isVerified ?? existing[0].isVerified, verifiedAt: approval.verifiedAt ?? existing[0].verifiedAt })
+        .where(eq(schema.approvedDriverDealers.id, existing[0].id))
+        .returning();
+      return updated;
+    }
     const [created] = await db.insert(schema.approvedDriverDealers).values(approval).returning();
     return created;
   }

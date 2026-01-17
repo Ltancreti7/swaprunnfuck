@@ -58,9 +58,6 @@ export function Landing() {
                 Log In
                 <ArrowRight size={20} className="ml-2 transform group-hover:translate-x-2 transition-transform" />
               </span>
-              <p className="text-xs text-gray-500 mt-4 bg-gray-50 p-3 rounded-lg">
-                Your dealership admin will add you first
-              </p>
             </button>
 
             {/* Driver Card */}

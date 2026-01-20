@@ -59,7 +59,7 @@ export function DealerDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showNewDeliveryModal, setShowNewDeliveryModal] = useState(false);
   const [showAddTeamModal, setShowAddTeamModal] = useState(false);
-  const [addTeamType, setAddTeamType] = useState<"sales" | "driver">("sales");
+  const [addTeamType, setAddTeamType] = useState<"sales" | "driver" | "admin">("sales");
   const [showApplicationsPanel, setShowApplicationsPanel] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [newDelivery, setNewDelivery] = useState({
@@ -390,7 +390,7 @@ export function DealerDashboard() {
         });
         await loadSalesTeam(dealer.id);
         showToast(`${newTeamMember.name} added! They can sign up using ${newTeamMember.email}`, "success");
-      } else {
+      } else if (addTeamType === "driver") {
         await api.drivers.create({
           dealerId: dealer.id,
           name: newTeamMember.name,
@@ -402,6 +402,13 @@ export function DealerDashboard() {
         });
         await loadDrivers(dealer.id);
         showToast(`${newTeamMember.name} added! They can sign up using ${newTeamMember.email}`, "success");
+      } else if (addTeamType === "admin") {
+        await api.adminInvitations.create({
+          dealerId: dealer.id,
+          email: newTeamMember.email,
+          role: (newTeamMember.role || "manager") as "owner" | "manager" | "viewer",
+        });
+        showToast(`Invitation sent to ${newTeamMember.email}`, "success");
       }
       setNewTeamMember({ name: "", email: "", phone: "", role: "", can_drive_manual: "false", radius: "50" });
       setShowAddTeamModal(false);
@@ -1129,8 +1136,8 @@ export function DealerDashboard() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-lg w-full">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold">Add {addTeamType === "sales" ? "Salesperson" : "Driver"}</h2>
-              <div className="flex gap-4 mt-4">
+              <h2 className="text-xl font-semibold">Add {addTeamType === "sales" ? "Salesperson" : addTeamType === "driver" ? "Driver" : "Admin"}</h2>
+              <div className="flex gap-2 mt-4">
                 <button
                   type="button"
                   onClick={() => setAddTeamType("sales")}
@@ -1148,6 +1155,15 @@ export function DealerDashboard() {
                   }`}
                 >
                   Driver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddTeamType("admin")}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    addTeamType === "admin" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  Admin
                 </button>
               </div>
             </div>
@@ -1213,6 +1229,20 @@ export function DealerDashboard() {
                   />
                 </div>
               )}
+              {addTeamType === "admin" && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Admin Role</label>
+                  <select
+                    value={newTeamMember.role || "manager"}
+                    onChange={(e) => setNewTeamMember({ ...newTeamMember, role: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                  >
+                    <option value="manager">Manager</option>
+                    <option value="viewer">Viewer (Read-only)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Managers can create deliveries and manage team. Viewers have read-only access.</p>
+                </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -1226,7 +1256,7 @@ export function DealerDashboard() {
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition"
                   data-testid="button-submit-team"
                 >
-                  Add {addTeamType === "sales" ? "Salesperson" : "Driver"}
+                  Add {addTeamType === "sales" ? "Salesperson" : addTeamType === "driver" ? "Driver" : "Admin"}
                 </button>
               </div>
             </form>

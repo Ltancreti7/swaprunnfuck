@@ -1864,6 +1864,60 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  // Manager/Admin request access - creates user and pending dealer_admin record
+  app.post("/api/auth/register-manager", async (req, res) => {
+    try {
+      const { email, password, name, phone, dealerId, role } = req.body;
+      
+      if (!email || !password || !name || !dealerId || !role) {
+        return res.status(400).json({ error: "Email, password, name, dealership, and role are required" });
+      }
+      
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(normalizedEmail);
+      if (existingUser) {
+        return res.status(400).json({ error: "An account with this email already exists" });
+      }
+      
+      // Verify the dealership exists
+      const dealer = await storage.getDealer(dealerId);
+      if (!dealer) {
+        return res.status(400).json({ error: "Invalid dealership selected" });
+      }
+      
+      // Hash password
+      const passwordHash = await hashPassword(password);
+      
+      // Create user and pending dealer_admin record in transaction
+      await db.transaction(async (tx) => {
+        // Create user with dealer role
+        const [user] = await tx.insert(schema.users).values({
+          email: normalizedEmail,
+          passwordHash,
+          role: "dealer",
+        }).returning();
+        
+        // Create dealer_admin record with pending status
+        await tx.insert(schema.dealerAdmins).values({
+          userId: user.id,
+          dealerId,
+          role: role || "Manager",
+          status: "pending",
+        });
+      });
+      
+      res.json({ 
+        success: true,
+        message: "Your request has been submitted. An existing admin will review and approve your access."
+      });
+    } catch (error) {
+      console.error("Manager registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
   // Approve a sales person (dealer/manager only)
   app.post("/api/sales/:id/approve", async (req, res) => {
     try {
@@ -2259,6 +2313,123 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Update dealer admin error:", error);
       res.status(500).json({ error: "Failed to update admin" });
+    }
+  });
+
+  // Get pending manager requests for a dealership
+  app.get("/api/dealer-admins/pending/:dealerId", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Get all dealer admins with pending status
+      const allAdmins = await storage.getDealerAdmins(req.params.dealerId);
+      const pendingAdmins = allAdmins.filter(a => a.status === "pending");
+      
+      // Add email info to each
+      const pendingWithEmails = await Promise.all(
+        pendingAdmins.map(async (admin) => {
+          const user = await storage.getUser(admin.userId);
+          return {
+            ...admin,
+            email: user?.email || "Unknown",
+            name: user?.email?.split("@")[0] || "Unknown",
+          };
+        })
+      );
+      
+      res.json(pendingWithEmails);
+    } catch (error) {
+      console.error("Get pending admins error:", error);
+      res.status(500).json({ error: "Failed to get pending managers" });
+    }
+  });
+
+  // Approve a pending manager request
+  app.post("/api/dealer-admins/:id/approve", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Get the admin record being approved
+      const adminRecord = await storage.getDealerAdmin(req.params.id);
+      if (!adminRecord) {
+        return res.status(404).json({ error: "Manager request not found" });
+      }
+      
+      // Verify the approver is an admin for this dealership
+      const approverAdmin = await storage.getDealerAdminByUserId(userId);
+      const approverDealer = await storage.getDealerByUserId(userId);
+      
+      const canApprove = 
+        (approverDealer && approverDealer.id === adminRecord.dealerId) ||
+        (approverAdmin && approverAdmin.dealerId === adminRecord.dealerId && approverAdmin.status === "approved");
+      
+      if (!canApprove) {
+        return res.status(403).json({ error: "Not authorized to approve managers" });
+      }
+      
+      // Update status to approved
+      const updated = await storage.updateDealerAdmin(req.params.id, { 
+        status: "approved",
+        acceptedAt: new Date()
+      });
+      
+      // Notify the manager
+      await storage.createNotification({
+        userId: adminRecord.userId,
+        deliveryId: null,
+        type: "admin_approved",
+        title: "Admin Access Approved!",
+        message: "Your request for admin access has been approved. You can now manage the dealership.",
+        read: false,
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Approve manager error:", error);
+      res.status(500).json({ error: "Failed to approve manager" });
+    }
+  });
+
+  // Reject a pending manager request
+  app.post("/api/dealer-admins/:id/reject", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Get the admin record being rejected
+      const adminRecord = await storage.getDealerAdmin(req.params.id);
+      if (!adminRecord) {
+        return res.status(404).json({ error: "Manager request not found" });
+      }
+      
+      // Verify the approver is an admin for this dealership
+      const approverAdmin = await storage.getDealerAdminByUserId(userId);
+      const approverDealer = await storage.getDealerByUserId(userId);
+      
+      const canReject = 
+        (approverDealer && approverDealer.id === adminRecord.dealerId) ||
+        (approverAdmin && approverAdmin.dealerId === adminRecord.dealerId && approverAdmin.status === "approved");
+      
+      if (!canReject) {
+        return res.status(403).json({ error: "Not authorized to reject managers" });
+      }
+      
+      // Delete the pending admin record and the associated user
+      await storage.deleteDealerAdmin(req.params.id);
+      await storage.deleteUser(adminRecord.userId);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Reject manager error:", error);
+      res.status(500).json({ error: "Failed to reject manager" });
     }
   });
 

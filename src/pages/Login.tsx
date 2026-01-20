@@ -273,9 +273,18 @@ export function Login() {
                   <UserPlus size={20} className="mr-2" />
                   Register Your Dealership
                 </button>
-                <p className="text-xs text-gray-500 mt-4 text-center">
-                  Sales and drivers: Ask your dealership admin to add you to the roster first
-                </p>
+                <div className="border-t border-gray-200 mt-5 pt-4">
+                  <p className="text-sm text-gray-600 text-center mb-3">
+                    Already have a dealership registered?
+                  </p>
+                  <button
+                    onClick={() => navigate('/signup-manager')}
+                    className="w-full border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:border-red-600 hover:text-red-600 transition-all flex items-center justify-center min-h-[48px]"
+                    data-testid="button-request-admin"
+                  >
+                    Request Admin Access
+                  </button>
+                </div>
               </div>
             )}
           </div>

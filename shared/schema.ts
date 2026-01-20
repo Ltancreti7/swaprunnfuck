@@ -146,6 +146,7 @@ export const dealerAdmins = pgTable("dealer_admins", {
   dealerId: uuid("dealer_id").references(() => dealers.id, { onDelete: "cascade" }).notNull(),
   userId: uuid("user_id").notNull(),
   role: text("role").notNull(),
+  status: text("status").default("approved").notNull(),
   invitedBy: uuid("invited_by"),
   invitedAt: timestamp("invited_at").defaultNow(),
   acceptedAt: timestamp("accepted_at").defaultNow(),

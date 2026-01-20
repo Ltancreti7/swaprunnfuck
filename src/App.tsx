@@ -18,6 +18,7 @@ import { AllConversations } from './pages/AllConversations';
 import { Profile } from './pages/Profile';
 import { SignUpSales } from './pages/SignUpSales';
 import { SignUpDriver } from './pages/SignUpDriver';
+import { SignUpManager } from './pages/SignUpManager';
 import { CompleteProfile } from './pages/CompleteProfile';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
@@ -96,6 +97,7 @@ function AppContent() {
           <Route path="/register-dealer" element={<RegisterDealer />} />
           <Route path="/signup-sales" element={<SignUpSales />} />
           <Route path="/signup-driver" element={<SignUpDriver />} />
+          <Route path="/signup-manager" element={<SignUpManager />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route

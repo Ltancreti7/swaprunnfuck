@@ -73,6 +73,7 @@ export interface IStorage {
   updateDriverVerification(driverId: string, dealerId: string, isVerified: boolean, notes?: string): Promise<ApprovedDriverDealer | undefined>;
   
   getDealerAdmins(dealerId: string): Promise<DealerAdmin[]>;
+  getDealerAdmin(id: string): Promise<DealerAdmin | undefined>;
   getDealerAdminByUserId(userId: string): Promise<DealerAdmin | undefined>;
   getAllDealerAdminsByUserId(userId: string): Promise<DealerAdmin[]>;
   createDealerAdmin(admin: InsertDealerAdmin): Promise<DealerAdmin>;
@@ -101,6 +102,7 @@ export interface IStorage {
   atomicAcceptDelivery(deliveryId: string, driverId: string): Promise<Delivery | null>;
   
   updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+  deleteUser(userId: string): Promise<void>;
   deleteUserAccount(userId: string, role: string): Promise<void>;
   
   getOnboardingProgress(userId: string): Promise<OnboardingProgress | undefined>;
@@ -346,6 +348,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(schema.dealerAdmins).where(eq(schema.dealerAdmins.dealerId, dealerId));
   }
 
+  async getDealerAdmin(id: string): Promise<DealerAdmin | undefined> {
+    const [admin] = await db.select().from(schema.dealerAdmins).where(eq(schema.dealerAdmins.id, id));
+    return admin;
+  }
+
   async getDealerAdminByUserId(userId: string): Promise<DealerAdmin | undefined> {
     const [admin] = await db.select().from(schema.dealerAdmins).where(eq(schema.dealerAdmins.userId, userId));
     return admin;
@@ -562,6 +569,10 @@ export class DatabaseStorage implements IStorage {
     await db.update(schema.users)
       .set({ passwordHash })
       .where(eq(schema.users.id, userId));
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
   }
 
   async deleteUserAccount(userId: string, role: string): Promise<void> {

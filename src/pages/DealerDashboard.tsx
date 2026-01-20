@@ -43,6 +43,7 @@ export function DealerDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [salesTeam, setSalesTeam] = useState<Sales[]>([]);
   const [pendingSales, setPendingSales] = useState<Sales[]>([]);
+  const [pendingManagers, setPendingManagers] = useState<{ id: string; role: string; email: string; name: string; status: string; createdAt: string }[]>([]);
   const [driverApplications, setDriverApplications] = useState<(DriverApplication & { driver: Driver })[]>([]);
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
   const [approvedDriverDealers, setApprovedDriverDealers] = useState<{
@@ -101,6 +102,7 @@ export function DealerDashboard() {
           loadSalesTeam(dealerData.id),
           loadDrivers(dealerData.id),
           loadApplications(dealerData.id),
+          loadPendingManagers(dealerData.id),
         ]);
       } else {
         navigate("/complete-profile");
@@ -168,6 +170,40 @@ export function DealerDashboard() {
       await api.sales.reject(salesId, "Your request was not approved by the dealership.");
       showToast("Sales staff rejected", "success");
       await loadSalesTeam(dealer.id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reject";
+      showToast(message, "error");
+    }
+  };
+
+  const loadPendingManagers = async (dealerId: string) => {
+    try {
+      const data = await api.dealerAdmins.pendingByDealer(dealerId);
+      setPendingManagers(data || []);
+    } catch (err) {
+      console.error("Error loading pending managers:", err);
+      setPendingManagers([]);
+    }
+  };
+
+  const handleApproveManager = async (adminId: string) => {
+    if (!dealer) return;
+    try {
+      await api.dealerAdmins.approve(adminId);
+      showToast("Manager approved!", "success");
+      await loadPendingManagers(dealer.id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to approve";
+      showToast(message, "error");
+    }
+  };
+
+  const handleRejectManager = async (adminId: string) => {
+    if (!dealer) return;
+    try {
+      await api.dealerAdmins.reject(adminId);
+      showToast("Manager request rejected", "success");
+      await loadPendingManagers(dealer.id);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to reject";
       showToast(message, "error");
@@ -486,7 +522,7 @@ export function DealerDashboard() {
             {[
               { id: "overview", label: "Overview", badge: 0 },
               { id: "deliveries", label: "Deliveries", badge: 0 },
-              { id: "team", label: "Team", badge: pendingSales.length },
+              { id: "team", label: "Team", badge: pendingSales.length + pendingManagers.length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -519,6 +555,34 @@ export function DealerDashboard() {
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="space-y-6">
+            {/* Pending Managers Alert */}
+            {pendingManagers.length > 0 && (
+              <Card className="p-4 bg-purple-50 border-purple-300">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-200 rounded-full">
+                      <Shield className="w-5 h-5 text-purple-700" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-purple-800" data-testid="text-pending-managers-count">
+                        {pendingManagers.length} Manager{pendingManagers.length !== 1 ? 's' : ''} Requesting Access
+                      </p>
+                      <p className="text-sm text-purple-700" data-testid="text-pending-managers-names">
+                        {pendingManagers.map(m => m.name || m.email.split('@')[0]).join(', ')} requested admin access
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setActiveTab("team")}
+                    className="bg-purple-600"
+                    data-testid="button-review-pending-managers"
+                  >
+                    Review
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* Pending Sales Alert */}
             {pendingSales.length > 0 && (
               <Card className="p-4 bg-yellow-50 border-yellow-300">
@@ -798,6 +862,52 @@ export function DealerDashboard() {
                 </button>
               </div>
             </div>
+
+            {/* Pending Managers */}
+            {pendingManagers.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-yellow-600 uppercase tracking-wide mb-3">
+                  Pending Manager Requests ({pendingManagers.length})
+                </h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {pendingManagers.map((manager) => (
+                    <Card key={manager.id} className="p-4 border-yellow-300 bg-yellow-50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Shield size={16} className="text-yellow-600" />
+                            <p className="font-medium">{manager.name || manager.email.split('@')[0]}</p>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-800">
+                              Needs Approval
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">{manager.email}</p>
+                          <p className="text-xs text-gray-500">{manager.role}</p>
+                        </div>
+                        {currentUserRole !== "viewer" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleApproveManager(manager.id)}
+                              className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
+                              data-testid={`button-approve-manager-${manager.id}`}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleRejectManager(manager.id)}
+                              className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
+                              data-testid={`button-reject-manager-${manager.id}`}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Sales Team */}
             <div>

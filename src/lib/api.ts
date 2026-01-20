@@ -103,6 +103,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    registerManager: (data: { email: string; password: string; name: string; phone?: string; dealerId: string; role: string }) =>
+      apiRequest<{ success: boolean; message: string }>('/auth/register-manager', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     logout: () =>
       apiRequest<{ success: boolean }>('/auth/logout', { method: 'POST' }),
     me: () =>
@@ -221,6 +226,7 @@ export const api = {
   dealerAdmins: {
     list: () => apiRequest<any[]>('/dealer-admins'),
     byDealer: (dealerId: string) => apiRequest<any[]>(`/dealer-admins/with-emails/${dealerId}`),
+    pendingByDealer: (dealerId: string) => apiRequest<any[]>(`/dealer-admins/pending/${dealerId}`),
     create: (data: any) =>
       apiRequestWithSnakeBody<any>('/dealer-admins', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
@@ -229,6 +235,10 @@ export const api = {
       apiRequest<{ success: boolean }>(`/dealer-admins/${id}`, { method: 'DELETE' }),
     roleForCurrentUser: (dealerId: string) => 
       apiRequest<any>(`/dealer-admins/role/${dealerId}`),
+    approve: (id: string) =>
+      apiRequest<{ success: boolean }>(`/dealer-admins/${id}/approve`, { method: 'POST' }),
+    reject: (id: string) =>
+      apiRequest<{ success: boolean }>(`/dealer-admins/${id}/reject`, { method: 'POST' }),
   },
   user: {
     adminRoles: () => apiRequest<any[]>('/user/admin-roles'),

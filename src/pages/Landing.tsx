@@ -25,41 +25,58 @@ export function Landing() {
           {/* CTA Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
             {/* Dealership Card */}
-            <button
-              onClick={() => navigate('/register-dealer')}
-              className="touch-target bg-white rounded-2xl shadow-2xl p-6 sm:p-8 hover:shadow-red-500/20 transition-all border-2 border-transparent hover:border-red-600 text-left group md:transform md:hover:-translate-y-2 md:hover:scale-105"
-            >
-              <div className="bg-gradient-to-br from-red-600 to-red-700 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all">
+              <div className="bg-gradient-to-br from-red-600 to-red-700 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                 <Building2 size={32} />
               </div>
-              <h2 className="text-2xl font-bold mb-3 text-gray-900">Register Your Dealership</h2>
+              <h2 className="text-2xl font-bold mb-3 text-gray-900">Dealership</h2>
               <p className="text-gray-600 mb-6 leading-relaxed">
                 Start your free account and add your team members. Manage deliveries, drivers, and sales staff all in one place.
               </p>
-              <span className="text-red-600 font-bold group-hover:underline inline-flex items-center text-lg">
-                Get Started Free
-                <ArrowRight size={20} className="ml-2 transform group-hover:translate-x-2 transition-transform" />
-              </span>
-            </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => navigate('/register-dealer')}
+                  className="touch-target w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                  data-testid="button-register-dealer"
+                >
+                  Register Dealership
+                </button>
+                <button
+                  onClick={() => navigate('/login?type=dealer')}
+                  className="touch-target w-full border-2 border-gray-300 text-gray-800 py-3.5 rounded-xl font-bold hover:border-gray-400 hover:bg-gray-50 transition-all"
+                  data-testid="button-dealer-signin"
+                >
+                  Admin Sign In
+                </button>
+              </div>
+            </div>
 
             {/* Sales Card */}
-            <button
-              onClick={() => navigate('/signup-sales')}
-              className="touch-target bg-white rounded-2xl shadow-2xl p-6 sm:p-8 hover:shadow-neutral-500/20 transition-all border-2 border-transparent hover:border-neutral-700 text-left group md:transform md:hover:-translate-y-2 md:hover:scale-105"
-              data-testid="button-sales-signup"
-            >
-              <div className="bg-gradient-to-br from-neutral-700 to-neutral-800 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all">
+              <div className="bg-gradient-to-br from-neutral-700 to-neutral-800 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                 <UserCheck size={32} />
               </div>
               <h2 className="text-2xl font-bold mb-3 text-gray-900">Sales Staff</h2>
               <p className="text-gray-600 mb-6 leading-relaxed">
                 Join your dealership to request deliveries, track progress, and communicate with drivers.
               </p>
-              <span className="text-neutral-800 font-bold group-hover:underline inline-flex items-center text-lg">
-                Sign Up
-                <ArrowRight size={20} className="ml-2 transform group-hover:translate-x-2 transition-transform" />
-              </span>
-            </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => navigate('/signup-sales')}
+                  className="touch-target w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                  data-testid="button-sales-signup"
+                >
+                  Sign Up as Sales
+                </button>
+                <button
+                  onClick={() => navigate('/login?type=sales')}
+                  className="touch-target w-full border-2 border-gray-300 text-gray-800 py-3.5 rounded-xl font-bold hover:border-gray-400 hover:bg-gray-50 transition-all"
+                  data-testid="button-sales-signin"
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
 
             {/* Driver Card */}
             <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all">
@@ -74,12 +91,14 @@ export function Landing() {
                 <button
                   onClick={() => navigate('/signup-driver')}
                   className="touch-target w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                  data-testid="button-driver-signup"
                 >
                   Sign Up as Driver
                 </button>
                 <button
                   onClick={() => navigate('/login?type=driver')}
                   className="touch-target w-full border-2 border-gray-300 text-gray-800 py-3.5 rounded-xl font-bold hover:border-gray-400 hover:bg-gray-50 transition-all"
+                  data-testid="button-driver-signin"
                 >
                   Sign In
                 </button>

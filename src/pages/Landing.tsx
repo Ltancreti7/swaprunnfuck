@@ -44,18 +44,19 @@ export function Landing() {
 
             {/* Sales Card */}
             <button
-              onClick={() => navigate('/login?type=sales')}
+              onClick={() => navigate('/signup-sales')}
               className="touch-target bg-white rounded-2xl shadow-2xl p-6 sm:p-8 hover:shadow-neutral-500/20 transition-all border-2 border-transparent hover:border-neutral-700 text-left group md:transform md:hover:-translate-y-2 md:hover:scale-105"
+              data-testid="button-sales-signup"
             >
               <div className="bg-gradient-to-br from-neutral-700 to-neutral-800 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
                 <UserCheck size={32} />
               </div>
-              <h2 className="text-2xl font-bold mb-3 text-gray-900">Sales Login</h2>
+              <h2 className="text-2xl font-bold mb-3 text-gray-900">Sales Staff</h2>
               <p className="text-gray-600 mb-6 leading-relaxed">
-                Access your dashboard to manage delivery requests, track progress, and communicate with drivers.
+                Join your dealership to request deliveries, track progress, and communicate with drivers.
               </p>
               <span className="text-neutral-800 font-bold group-hover:underline inline-flex items-center text-lg">
-                Log In
+                Sign Up
                 <ArrowRight size={20} className="ml-2 transform group-hover:translate-x-2 transition-transform" />
               </span>
             </button>

@@ -25,12 +25,12 @@ export function Landing() {
           {/* CTA Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
             {/* Dealership Card */}
-            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all flex flex-col">
               <div className="bg-gradient-to-br from-red-600 to-red-700 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                 <Building2 size={32} />
               </div>
               <h2 className="text-2xl font-bold mb-3 text-gray-900">Dealership</h2>
-              <p className="text-gray-600 mb-6 leading-relaxed">
+              <p className="text-gray-600 mb-6 leading-relaxed flex-grow">
                 Start your free account and add your team members. Manage deliveries, drivers, and sales staff all in one place.
               </p>
               <div className="space-y-3">
@@ -52,12 +52,12 @@ export function Landing() {
             </div>
 
             {/* Sales Card */}
-            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all flex flex-col">
               <div className="bg-gradient-to-br from-neutral-700 to-neutral-800 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                 <UserCheck size={32} />
               </div>
               <h2 className="text-2xl font-bold mb-3 text-gray-900">Sales Staff</h2>
-              <p className="text-gray-600 mb-6 leading-relaxed">
+              <p className="text-gray-600 mb-6 leading-relaxed flex-grow">
                 Join your dealership to request deliveries, track progress, and communicate with drivers.
               </p>
               <div className="space-y-3">
@@ -79,12 +79,12 @@ export function Landing() {
             </div>
 
             {/* Driver Card */}
-            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all flex flex-col">
               <div className="bg-gradient-to-br from-neutral-700 to-neutral-800 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                 <Truck size={32} />
               </div>
               <h2 className="text-2xl font-bold mb-3 text-gray-900">Driver Portal</h2>
-              <p className="text-gray-600 mb-6 leading-relaxed">
+              <p className="text-gray-600 mb-6 leading-relaxed flex-grow">
                 Sign up to connect with dealerships and start delivering vehicles in your area.
               </p>
               <div className="space-y-3">

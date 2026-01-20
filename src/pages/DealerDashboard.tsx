@@ -1169,19 +1169,23 @@ export function DealerDashboard() {
             </div>
             <form onSubmit={handleAddTeamMember} className="p-6 space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                Add their details here. They'll receive an email to complete their registration.
+                {addTeamType === "admin" 
+                  ? "Enter their email. They'll receive an invitation to join as an admin."
+                  : "Add their details here. They'll receive an email to complete their registration."}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newTeamMember.name}
-                  onChange={(e) => setNewTeamMember({ ...newTeamMember, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                  data-testid="input-team-name"
-                />
-              </div>
+              {addTeamType !== "admin" && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newTeamMember.name}
+                    onChange={(e) => setNewTeamMember({ ...newTeamMember, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="input-team-name"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-2">Email</label>
                 <input
@@ -1193,17 +1197,19 @@ export function DealerDashboard() {
                   data-testid="input-team-email"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Phone</label>
-                <input
-                  type="tel"
-                  required
-                  value={newTeamMember.phone}
-                  onChange={(e) => setNewTeamMember({ ...newTeamMember, phone: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                  data-testid="input-team-phone"
-                />
-              </div>
+              {addTeamType !== "admin" && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    required
+                    value={newTeamMember.phone}
+                    onChange={(e) => setNewTeamMember({ ...newTeamMember, phone: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    data-testid="input-team-phone"
+                  />
+                </div>
+              )}
               {addTeamType === "sales" && (
                 <div>
                   <label className="block text-sm font-medium mb-2">Role/Title (optional)</label>

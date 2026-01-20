@@ -86,6 +86,7 @@ Preferred communication style: Simple, everyday language.
 - **Manual Transmission Preference**: Drivers indicate if they can drive manual transmission during signup; replaces irrelevant "vehicle type" field since drivers use dealership vehicles
 - **Atomic Dealer Registration**: Combined /api/auth/register-dealer endpoint creates user, dealer, and admin records in a single database transaction with Zod validation - avoids cross-site cookie issues on production domains
 - **Simplified Sales Signup**: Self-registration flow where sales staff pick their dealership from dropdown, create account with "pending" status, and wait for dealer approval. PendingApproval page polls for status change. Dealers see pending sales in Team tab with Approve/Reject buttons.
+- **Manager Admin Access Request**: Managers at existing dealerships can request admin access via /signup-manager page. Creates user with "dealer" role and dealer_admin record with "pending" status. Login blocked until approved. Existing admins see pending requests in Team tab with purple alert and Approve/Reject buttons. No email required - simple in-app approval workflow.
 
 ### Project Structure
 ```

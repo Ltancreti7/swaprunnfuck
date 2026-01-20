@@ -240,6 +240,25 @@ export function registerRoutes(app: Express): void {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
+      // Check if dealer role user has an approved dealer_admin record
+      if (user.role === "dealer") {
+        const adminRecords = await db.select().from(schema.dealerAdmins)
+          .where(eq(schema.dealerAdmins.userId, user.id));
+        
+        if (adminRecords.length > 0) {
+          // Check if any admin record is approved (or has no status, meaning legacy approved)
+          const hasApprovedAccess = adminRecords.some(
+            admin => !admin.status || admin.status === "approved"
+          );
+          
+          if (!hasApprovedAccess) {
+            return res.status(403).json({ 
+              error: "Your admin access request is pending approval. Please wait for an existing admin to approve your request." 
+            });
+          }
+        }
+      }
+      
       (req.session as any).userId = user.id;
       (req.session as any).role = user.role;
       

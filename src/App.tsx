@@ -24,6 +24,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { Calendar } from './pages/Calendar';
 import { PendingApproval } from './pages/PendingApproval';
+import { HowItWorks } from './pages/HowItWorks';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { user, role, loading, sales } = useAuth();
@@ -100,6 +101,7 @@ function AppContent() {
           <Route path="/signup-manager" element={<SignUpManager />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
           <Route
             path="/pending-approval"
             element={

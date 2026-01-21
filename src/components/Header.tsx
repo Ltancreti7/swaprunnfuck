@@ -74,6 +74,16 @@ export function Header() {
               <>
                 <button
                   onClick={() => {
+                    navigate('/how-it-works');
+                    setMenuOpen(false);
+                  }}
+                  className="px-5 py-3.5 hover:bg-zinc-800 active:bg-zinc-700 text-left transition border-b border-zinc-700/50 font-medium touch-target"
+                  data-testid="link-how-it-works"
+                >
+                  How It Works
+                </button>
+                <button
+                  onClick={() => {
                     navigate('/register-dealer');
                     setMenuOpen(false);
                   }}

@@ -141,12 +141,13 @@ Preferred communication style: Simple, everyday language.
 ### Dashboard UX Simplification (January 2026)
 All three dashboards refactored for cleaner, mobile-first experience:
 - **DealerDashboard**: 1111 lines (from 1771, 37% reduction), 3 tabs (Overview, Deliveries, Team) instead of 7
-- **SalesDashboard**: Profile-style header with gradient, avatar initials, dealership info, contact details, 3-step modal wizard with strict validation
-- **DriverDashboard**: Profile-style header with status badge, availability toggle, contact info, service radius, 3 tabs (Jobs, History, Dealerships)
+- **SalesDashboard**: Profile tab with centered card layout, 2 tabs (Profile, Deliveries), compact red header
+- **DriverDashboard**: Profile tab with centered card layout, 4 tabs (Profile, Jobs, History, Dealerships), compact dark header
 - Added OnboardingChecklist to all dashboards for guided user setup
 - Unread message indicator added to Driver dashboard header with badge
-- Profile headers with gradient backgrounds and user initials avatars
-- Quick stats cards overlapping the header for visual depth
+- Profile tab features: Large circular avatar with camera overlay, centered name, "Tap photo to update" hint, role badges, contact info with icons, stats cards, settings link
+- Availability toggle moved to Profile tab for drivers
+- Sticky tab navigation for easy switching between views
 - Prominent action buttons (New Delivery, Go Online/Offline)
 - Settings button in header for easy profile access
 - Modal-based forms instead of inline forms with enhanced validation

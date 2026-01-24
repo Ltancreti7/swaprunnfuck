@@ -68,6 +68,13 @@ Preferred communication style: Simple, everyday language.
 - **In-App Notifications**: Real-time alerts via NotificationCenter component with 15-second polling
   - Driver job alerts: All verified drivers get notification when new delivery is created with vehicle info and estimated pay
   - Acceptance notifications: Sales staff and dealers get notification when driver accepts their delivery request
+- **Push Notifications**: Firebase Cloud Messaging integration for native mobile push notifications
+  - Requires FIREBASE_SERVICE_ACCOUNT env variable (JSON string of Firebase service account)
+  - Server: `server/pushService.ts` - Firebase Admin SDK with graceful degradation when not configured
+  - Client: `src/components/PushNotificationProvider.tsx` - Capacitor integration for iOS/Android
+  - Events: New delivery available (to drivers), driver accepted (to sales/dealer), new chat message, driver application, application decision
+  - Token management: `push_tokens` table stores device tokens, auto-cleanup of invalid tokens on send failure
+  - Deep linking: Notification taps navigate to appropriate dashboard or chat screen
 - **Account Deletion**: Safe cascade deletion across all 15+ dependent tables in a single transaction
 - **Rate Limiting**: In-memory rate limiter on polling endpoints (20 req/10s) and sensitive operations (5 req/hour)
 - **Race Condition Handling**: Atomic delivery acceptance using conditional UPDATE with database-level locking

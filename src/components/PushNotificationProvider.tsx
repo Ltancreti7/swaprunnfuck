@@ -66,19 +66,27 @@ export function PushNotificationProvider({ children }: { children: React.ReactNo
           console.log('Push notification action performed:', action);
           
           const data = action.notification.data;
-          if (data?.deliveryId && data?.type) {
+          if (data?.type) {
             switch (data.type) {
               case 'new_delivery':
               case 'delivery_status':
               case 'driver_accepted':
-                navigate(`/delivery/${data.deliveryId}`);
-                break;
-              case 'new_message':
-                navigate(`/chat/${data.deliveryId}`);
-                break;
               case 'driver_application':
               case 'application_decision':
-                navigate('/dashboard');
+                // Navigate to role-appropriate dashboard (user is already authenticated)
+                const role = user?.role;
+                if (role === 'dealer') {
+                  navigate('/dealer');
+                } else if (role === 'sales') {
+                  navigate('/sales');
+                } else if (role === 'driver') {
+                  navigate('/driver');
+                }
+                break;
+              case 'new_message':
+                if (data.deliveryId) {
+                  navigate(`/chat/${data.deliveryId}`);
+                }
                 break;
             }
           }

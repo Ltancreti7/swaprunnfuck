@@ -1,4 +1,31 @@
+import admin from "firebase-admin";
 import { storage } from "./storage";
+
+let firebaseApp: admin.app.App | null = null;
+
+function getFirebaseApp(): admin.app.App | null {
+  if (firebaseApp) {
+    return firebaseApp;
+  }
+
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!serviceAccountJson) {
+    console.log("Firebase not configured - FIREBASE_SERVICE_ACCOUNT not set");
+    return null;
+  }
+
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log("Firebase Admin SDK initialized successfully");
+    return firebaseApp;
+  } catch (error) {
+    console.error("Failed to initialize Firebase Admin SDK:", error);
+    return null;
+  }
+}
 
 export interface PushNotificationPayload {
   title: string;
@@ -14,15 +41,59 @@ export async function sendPushNotification(
     const tokens = await storage.getPushTokensByUserId(userId);
     
     if (tokens.length === 0) {
-      console.log(`No push tokens found for user ${userId}`);
       return false;
     }
 
-    for (const tokenRecord of tokens) {
-      console.log(`Would send push to ${tokenRecord.platform}: ${payload.title}`);
+    const app = getFirebaseApp();
+    if (!app) {
+      console.log(`Push notification (no Firebase): ${payload.title} - ${payload.body}`);
+      return false;
     }
 
-    return true;
+    const results = await Promise.allSettled(
+      tokens.map(async (tokenRecord) => {
+        try {
+          const message: admin.messaging.Message = {
+            token: tokenRecord.token,
+            notification: {
+              title: payload.title,
+              body: payload.body,
+            },
+            data: payload.data,
+            apns: {
+              payload: {
+                aps: {
+                  badge: 1,
+                  sound: "default",
+                },
+              },
+            },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "swaprunn_notifications",
+              },
+            },
+          };
+
+          await admin.messaging().send(message);
+          console.log(`Push sent to ${tokenRecord.platform}: ${payload.title}`);
+          return true;
+        } catch (error: any) {
+          if (error.code === "messaging/registration-token-not-registered" ||
+              error.code === "messaging/invalid-registration-token") {
+            console.log(`Removing invalid token for user ${userId}`);
+            await storage.deletePushToken(userId, tokenRecord.token);
+          } else {
+            console.error(`Push failed for ${tokenRecord.platform}:`, error.message);
+          }
+          return false;
+        }
+      })
+    );
+
+    return results.some(r => r.status === "fulfilled" && r.value === true);
   } catch (error) {
     console.error("Error sending push notification:", error);
     return false;
@@ -33,15 +104,60 @@ export async function sendPushNotificationToMultipleUsers(
   userIds: string[],
   payload: PushNotificationPayload
 ): Promise<void> {
+  if (userIds.length === 0) return;
+
   const tokens = await storage.getPushTokensForUsers(userIds);
   
   if (tokens.length === 0) {
-    console.log(`No push tokens found for users`);
     return;
   }
 
-  for (const tokenRecord of tokens) {
-    console.log(`Would send push to ${tokenRecord.platform}: ${payload.title}`);
+  const app = getFirebaseApp();
+  if (!app) {
+    console.log(`Push to ${userIds.length} users (no Firebase): ${payload.title}`);
+    return;
+  }
+
+  const messages: admin.messaging.Message[] = tokens.map((tokenRecord) => ({
+    token: tokenRecord.token,
+    notification: {
+      title: payload.title,
+      body: payload.body,
+    },
+    data: payload.data,
+    apns: {
+      payload: {
+        aps: {
+          badge: 1,
+          sound: "default",
+        },
+      },
+    },
+    android: {
+      priority: "high" as const,
+      notification: {
+        sound: "default",
+        channelId: "swaprunn_notifications",
+      },
+    },
+  }));
+
+  try {
+    const response = await admin.messaging().sendEach(messages);
+    console.log(`Push sent: ${response.successCount}/${messages.length} successful`);
+
+    response.responses.forEach(async (resp, idx) => {
+      if (!resp.success && resp.error) {
+        const error = resp.error;
+        if (error.code === "messaging/registration-token-not-registered" ||
+            error.code === "messaging/invalid-registration-token") {
+          const tokenRecord = tokens[idx];
+          await storage.deletePushToken(tokenRecord.userId, tokenRecord.token);
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error sending batch push notifications:", error);
   }
 }
 
@@ -85,12 +201,27 @@ export async function notifyNewMessage(
 
 export async function notifyNewDeliveryAvailable(
   deliveryId: string,
+  vehicleInfo: string,
+  estimatedPay: string,
   driverUserIds: string[]
 ): Promise<void> {
   await sendPushNotificationToMultipleUsers(driverUserIds, {
     title: "New Delivery Available",
-    body: "A new delivery job is available in your area",
+    body: `${vehicleInfo} - Est. ${estimatedPay}`,
     data: { deliveryId, type: "new_delivery" },
+  });
+}
+
+export async function notifyDriverAccepted(
+  deliveryId: string,
+  driverName: string,
+  vehicleInfo: string,
+  recipientUserIds: string[]
+): Promise<void> {
+  await sendPushNotificationToMultipleUsers(recipientUserIds, {
+    title: "Driver Accepted",
+    body: `${driverName} accepted the ${vehicleInfo} delivery`,
+    data: { deliveryId, type: "driver_accepted" },
   });
 }
 

@@ -3,6 +3,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { PushNotificationProvider } from './components/PushNotificationProvider';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { Landing } from './pages/Landing';
@@ -197,7 +198,9 @@ function App() {
       <BrowserRouter>
         <ToastProvider>
           <AuthProvider>
-            <AppContent />
+            <PushNotificationProvider>
+              <AppContent />
+            </PushNotificationProvider>
           </AuthProvider>
         </ToastProvider>
       </BrowserRouter>

@@ -12,7 +12,14 @@ import {
   isEmailConfigured
 } from "./email";
 import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
-import { notifyDeliveryStatusChange, notifyNewMessage, notifyDriverApplication, notifyApplicationDecision } from "./pushService";
+import { 
+  notifyDeliveryStatusChange, 
+  notifyNewMessage, 
+  notifyDriverApplication, 
+  notifyApplicationDecision,
+  notifyNewDeliveryAvailable,
+  notifyDriverAccepted
+} from "./pushService";
 import { calculateRoundTripEstimate, calculateEstimatedPay } from "./distance";
 
 // Note: Request body normalization (snake_case -> camelCase + date conversion) is handled by global middleware in index.ts
@@ -924,9 +931,12 @@ export function registerRoutes(app: Express): void {
           const vehicleInfo = `${parseResult.data.year || ''} ${parseResult.data.make || ''} ${parseResult.data.model || ''}`.trim() || 'Vehicle';
           const payInfo = estimatedPayFormatted ? ` - Est. ${estimatedPayFormatted}` : '';
           
+          const driverUserIds: string[] = [];
+          
           for (const ad of verifiedDrivers) {
             const driver = await storage.getDriver(ad.driverId);
             if (driver?.userId) {
+              driverUserIds.push(driver.userId);
               await storage.createNotification({
                 userId: driver.userId,
                 deliveryId: delivery.id,
@@ -936,6 +946,16 @@ export function registerRoutes(app: Express): void {
                 read: false,
               });
             }
+          }
+          
+          // Send push notifications to all verified drivers
+          if (driverUserIds.length > 0) {
+            notifyNewDeliveryAvailable(
+              delivery.id,
+              vehicleInfo,
+              estimatedPayFormatted || 'TBD',
+              driverUserIds
+            ).catch(err => console.error('Push notification error:', err));
           }
         }
       } catch (notifyError) {
@@ -1198,6 +1218,18 @@ export function registerRoutes(app: Express): void {
           message: `${driver?.name || "A driver"} has accepted your delivery request.`,
           read: false,
         });
+      }
+      
+      // Send push notifications
+      const vehicleInfo = `${updatedDelivery.year || ''} ${updatedDelivery.make || ''} ${updatedDelivery.model || ''}`.trim() || 'Vehicle';
+      const recipientUserIds = [dealer?.userId, sales?.userId].filter((id): id is string => !!id);
+      if (recipientUserIds.length > 0) {
+        notifyDriverAccepted(
+          req.params.id,
+          driver?.name || 'A driver',
+          vehicleInfo,
+          recipientUserIds
+        ).catch(err => console.error('Push notification error:', err));
       }
       
       res.json(updatedDelivery);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Search, Truck, Clock, CheckCircle, X, Settings, Mail, Phone, Building2, Calendar } from 'lucide-react';
+import { Plus, Package, Search, Truck, Clock, CheckCircle, X, Settings, Mail, Phone, Building2, Calendar, Camera, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../lib/api';
@@ -28,6 +28,7 @@ export function SalesDashboard() {
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed'>('active');
+  const [activeTab, setActiveTab] = useState<'profile' | 'deliveries'>('profile');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDriverSelection, setShowDriverSelection] = useState(false);
   const [deliveryToCancel, setDeliveryToCancel] = useState<string | null>(null);
@@ -268,166 +269,262 @@ export function SalesDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
-      {/* Profile Header */}
+      {/* Compact Header */}
       <div className="bg-gradient-to-br from-red-600 to-red-700">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-white text-2xl font-bold backdrop-blur">
-              {initials}
-            </div>
-            <div className="flex-1 text-white">
-              <h1 className="text-2xl font-bold">{sales.name}</h1>
-              <p className="text-red-100 flex items-center gap-2 mt-1">
-                <Building2 size={16} />
-                {dealer?.name || 'Dealership'}
-              </p>
-              {sales.role && (
-                <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded-full text-sm">
-                  {sales.role}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold text-white">Sales Dashboard</h1>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/messages')}
+                className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
+                data-testid="button-messages"
+              >
+                <MessageCircle size={20} />
+              </button>
               <button
                 onClick={() => navigate('/calendar')}
-                className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
+                className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
                 data-testid="button-calendar"
               >
                 <Calendar size={20} />
               </button>
-              <button
-                onClick={() => navigate('/profile')}
-                className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
-                data-testid="button-settings"
-              >
-                <Settings size={20} />
-              </button>
             </div>
-          </div>
-          
-          {/* Contact Info */}
-          <div className="mt-6 flex flex-wrap gap-4 text-sm text-red-100">
-            <div className="flex items-center gap-2">
-              <Mail size={14} />
-              {sales.email}
-            </div>
-            {sales.phone && (
-              <div className="flex items-center gap-2">
-                <Phone size={14} />
-                {sales.phone}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="container mx-auto px-4 -mt-6">
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="p-4 text-center shadow-lg">
-            <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{stats.pending}</p>
-            <p className="text-xs text-gray-600">Pending</p>
-          </Card>
-          <Card className="p-4 text-center shadow-lg">
-            <Truck className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{stats.active}</p>
-            <p className="text-xs text-gray-600">Active</p>
-          </Card>
-          <Card className="p-4 text-center shadow-lg">
-            <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1" />
-            <p className="text-2xl font-bold">{stats.completed}</p>
-            <p className="text-xs text-gray-600">Completed</p>
-          </Card>
+      {/* Tabs */}
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="container mx-auto px-4">
+          <div className="flex gap-1">
+            {[
+              { id: 'profile', label: 'Profile' },
+              { id: 'deliveries', label: 'Deliveries', count: stats.active },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-4 font-medium transition border-b-2 flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'text-red-600 border-red-600'
+                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                }`}
+                data-testid={`tab-${tab.id}`}
+              >
+                {tab.label}
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
         <OnboardingChecklist role="sales" />
         
-        {/* New Delivery Button */}
-        <button
-          onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
-          className="w-full mb-6 bg-red-600 text-white py-4 rounded-xl font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg"
-          data-testid="button-new-delivery"
-        >
-          <Plus size={24} />
-          Request New Delivery
-        </button>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex gap-2">
-            {(['active', 'completed', 'all'] as const).map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  activeFilter === filter
-                    ? 'bg-red-600 text-white'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-                data-testid={`filter-${filter}`}
-              >
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
-              </button>
-            ))}
-          </div>
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search by VIN or address..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600"
-              data-testid="input-search"
-            />
-          </div>
-        </div>
-
-        {/* Deliveries List */}
-        {filteredDeliveries.length === 0 ? (
-          <EmptyState
-            icon={Truck}
-            title="No deliveries"
-            description={activeFilter === 'active' ? "You don't have any active deliveries" : "No deliveries found"}
-          />
-        ) : (
-          <div className="space-y-3">
-            {filteredDeliveries.map((delivery) => (
-              <Card key={delivery.id} className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold">
-                        {delivery.year} {delivery.make} {delivery.model}
-                      </p>
-                      <StatusBadge status={(delivery.status || 'pending') as any} />
-                    </div>
-                    <p className="text-sm text-gray-600">VIN: {delivery.vin}</p>
-                    <p className="text-xs text-gray-500 mt-1">To: {delivery.dropoff}</p>
+        {/* PROFILE TAB */}
+        {activeTab === 'profile' && (
+          <div className="space-y-6">
+            {/* Profile Card */}
+            <Card className="p-6 relative">
+              <div className="flex flex-col items-center">
+                {/* Avatar with Camera */}
+                <div className="relative mb-4">
+                  <div className="w-28 h-28 rounded-full bg-red-100 flex items-center justify-center text-red-700 text-3xl font-bold border-4 border-white shadow-lg">
+                    {initials}
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => navigate(`/delivery/${delivery.id}`)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
-                      data-testid={`button-view-${delivery.id}`}
-                    >
-                      View
-                    </button>
-                    {delivery.status === 'pending' && (
-                      <button
-                        onClick={() => setDeliveryToCancel(delivery.id)}
-                        className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
+                  <button 
+                    onClick={() => navigate('/profile')}
+                    className="absolute bottom-0 right-0 w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-red-700 transition"
+                    data-testid="button-edit-photo"
+                  >
+                    <Camera size={18} />
+                  </button>
                 </div>
+                
+                {/* Name */}
+                <h2 className="text-2xl font-bold text-gray-900">{sales.name}</h2>
+                <p className="text-sm text-gray-500 mt-1">Tap photo to update</p>
+                
+                {/* Role Badge */}
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                    <Package size={14} />
+                    Sales
+                  </span>
+                  {sales.role && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                      {sales.role}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Dealership */}
+              <div className="mt-6 pt-6 border-t text-center">
+                <div className="flex items-center justify-center gap-2 text-gray-700">
+                  <Building2 size={18} className="text-gray-400" />
+                  <span className="font-medium">{dealer?.name || 'Dealership'}</span>
+                </div>
+              </div>
+              
+              {/* Contact Info */}
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Phone size={18} className="text-gray-400" />
+                  <span>{sales.phone || 'No phone added'}</span>
+                </div>
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Mail size={18} className="text-gray-400" />
+                  <span>{sales.email}</span>
+                </div>
+              </div>
+              
+              {/* Message Button */}
+              <button
+                onClick={() => navigate('/messages')}
+                className="absolute top-6 right-6 p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition"
+                data-testid="button-messages-profile"
+              >
+                <MessageCircle size={20} className="text-gray-600" />
+              </button>
+            </Card>
+            
+            {/* New Delivery Button */}
+            <button
+              onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
+              className="w-full bg-red-600 text-white py-4 rounded-xl font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg"
+              data-testid="button-new-delivery"
+            >
+              <Plus size={24} />
+              Request New Delivery
+            </button>
+            
+            {/* Stats Cards */}
+            <div className="grid grid-cols-3 gap-3">
+              <Card className="p-4 text-center">
+                <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold">{stats.pending}</p>
+                <p className="text-xs text-gray-600">Pending</p>
               </Card>
-            ))}
+              <Card className="p-4 text-center">
+                <Truck className="w-6 h-6 text-blue-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold">{stats.active}</p>
+                <p className="text-xs text-gray-600">Active</p>
+              </Card>
+              <Card className="p-4 text-center">
+                <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold">{stats.completed}</p>
+                <p className="text-xs text-gray-600">Completed</p>
+              </Card>
+            </div>
+            
+            {/* Settings Link */}
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-full flex items-center justify-between p-4 bg-white rounded-xl border hover:bg-gray-50 transition"
+              data-testid="button-settings"
+            >
+              <div className="flex items-center gap-3">
+                <Settings size={20} className="text-gray-500" />
+                <span className="font-medium">Account Settings</span>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+          </div>
+        )}
+        
+        {/* DELIVERIES TAB */}
+        {activeTab === 'deliveries' && (
+          <div className="space-y-6">
+            {/* New Delivery Button */}
+            <button
+              onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
+              className="w-full bg-red-600 text-white py-4 rounded-xl font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg"
+              data-testid="button-new-delivery-list"
+            >
+              <Plus size={24} />
+              Request New Delivery
+            </button>
+
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex gap-2">
+                {(['active', 'completed', 'all'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setActiveFilter(filter)}
+                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                      activeFilter === filter
+                        ? 'bg-red-600 text-white'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                    data-testid={`filter-${filter}`}
+                  >
+                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by VIN or address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600"
+                  data-testid="input-search"
+                />
+              </div>
+            </div>
+
+            {/* Deliveries List */}
+            {filteredDeliveries.length === 0 ? (
+              <EmptyState
+                icon={Truck}
+                title="No deliveries"
+                description={activeFilter === 'active' ? "You don't have any active deliveries" : "No deliveries found"}
+              />
+            ) : (
+              <div className="space-y-3">
+                {filteredDeliveries.map((delivery) => (
+                  <Card key={delivery.id} className="p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold">
+                            {delivery.year} {delivery.make} {delivery.model}
+                          </p>
+                          <StatusBadge status={(delivery.status || 'pending') as any} />
+                        </div>
+                        <p className="text-sm text-gray-600">VIN: {delivery.vin}</p>
+                        <p className="text-xs text-gray-500 mt-1">To: {delivery.dropoff}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => navigate(`/delivery/${delivery.id}`)}
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                          data-testid={`button-view-${delivery.id}`}
+                        >
+                          View
+                        </button>
+                        {delivery.status === 'pending' && (
+                          <button
+                            onClick={() => setDeliveryToCancel(delivery.id)}
+                            className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

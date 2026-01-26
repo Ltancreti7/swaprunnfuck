@@ -94,6 +94,7 @@ Preferred communication style: Simple, everyday language.
 - **Atomic Dealer Registration**: Combined /api/auth/register-dealer endpoint creates user, dealer, and admin records in a single database transaction with Zod validation - avoids cross-site cookie issues on production domains
 - **Simplified Sales Signup**: Self-registration flow where sales staff pick their dealership from dropdown, create account with "pending" status, and wait for dealer approval. PendingApproval page polls for status change. Dealers see pending sales in Team tab with Approve/Reject buttons.
 - **Manager Admin Access Request**: Managers at existing dealerships can request admin access via /signup-manager page. Creates user with "dealer" role and dealer_admin record with "pending" status. Login blocked until approved. Existing admins see pending requests in Team tab with purple alert and Approve/Reject buttons. No email required - simple in-app approval workflow.
+- **Profile Picture Upload**: Drivers can upload profile pictures via their Profile tab using Replit Object Storage. Features: Uppy.io drag-and-drop uploader, server-side validation (5MB max, images only), authentication required for upload URL generation, public serving for profile images. Stored in `profileImage` field in drivers table.
 
 ### Project Structure
 ```

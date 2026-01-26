@@ -377,7 +377,7 @@ export function SalesDashboard() {
             <h1 className="text-xl font-bold text-white">Sales Dashboard</h1>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate('/messages')}
+                onClick={() => navigate('/conversations')}
                 className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition text-white"
                 data-testid="button-messages"
               >
@@ -486,7 +486,7 @@ export function SalesDashboard() {
               
               {/* Message Button */}
               <button
-                onClick={() => navigate('/messages')}
+                onClick={() => navigate('/conversations')}
                 className="absolute top-6 right-6 p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition"
                 data-testid="button-messages-profile"
               >

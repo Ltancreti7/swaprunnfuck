@@ -11,7 +11,6 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { DashboardSkeleton } from '../components/ui/LoadingSkeleton';
 import { DealershipSearch } from '../components/driver/DealershipSearch';
 import { EditProfileModal } from '../components/driver/EditProfileModal';
-import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessagesCount';
 
 interface DeliveryWithDealer extends Delivery {
@@ -252,8 +251,6 @@ export function DriverDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <OnboardingChecklist role="driver" />
-        
         {/* PROFILE TAB */}
         {activeTab === 'profile' && (
           <div className="space-y-6">

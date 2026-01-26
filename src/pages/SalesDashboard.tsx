@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Search, Truck, Clock, CheckCircle, X, Settings, Mail, Phone, Building2, Calendar, Camera, MessageCircle } from 'lucide-react';
+import { Plus, Package, Search, Truck, Clock, CheckCircle, X, Settings, Mail, Phone, Building2, Calendar, Camera, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../lib/api';
@@ -27,7 +27,18 @@ export function SalesDashboard() {
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed'>('active');
-  const [activeTab, setActiveTab] = useState<'profile' | 'deliveries'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'deliveries' | 'chat' | 'calendar'>('profile');
+  
+  // Chat state
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatPollingRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Calendar state
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [scheduledDeliveries, setScheduledDeliveries] = useState<Delivery[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDriverSelection, setShowDriverSelection] = useState(false);
   const [deliveryToCancel, setDeliveryToCancel] = useState<string | null>(null);
@@ -119,6 +130,97 @@ export function SalesDashboard() {
       console.error('Error loading drivers:', err);
     }
   };
+
+  // Load conversations for chat tab
+  const loadConversations = useCallback(async () => {
+    if (!user) return;
+    setChatLoading(true);
+    try {
+      const data = await api.conversations.list();
+      setConversations(data || []);
+    } catch (err) {
+      console.error('Error loading conversations:', err);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [user]);
+
+  // Load scheduled deliveries for calendar tab
+  const loadScheduledDeliveries = useCallback(async () => {
+    if (!user) return;
+    setCalendarLoading(true);
+    try {
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth() + 1;
+      const data = await api.deliveries.scheduled(year, month);
+      setScheduledDeliveries(data || []);
+    } catch (err) {
+      console.error('Error loading scheduled deliveries:', err);
+    } finally {
+      setCalendarLoading(false);
+    }
+  }, [user, calendarDate]);
+
+  // Handle chat tab polling
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      loadConversations();
+      chatPollingRef.current = setInterval(loadConversations, 10000);
+    }
+    return () => {
+      if (chatPollingRef.current) {
+        clearInterval(chatPollingRef.current);
+        chatPollingRef.current = null;
+      }
+    };
+  }, [activeTab, loadConversations]);
+
+  // Handle calendar tab loading
+  useEffect(() => {
+    if (activeTab === 'calendar') {
+      loadScheduledDeliveries();
+    }
+  }, [activeTab, loadScheduledDeliveries]);
+
+  // Calendar helpers
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const calendarDays = useMemo(() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days: { date: Date; isCurrentMonth: boolean }[] = [];
+    
+    // Days from previous month
+    for (let i = 0; i < firstDay.getDay(); i++) {
+      const date = new Date(year, month, -firstDay.getDay() + i + 1);
+      days.push({ date, isCurrentMonth: false });
+    }
+    // Days of current month
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      days.push({ date: new Date(year, month, i), isCurrentMonth: true });
+    }
+    // Days from next month
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
+    }
+    return days;
+  }, [calendarDate]);
+
+  const deliveriesByDate = useMemo(() => {
+    const map: Record<string, Delivery[]> = {};
+    scheduledDeliveries.forEach(d => {
+      if (d.scheduledDate) {
+        const dateKey = d.scheduledDate;
+        if (!map[dateKey]) map[dateKey] = [];
+        map[dateKey].push(d);
+      }
+    });
+    return map;
+  }, [scheduledDeliveries]);
 
   const handleCreateDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,6 +402,8 @@ export function SalesDashboard() {
             {[
               { id: 'profile', label: 'Profile' },
               { id: 'deliveries', label: 'Deliveries', count: stats.active },
+              { id: 'chat', label: 'Chat', count: conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0) },
+              { id: 'calendar', label: 'Calendar' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -521,6 +625,153 @@ export function SalesDashboard() {
                   </Card>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* CHAT TAB */}
+        {activeTab === 'chat' && (
+          <div className="space-y-4">
+            {chatLoading && conversations.length === 0 ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin h-8 w-8 border-4 border-red-600 border-t-transparent rounded-full" />
+              </div>
+            ) : conversations.length === 0 ? (
+              <EmptyState
+                icon={MessageCircle}
+                title="No conversations yet"
+                description="Start chatting when you have active deliveries with drivers"
+              />
+            ) : (
+              <div className="space-y-3">
+                {conversations.map((conv) => (
+                  <Card
+                    key={conv.deliveryId}
+                    className="p-4 cursor-pointer hover:bg-gray-50 transition"
+                    onClick={() => navigate(`/chat/${conv.deliveryId}`)}
+                    data-testid={`chat-conversation-${conv.deliveryId}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                          <MessageCircle size={20} className="text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{conv.otherPartyName || 'Driver'}</p>
+                          <p className="text-sm text-gray-500 truncate max-w-[200px]">
+                            {conv.lastMessage?.content || 'No messages yet'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {conv.unreadCount > 0 && (
+                          <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+                            {conv.unreadCount}
+                          </span>
+                        )}
+                        <StatusBadge status={conv.delivery?.status || 'pending'} />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CALENDAR TAB */}
+        {activeTab === 'calendar' && (
+          <div className="space-y-4">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <h3 className="text-lg font-semibold">
+                {MONTHS[calendarDate.getMonth()]} {calendarDate.getFullYear()}
+              </h3>
+              <button
+                onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            {/* Calendar Grid */}
+            <Card className="p-4">
+              {calendarLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin h-8 w-8 border-4 border-red-600 border-t-transparent rounded-full" />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {DAYS.map(day => (
+                      <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">{day}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {calendarDays.map((day, idx) => {
+                      const dateStr = day.date.toISOString().split('T')[0];
+                      const dayDeliveries = deliveriesByDate[dateStr] || [];
+                      const isToday = new Date().toDateString() === day.date.toDateString();
+                      
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => dayDeliveries.length > 0 && setSelectedCalendarDate(dateStr)}
+                          className={`p-2 text-center rounded-lg min-h-[60px] relative ${
+                            !day.isCurrentMonth ? 'text-gray-300' :
+                            isToday ? 'bg-red-100 text-red-600 font-bold' :
+                            dayDeliveries.length > 0 ? 'bg-blue-50 hover:bg-blue-100 cursor-pointer' :
+                            'hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="text-sm">{day.date.getDate()}</span>
+                          {dayDeliveries.length > 0 && (
+                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+                              <span className="w-2 h-2 bg-blue-500 rounded-full block" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </Card>
+
+            {/* Selected Date Deliveries */}
+            {selectedCalendarDate && deliveriesByDate[selectedCalendarDate] && (
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">
+                    Deliveries on {new Date(selectedCalendarDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </h4>
+                  <button onClick={() => setSelectedCalendarDate(null)} className="text-gray-500 hover:text-gray-700">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {deliveriesByDate[selectedCalendarDate].map(delivery => (
+                    <div key={delivery.id} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{delivery.year} {delivery.make} {delivery.model}</p>
+                          <p className="text-sm text-gray-500">
+                            {delivery.scheduledTime ? `Scheduled: ${delivery.scheduledTime}` : 'Time TBD'}
+                          </p>
+                        </div>
+                        <StatusBadge status={(delivery.status || 'pending') as any} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             )}
           </div>
         )}

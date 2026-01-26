@@ -15,7 +15,6 @@ import { AddressInput } from '../components/ui/AddressInput';
 import { getVehicleYears, VEHICLE_MAKES, getModelsForMake, TRANSMISSION_TYPES } from '../lib/vehicleData';
 import { formatAddress } from '../lib/addressUtils';
 import { validateVIN } from '../lib/validation';
-import { OnboardingChecklist } from '../components/OnboardingChecklist';
 
 export function SalesDashboard() {
   const navigate = useNavigate();
@@ -323,8 +322,6 @@ export function SalesDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <OnboardingChecklist role="sales" />
-        
         {/* PROFILE TAB */}
         {activeTab === 'profile' && (
           <div className="space-y-6">

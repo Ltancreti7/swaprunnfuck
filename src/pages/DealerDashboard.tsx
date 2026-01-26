@@ -29,7 +29,6 @@ import { ApplicationActionModal } from "../components/dealer/ApplicationActionMo
 import { EditDealerProfileModal } from "../components/dealer/EditDealerProfileModal";
 import { AdminManagement } from "../components/dealer/AdminManagement";
 import { DriverSelectionModal } from "../components/dealer/DriverSelectionModal";
-import { OnboardingChecklist } from "../components/OnboardingChecklist";
 
 export function DealerDashboard() {
   const navigate = useNavigate();
@@ -557,8 +556,6 @@ export function DealerDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <OnboardingChecklist role="dealer" />
-        
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="space-y-6">

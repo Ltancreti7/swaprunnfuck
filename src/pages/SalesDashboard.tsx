@@ -541,16 +541,6 @@ export function SalesDashboard() {
         {/* DELIVERIES TAB */}
         {activeTab === 'deliveries' && (
           <div className="space-y-6">
-            {/* New Delivery Button */}
-            <button
-              onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
-              className="w-full bg-red-600 text-white py-4 rounded-xl font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg"
-              data-testid="button-new-delivery-list"
-            >
-              <Plus size={24} />
-              Request New Delivery
-            </button>
-
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex gap-2">

@@ -50,6 +50,7 @@ export const drivers = pgTable("drivers", {
   isAvailable: boolean("is_available").notNull().default(true),
   availableForCustomerDeliveries: boolean("available_for_customer_deliveries").notNull().default(true),
   availableForDealerSwaps: boolean("available_for_dealer_swaps").notNull().default(true),
+  profileImage: text("profile_image"),
   activatedAt: timestamp("activated_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

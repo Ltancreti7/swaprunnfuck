@@ -1,7 +1,7 @@
 modules = ["swift-5.8", "web", "ruby-3.2", "nodejs-22", "postgresql-16"]
 [agent]
 expertMode = true
-integrations = ["javascript_database:1.0.0"]
+integrations = ["javascript_database:1.0.0", "javascript_object_storage:2.0.0"]
 
 [nix]
 channel = "stable-25_05"

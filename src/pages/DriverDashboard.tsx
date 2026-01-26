@@ -36,7 +36,9 @@ export function DriverDashboard() {
   const [activeTab, setActiveTab] = useState<'profile' | 'action' | 'history' | 'dealerships'>('profile');
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [showDealerSearch, setShowDealerSearch] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) loadDriverData();
@@ -164,6 +166,62 @@ export function DriverDashboard() {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !driver) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select an image file', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image must be less than 5MB', 'error');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const urlResponse = await fetch('/api/uploads/request-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type,
+        }),
+      });
+
+      if (!urlResponse.ok) {
+        throw new Error('Failed to get upload URL');
+      }
+
+      const { uploadURL, objectPath } = await urlResponse.json();
+
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      await api.drivers.update(driver.id, { profileImage: objectPath });
+      setDriver({ ...driver, profileImage: objectPath });
+      showToast('Profile photo updated!', 'success');
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      showToast('Failed to upload photo', 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
@@ -259,15 +317,36 @@ export function DriverDashboard() {
               <div className="flex flex-col items-center">
                 {/* Avatar with Camera */}
                 <div className="relative mb-4">
-                  <div className="w-28 h-28 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-3xl font-bold border-4 border-white shadow-lg">
-                    {initials}
-                  </div>
+                  {driver.profileImage ? (
+                    <img
+                      src={driver.profileImage}
+                      alt={driver.name}
+                      className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-28 h-28 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-3xl font-bold border-4 border-white shadow-lg">
+                      {initials}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    className="hidden"
+                    data-testid="input-profile-photo"
+                  />
                   <button 
-                    onClick={() => navigate('/profile')}
-                    className="absolute bottom-0 right-0 w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-red-700 transition"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    className="absolute bottom-0 right-0 w-9 h-9 bg-gray-700 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-gray-800 transition disabled:opacity-50"
                     data-testid="button-edit-photo"
                   >
-                    <Camera size={18} />
+                    {isUploadingPhoto ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Camera size={18} />
+                    )}
                   </button>
                 </div>
                 

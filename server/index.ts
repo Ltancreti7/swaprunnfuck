@@ -4,6 +4,7 @@ import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 const app = express();
 
@@ -139,6 +140,7 @@ app.use((req, res, next) => {
 
 (async () => {
   registerRoutes(app);
+  registerObjectStorageRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

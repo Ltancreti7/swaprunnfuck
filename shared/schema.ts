@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, uuid, time, date, numeric, interval } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, uuid, time, date, numeric, interval, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -129,7 +129,9 @@ export const driverApplications = pgTable("driver_applications", {
   message: text("message").default(""),
   appliedAt: timestamp("applied_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
-});
+}, (table) => ({
+  driverDealerUnique: uniqueIndex("driver_applications_driver_dealer_unique").on(table.driverId, table.dealerId),
+}));
 
 export const approvedDriverDealers = pgTable("approved_driver_dealers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -139,7 +141,9 @@ export const approvedDriverDealers = pgTable("approved_driver_dealers", {
   isVerified: boolean("is_verified").default(false).notNull(),
   verifiedAt: timestamp("verified_at"),
   verificationNotes: text("verification_notes"),
-});
+}, (table) => ({
+  driverDealerUnique: uniqueIndex("approved_driver_dealers_driver_dealer_unique").on(table.driverId, table.dealerId),
+}));
 
 export const dealerAdmins = pgTable("dealer_admins", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

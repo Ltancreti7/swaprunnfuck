@@ -94,7 +94,7 @@ export function SignUpManager() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center py-12 px-4">
         <div className="max-w-md w-full">
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -123,11 +123,11 @@ export function SignUpManager() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full">
         <button
           onClick={() => navigate("/")}
-          className="flex items-center text-gray-600 hover:text-black mb-6 transition"
+          className="flex items-center text-gray-300 hover:text-red-400 mb-6 transition"
           data-testid="button-back"
         >
           <ArrowLeft size={20} className="mr-2" />

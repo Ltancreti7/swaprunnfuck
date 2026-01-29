@@ -89,11 +89,11 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 py-12 px-4 sm:py-20 sm:px-6">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 py-12 px-4 sm:py-20 sm:px-6">
       <div className="container mx-auto max-w-md">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center text-gray-600 hover:text-red-600 mb-8 transition font-medium"
+          className="flex items-center text-gray-300 hover:text-red-400 mb-8 transition font-medium"
         >
           <ArrowLeft size={20} className="mr-2" />
           Back to Home

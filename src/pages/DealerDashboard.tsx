@@ -491,18 +491,18 @@ export function DealerDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-40">
+      <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{dealer.name}</h1>
-              <p className="text-sm text-gray-600">{dealer.address}</p>
+              <h1 className="text-2xl font-bold text-white">{dealer.name}</h1>
+              <p className="text-sm text-gray-300">{dealer.address}</p>
             </div>
             <div className="flex items-center gap-3">
               {pendingApplicationsCount > 0 && (
                 <button
                   onClick={() => setShowApplicationsPanel(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-medium hover:bg-orange-200 transition"
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition"
                   data-testid="button-view-applications"
                 >
                   <AlertCircle size={18} />
@@ -511,7 +511,7 @@ export function DealerDashboard() {
               )}
               <button
                 onClick={() => setShowEditProfile(true)}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                className="p-2 text-white hover:bg-white/20 rounded-lg transition"
                 data-testid="button-edit-profile"
               >
                 <Settings size={20} />

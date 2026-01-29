@@ -371,7 +371,7 @@ export function SalesDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       {/* Compact Header */}
-      <div className="bg-gradient-to-br from-red-600 to-red-700">
+      <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-white">Sales Dashboard</h1>

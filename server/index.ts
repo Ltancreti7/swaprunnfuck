@@ -48,7 +48,7 @@ app.use(express.urlencoded({ extended: false }));
 const DATE_FIELDS = [
   'reviewedAt', 'appliedAt', 'activatedAt', 'createdAt', 'updatedAt', 
   'completedAt', 'scheduledDate', 'customDate', 'verifiedAt', 'expiresAt',
-  'lastActiveAt', 'passwordChangedAt'
+  'lastActiveAt', 'passwordChangedAt', 'scheduleConfirmedAt'
 ];
 
 function toCamelCase(obj: any): any {

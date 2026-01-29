@@ -249,11 +249,11 @@ export function Chat() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="bg-white shadow-md sticky top-16 z-40">
+      <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 shadow-md sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <button
             onClick={() => navigate(-1)}
-            className="touch-target flex items-center text-gray-600 hover:text-black mb-3 sm:mb-4 transition"
+            className="touch-target flex items-center text-gray-300 hover:text-red-400 mb-3 sm:mb-4 transition"
             data-testid="button-back"
           >
             <ArrowLeft size={20} className="mr-2" />

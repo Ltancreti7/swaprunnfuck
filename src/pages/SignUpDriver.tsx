@@ -70,11 +70,11 @@ export function SignUpDriver() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <button
           onClick={() => navigate("/")}
-          className="flex items-center text-gray-600 hover:text-black mb-6 transition"
+          className="flex items-center text-gray-300 hover:text-red-400 mb-6 transition"
           data-testid="button-back"
         >
           <ArrowLeft size={20} className="mr-2" />

@@ -68,7 +68,7 @@ export function ForgotPassword() {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4" data-testid="forgot-password-success">
+      <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center px-4" data-testid="forgot-password-success">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -94,11 +94,11 @@ export function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4" data-testid="forgot-password-page">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center px-4" data-testid="forgot-password-page">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <button
           onClick={() => navigate('/login')}
-          className="flex items-center text-gray-600 hover:text-black mb-6 transition"
+          className="flex items-center text-gray-600 hover:text-red-600 mb-6 transition"
           data-testid="link-back"
         >
           <ArrowLeft size={20} className="mr-2" />

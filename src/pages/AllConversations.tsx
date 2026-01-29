@@ -111,23 +111,23 @@ export function AllConversations() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-md sticky top-16 z-40">
+      <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 shadow-md sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-4 py-4">
           <button
             onClick={() => navigate(-1)}
-            className="touch-target flex items-center text-gray-600 hover:text-black mb-3 transition"
+            className="touch-target flex items-center text-gray-300 hover:text-red-400 mb-3 transition"
             data-testid="button-back"
           >
             <ArrowLeft size={20} className="mr-2" />
             Back
           </button>
           <div className="flex items-center gap-3">
-            <div className="bg-red-100 p-2 rounded-lg">
-              <MessageCircle size={24} className="text-red-600" />
+            <div className="bg-red-600 p-2 rounded-lg">
+              <MessageCircle size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">All Conversations</h1>
-              <p className="text-sm text-gray-600">
+              <h1 className="text-xl sm:text-2xl font-bold text-white">All Conversations</h1>
+              <p className="text-sm text-gray-300">
                 {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
               </p>
             </div>

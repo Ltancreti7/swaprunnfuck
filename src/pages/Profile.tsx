@@ -182,11 +182,11 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 py-12 px-4">
       <div className="container mx-auto max-w-md">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-black mb-6 transition"
+          className="flex items-center text-gray-300 hover:text-red-400 mb-6 transition"
         >
           <ArrowLeft size={20} className="mr-2" />
           Back

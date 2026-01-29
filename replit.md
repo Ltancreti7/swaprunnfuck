@@ -9,12 +9,12 @@ SwapRunn is a logistics platform designed to streamline vehicle deliveries and d
 Preferred communication style: Simple, everyday language.
 
 ### Design Preferences
-- **Color Scheme**: Dark monochromatic theme with warm amber accents
-  - Primary actions (buttons): amber-600/amber-700 gradient
-  - Active tab indicators: amber-400 with underline
-  - Tab badges: amber-600 background
+- **Color Scheme**: Dark monochromatic theme with red accents
+  - Primary actions (buttons): red-600/red-700 gradient
+  - Active tab indicators: red-400 with underline
+  - Tab badges: red-600 background
   - Secondary/cancel buttons: neutral-700 with visible borders (neutral-500/600)
-  - Hero accent text: amber-400 to amber-500 gradient
+  - Hero accent text: red-400 to red-500 gradient
 - **Goal**: Buttons must look clearly clickable and active, not greyed out or disabled
 - **Avoid**: Pure gray/stone colors for action buttons (looks disabled)
 

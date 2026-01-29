@@ -410,14 +410,14 @@ export function SalesDashboard() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-4 font-medium transition border-b-2 flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'text-amber-400 border-amber-400'
+                    ? 'text-red-400 border-red-400'
                     : 'text-gray-500 border-transparent hover:text-white'
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-amber-700/50 text-amber-300 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
+                  <span className="bg-red-700/50 text-red-300 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
                 )}
               </button>
             ))}
@@ -497,7 +497,7 @@ export function SalesDashboard() {
             {/* New Delivery Button */}
             <button
               onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
-              className="w-full bg-amber-600 text-white py-4 rounded-xl font-semibold hover:bg-amber-700 transition flex items-center justify-center gap-2 shadow-lg"
+              className="w-full bg-red-600 text-white py-4 rounded-xl font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg"
               data-testid="button-new-delivery"
             >
               <Plus size={24} />

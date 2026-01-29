@@ -361,7 +361,7 @@ export function DriverDashboard() {
                     Driver
                   </span>
                   {driver.canDriveManual && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-900/50 text-blue-400 rounded-full text-sm font-medium">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-gray-300 rounded-full text-sm font-medium">
                       Manual Trans
                     </span>
                   )}
@@ -405,8 +405,8 @@ export function DriverDashboard() {
               onClick={toggleAvailability}
               className={`w-full py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2 shadow-lg ${
                 driver.isAvailable
-                  ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  : 'bg-green-600 text-white hover:bg-green-700'
+                  ? 'bg-neutral-700 text-gray-300 hover:bg-neutral-600 border border-neutral-600'
+                  : 'bg-neutral-600 text-white hover:bg-neutral-500 border border-neutral-500'
               }`}
               data-testid="button-toggle-availability"
             >
@@ -415,35 +415,35 @@ export function DriverDashboard() {
             
             {/* Stats Cards */}
             <div className="grid grid-cols-4 gap-2">
-              <Card className="p-3 text-center">
-                <p className="text-xl font-bold text-red-600">{requestDeliveries.length}</p>
-                <p className="text-xs text-gray-600">Requests</p>
+              <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
+                <p className="text-xl font-bold text-white">{requestDeliveries.length}</p>
+                <p className="text-xs text-gray-500">Requests</p>
               </Card>
-              <Card className="p-3 text-center">
-                <p className="text-xl font-bold text-blue-600">{upcomingDeliveries.length}</p>
-                <p className="text-xs text-gray-600">Active</p>
+              <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
+                <p className="text-xl font-bold text-white">{upcomingDeliveries.length}</p>
+                <p className="text-xs text-gray-500">Active</p>
               </Card>
-              <Card className="p-3 text-center">
-                <p className="text-xl font-bold text-green-600">{recentDeliveries.length}</p>
-                <p className="text-xs text-gray-600">Completed</p>
+              <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
+                <p className="text-xl font-bold text-white">{recentDeliveries.length}</p>
+                <p className="text-xs text-gray-500">Completed</p>
               </Card>
-              <Card className="p-3 text-center">
-                <p className="text-xl font-bold text-purple-600">{verifiedCount}</p>
-                <p className="text-xs text-gray-600">Verified</p>
+              <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
+                <p className="text-xl font-bold text-white">{verifiedCount}</p>
+                <p className="text-xs text-gray-500">Verified</p>
               </Card>
             </div>
             
             {/* Settings Link */}
             <button
               onClick={() => navigate('/profile')}
-              className="w-full flex items-center justify-between p-4 bg-white rounded-xl border hover:bg-gray-50 transition"
+              className="w-full flex items-center justify-between p-4 bg-neutral-800 rounded-xl border border-neutral-700 hover:bg-neutral-700 transition"
               data-testid="button-settings"
             >
               <div className="flex items-center gap-3">
-                <Settings size={20} className="text-gray-500" />
-                <span className="font-medium">Account Settings</span>
+                <Settings size={20} className="text-gray-400" />
+                <span className="font-medium text-white">Account Settings</span>
               </div>
-              <span className="text-gray-400">→</span>
+              <span className="text-gray-500">→</span>
             </button>
           </div>
         )}
@@ -483,7 +483,7 @@ export function DriverDashboard() {
                   </div>
                   <button
                     onClick={() => navigate(`/delivery/${nextDelivery.id}`)}
-                    className="w-full mt-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2"
+                    className="w-full mt-4 py-3 bg-neutral-600 text-white rounded-lg font-semibold hover:bg-neutral-500 transition flex items-center justify-center gap-2"
                     data-testid="button-start-delivery"
                   >
                     <Play size={20} />
@@ -520,14 +520,14 @@ export function DriverDashboard() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleAcceptDelivery(delivery.id)}
-                          className="flex-1 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition"
+                          className="flex-1 py-2 bg-neutral-600 text-white rounded-lg font-medium hover:bg-neutral-500 transition"
                           data-testid={`button-accept-${delivery.id}`}
                         >
                           Accept
                         </button>
                         <button
                           onClick={() => handleDeclineDelivery(delivery.id)}
-                          className="flex-1 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
+                          className="flex-1 py-2 border border-neutral-600 text-gray-300 rounded-lg font-medium hover:bg-neutral-700 transition"
                           data-testid={`button-decline-${delivery.id}`}
                         >
                           Decline

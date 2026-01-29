@@ -452,7 +452,7 @@ export function SalesDashboard() {
                 
                 {/* Role Badge */}
                 <div className="flex items-center gap-2 mt-3">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-900/50 text-red-400 rounded-full text-sm font-medium">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-gray-300 rounded-full text-sm font-medium">
                     <Package size={14} />
                     Sales
                   </span>
@@ -497,7 +497,7 @@ export function SalesDashboard() {
             {/* New Delivery Button */}
             <button
               onClick={() => { setShowNewDelivery(true); setFormStep(1); }}
-              className="w-full bg-red-600 text-white py-4 rounded-xl font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg"
+              className="w-full bg-neutral-700 text-white py-4 rounded-xl font-semibold hover:bg-neutral-600 transition flex items-center justify-center gap-2 shadow-lg border border-neutral-600"
               data-testid="button-new-delivery"
             >
               <Plus size={24} />

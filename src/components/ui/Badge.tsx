@@ -24,57 +24,57 @@ const statusConfig: Record<
 > = {
   pending: {
     label: 'Pending',
-    color: 'bg-red-50 text-red-600 border-red-200',
+    color: 'bg-neutral-700 text-gray-300 border-neutral-600',
     icon: Clock,
   },
   pending_driver_acceptance: {
     label: 'Awaiting Response',
-    color: 'bg-yellow-50 text-yellow-600 border-yellow-300',
+    color: 'bg-neutral-700 text-gray-300 border-neutral-600',
     icon: Star,
   },
   accepted: {
     label: 'Accepted',
-    color: 'bg-rose-50 text-rose-600 border-rose-200',
+    color: 'bg-neutral-600 text-gray-200 border-neutral-500',
     icon: ThumbsUp,
   },
   assigned: {
     label: 'Assigned',
-    color: 'bg-rose-50 text-rose-600 border-rose-200',
+    color: 'bg-neutral-600 text-gray-200 border-neutral-500',
     icon: UserCheck,
   },
   driver_en_route_pickup: {
     label: 'En Route to Pickup',
-    color: 'bg-blue-50 text-blue-600 border-blue-200',
+    color: 'bg-neutral-600 text-gray-200 border-neutral-500',
     icon: Navigation,
   },
   arrived_at_pickup: {
     label: 'At Pickup',
-    color: 'bg-blue-100 text-blue-700 border-blue-300',
+    color: 'bg-neutral-600 text-gray-200 border-neutral-500',
     icon: MapPin,
   },
   in_transit: {
     label: 'In Transit',
-    color: 'bg-purple-50 text-purple-600 border-purple-200',
+    color: 'bg-neutral-600 text-gray-200 border-neutral-500',
     icon: Truck,
   },
   arrived_at_dropoff: {
     label: 'At Dropoff',
-    color: 'bg-green-50 text-green-600 border-green-200',
+    color: 'bg-neutral-600 text-gray-200 border-neutral-500',
     icon: Package,
   },
   in_progress: {
     label: 'In Progress',
-    color: 'bg-red-100 text-red-700 border-red-300',
+    color: 'bg-neutral-600 text-gray-200 border-neutral-500',
     icon: Truck,
   },
   completed: {
     label: 'Completed',
-    color: 'bg-gray-100 text-gray-700 border-gray-300',
+    color: 'bg-neutral-800 text-gray-400 border-neutral-700',
     icon: CheckCircle,
   },
   cancelled: {
     label: 'Cancelled',
-    color: 'bg-gray-100 text-gray-700 border-gray-300',
+    color: 'bg-neutral-800 text-gray-500 border-neutral-700',
     icon: XCircle,
   },
 };
@@ -113,10 +113,10 @@ interface GenericBadgeProps {
 
 export function Badge({ children, variant = 'default', className = '' }: GenericBadgeProps) {
   const variantClasses = {
-    default: 'bg-primary text-primary-foreground',
-    secondary: 'bg-gray-100 text-gray-700 border-gray-200',
-    destructive: 'bg-red-100 text-red-700 border-red-200',
-    outline: 'border border-gray-300 text-gray-700 bg-transparent',
+    default: 'bg-neutral-700 text-gray-300',
+    secondary: 'bg-neutral-800 text-gray-400 border-neutral-700',
+    destructive: 'bg-neutral-700 text-gray-300 border-neutral-600',
+    outline: 'border border-neutral-600 text-gray-400 bg-transparent',
   };
 
   return (

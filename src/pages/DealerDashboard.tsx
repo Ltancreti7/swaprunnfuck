@@ -502,7 +502,7 @@ export function DealerDashboard() {
               {pendingApplicationsCount > 0 && (
                 <button
                   onClick={() => setShowApplicationsPanel(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition"
+                  className="flex items-center gap-2 px-4 py-2 bg-neutral-700 text-white rounded-lg font-medium hover:bg-neutral-600 transition border border-neutral-600"
                   data-testid="button-view-applications"
                 >
                   <AlertCircle size={18} />
@@ -561,24 +561,24 @@ export function DealerDashboard() {
           <div className="space-y-6">
             {/* Pending Managers Alert */}
             {pendingManagers.length > 0 && (
-              <Card className="p-4 bg-purple-50 border-purple-300">
+              <Card className="p-4 bg-neutral-800 border-neutral-600">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-200 rounded-full">
-                      <Shield className="w-5 h-5 text-purple-700" />
+                    <div className="p-2 bg-neutral-700 rounded-full">
+                      <Shield className="w-5 h-5 text-gray-400" />
                     </div>
                     <div>
-                      <p className="font-semibold text-purple-800" data-testid="text-pending-managers-count">
+                      <p className="font-semibold text-white" data-testid="text-pending-managers-count">
                         {pendingManagers.length} Manager{pendingManagers.length !== 1 ? 's' : ''} Requesting Access
                       </p>
-                      <p className="text-sm text-purple-700" data-testid="text-pending-managers-names">
+                      <p className="text-sm text-gray-400" data-testid="text-pending-managers-names">
                         {pendingManagers.map(m => m.name || m.email.split('@')[0]).join(', ')} requested admin access
                       </p>
                     </div>
                   </div>
                   <Button
                     onClick={() => setActiveTab("team")}
-                    className="bg-purple-600"
+                    className="bg-neutral-600 hover:bg-neutral-500"
                     data-testid="button-review-pending-managers"
                   >
                     Review
@@ -589,24 +589,24 @@ export function DealerDashboard() {
 
             {/* Pending Sales Alert */}
             {pendingSales.length > 0 && (
-              <Card className="p-4 bg-yellow-50 border-yellow-300">
+              <Card className="p-4 bg-neutral-800 border-neutral-600">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-yellow-200 rounded-full">
-                      <AlertCircle className="w-5 h-5 text-yellow-700" />
+                    <div className="p-2 bg-neutral-700 rounded-full">
+                      <AlertCircle className="w-5 h-5 text-gray-400" />
                     </div>
                     <div>
-                      <p className="font-semibold text-yellow-800" data-testid="text-pending-sales-count">
+                      <p className="font-semibold text-white" data-testid="text-pending-sales-count">
                         {pendingSales.length} Sales Staff Pending Approval
                       </p>
-                      <p className="text-sm text-yellow-700" data-testid="text-pending-sales-names">
+                      <p className="text-sm text-gray-400" data-testid="text-pending-sales-names">
                         {pendingSales.map(s => s.name).join(', ')} signed up and {pendingSales.length === 1 ? 'needs' : 'need'} your approval
                       </p>
                     </div>
                   </div>
                   <Button
                     onClick={() => setActiveTab("team")}
-                    className="bg-yellow-600"
+                    className="bg-neutral-600 hover:bg-neutral-500"
                     data-testid="button-review-pending-sales"
                   >
                     Review
@@ -617,17 +617,17 @@ export function DealerDashboard() {
 
             {/* Pending Driver Applications Alert */}
             {pendingApplicationsCount > 0 && (
-              <Card className="p-4 bg-orange-50 border-orange-300">
+              <Card className="p-4 bg-neutral-800 border-neutral-600">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-200 rounded-full">
-                      <UserCircle className="w-5 h-5 text-orange-700" />
+                    <div className="p-2 bg-neutral-700 rounded-full">
+                      <UserCircle className="w-5 h-5 text-gray-400" />
                     </div>
                     <div>
-                      <p className="font-semibold text-orange-800" data-testid="text-pending-drivers-count">
+                      <p className="font-semibold text-white" data-testid="text-pending-drivers-count">
                         {pendingApplicationsCount} Driver Application{pendingApplicationsCount !== 1 ? 's' : ''} Pending
                       </p>
-                      <p className="text-sm text-orange-700" data-testid="text-pending-drivers-names">
+                      <p className="text-sm text-gray-400" data-testid="text-pending-drivers-names">
                         {driverApplications
                           .filter(app => app.status === "pending")
                           .map(app => app.driver?.name || 'Unknown')
@@ -637,7 +637,7 @@ export function DealerDashboard() {
                   </div>
                   <Button
                     onClick={() => setShowApplicationsPanel(true)}
-                    className="bg-orange-600"
+                    className="bg-neutral-600 hover:bg-neutral-500"
                     data-testid="button-review-pending-drivers"
                   >
                     Review
@@ -649,24 +649,24 @@ export function DealerDashboard() {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
-                <Truck className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                <Truck className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-white">{activeDeliveries.length}</p>
-                <p className="text-sm text-gray-400">Active Deliveries</p>
+                <p className="text-sm text-gray-500">Active Deliveries</p>
               </Card>
               <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
-                <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-white">{salesTeam.length}</p>
-                <p className="text-sm text-gray-400">Sales Staff</p>
+                <p className="text-sm text-gray-500">Sales Staff</p>
               </Card>
               <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
-                <UserCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                <UserCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-white">{drivers.length}</p>
-                <p className="text-sm text-gray-400">Drivers</p>
+                <p className="text-sm text-gray-500">Drivers</p>
               </Card>
               <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
-                <FileCheck className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+                <FileCheck className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-white">{pendingApplicationsCount}</p>
-                <p className="text-sm text-gray-400">Pending Apps</p>
+                <p className="text-sm text-gray-500">Pending Apps</p>
               </Card>
             </div>
 
@@ -674,7 +674,7 @@ export function DealerDashboard() {
             <div className="grid md:grid-cols-2 gap-4">
               <button
                 onClick={() => setShowNewDeliveryModal(true)}
-                className="flex items-center justify-between p-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                className="flex items-center justify-between p-4 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition border border-neutral-600"
                 data-testid="button-new-delivery"
               >
                 <div className="flex items-center gap-3">
@@ -685,7 +685,7 @@ export function DealerDashboard() {
               </button>
               <button
                 onClick={() => { setAddTeamType("sales"); setShowAddTeamModal(true); }}
-                className="flex items-center justify-between p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                className="flex items-center justify-between p-4 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition border border-neutral-600"
                 data-testid="button-add-team"
               >
                 <div className="flex items-center gap-3">
@@ -705,8 +705,8 @@ export function DealerDashboard() {
                     <Card key={app.id} className="p-4 bg-neutral-800 border-neutral-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-orange-900/50 rounded-full flex items-center justify-center">
-                            <UserCircle className="w-6 h-6 text-orange-400" />
+                          <div className="w-10 h-10 bg-neutral-700 rounded-full flex items-center justify-center">
+                            <UserCircle className="w-6 h-6 text-gray-400" />
                           </div>
                           <div>
                             <p className="font-medium text-white">{app.driver?.name} wants to drive for you</p>
@@ -715,7 +715,7 @@ export function DealerDashboard() {
                         </div>
                         <button
                           onClick={() => setModalAction({ application: app, action: 'approve' })}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition"
+                          className="px-4 py-2 bg-neutral-600 text-white rounded-lg text-sm font-medium hover:bg-neutral-500 transition"
                         >
                           Review
                         </button>
@@ -726,8 +726,8 @@ export function DealerDashboard() {
                     <Card key={delivery.id} className="p-4 bg-neutral-800 border-neutral-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-yellow-900/50 rounded-full flex items-center justify-center">
-                            <Clock className="w-6 h-6 text-yellow-400" />
+                          <div className="w-10 h-10 bg-neutral-700 rounded-full flex items-center justify-center">
+                            <Clock className="w-6 h-6 text-gray-400" />
                           </div>
                           <div>
                             <p className="font-medium text-white">Delivery needs a driver</p>
@@ -850,7 +850,7 @@ export function DealerDashboard() {
               <div className="flex gap-2">
                 <button
                   onClick={() => { setAddTeamType("sales"); setShowAddTeamModal(true); }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2"
+                  className="px-4 py-2 bg-neutral-700 text-white rounded-lg font-medium hover:bg-neutral-600 transition flex items-center gap-2 border border-neutral-600"
                   data-testid="button-add-sales"
                 >
                   <Plus size={18} />
@@ -870,18 +870,18 @@ export function DealerDashboard() {
             {/* Pending Managers */}
             {pendingManagers.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide mb-3">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
                   Pending Manager Requests ({pendingManagers.length})
                 </h3>
                 <div className="grid md:grid-cols-2 gap-3">
                   {pendingManagers.map((manager) => (
-                    <Card key={manager.id} className="p-4 border-yellow-600/50 bg-yellow-900/20">
+                    <Card key={manager.id} className="p-4 border-neutral-600 bg-neutral-800">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <Shield size={16} className="text-yellow-400" />
+                            <Shield size={16} className="text-gray-400" />
                             <p className="font-medium text-white">{manager.name || manager.email.split('@')[0]}</p>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-600/30 text-yellow-300">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-700 text-gray-300">
                               Needs Approval
                             </span>
                           </div>
@@ -892,14 +892,14 @@ export function DealerDashboard() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleApproveManager(manager.id)}
-                              className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
+                              className="px-3 py-1 bg-neutral-600 text-white text-sm rounded-lg hover:bg-neutral-500 transition"
                               data-testid={`button-approve-manager-${manager.id}`}
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleRejectManager(manager.id)}
-                              className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
+                              className="px-3 py-1 bg-neutral-700 text-gray-300 text-sm rounded-lg hover:bg-neutral-600 transition border border-neutral-600"
                               data-testid={`button-reject-manager-${manager.id}`}
                             >
                               Reject
@@ -933,17 +933,13 @@ export function DealerDashboard() {
                     const isPending = member.status === "pending" || member.status === "pending_signup";
                     const isNewSignup = member.status === "pending";
                     return (
-                      <Card key={member.id} className={`p-4 bg-neutral-800 border-neutral-700 ${isNewSignup ? 'border-yellow-600/50' : ''}`}>
+                      <Card key={member.id} className={`p-4 bg-neutral-800 border-neutral-700`}>
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-medium text-white">{member.name}</p>
                               {isPending && (
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                  isNewSignup 
-                                    ? 'bg-yellow-600/30 text-yellow-300' 
-                                    : 'bg-yellow-900/50 text-yellow-400'
-                                }`}>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-700 text-gray-300">
                                   {isNewSignup ? 'Needs Approval' : 'Invited'}
                                 </span>
                               )}
@@ -957,14 +953,14 @@ export function DealerDashboard() {
                                 <>
                                   <button
                                     onClick={() => handleApproveSales(member.id)}
-                                    className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
+                                    className="px-3 py-1 bg-neutral-600 text-white text-sm rounded-lg hover:bg-neutral-500 transition"
                                     data-testid={`button-approve-sales-${member.id}`}
                                   >
                                     Approve
                                   </button>
                                   <button
                                     onClick={() => handleRejectSales(member.id)}
-                                    className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
+                                    className="px-3 py-1 bg-neutral-700 text-gray-300 text-sm rounded-lg hover:bg-neutral-600 transition border border-neutral-600"
                                     data-testid={`button-reject-sales-${member.id}`}
                                   >
                                     Reject
@@ -973,7 +969,7 @@ export function DealerDashboard() {
                               ) : (
                                 <button
                                   onClick={() => handleDeleteTeamMember(member.id, "sales")}
-                                  className="text-red-600 text-sm hover:underline"
+                                  className="text-gray-400 text-sm hover:text-white hover:underline"
                                 >
                                   Remove
                                 </button>
@@ -1009,12 +1005,12 @@ export function DealerDashboard() {
                             <div className="flex items-center gap-2">
                               <p className="font-medium text-white">{driver.name}</p>
                               {isVerified ? (
-                                <span className="inline-flex items-center gap-1 text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full">
+                                <span className="inline-flex items-center gap-1 text-xs bg-neutral-600 text-gray-200 px-2 py-0.5 rounded-full">
                                   <Shield size={12} />
                                   Verified
                                 </span>
                               ) : (
-                                <span className="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-0.5 rounded-full">Needs Verification</span>
+                                <span className="text-xs bg-neutral-700 text-gray-400 px-2 py-0.5 rounded-full">Needs Verification</span>
                               )}
                             </div>
                             <p className="text-sm text-gray-400">{driver.email}</p>
@@ -1026,7 +1022,7 @@ export function DealerDashboard() {
                               className={`px-3 py-1 text-sm rounded-lg transition ${
                                 isVerified
                                   ? "border border-neutral-600 text-white hover:bg-neutral-700"
-                                  : "bg-green-600 text-white hover:bg-green-700"
+                                  : "bg-neutral-600 text-white hover:bg-neutral-500"
                               }`}
                             >
                               {isVerified ? "Unverify" : "Verify"}

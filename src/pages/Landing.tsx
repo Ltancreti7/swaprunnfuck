@@ -26,7 +26,7 @@ export function Landing() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
             {/* Dealership Card */}
             <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border-2 border-gray-200 md:transform md:hover:-translate-y-2 transition-all flex flex-col">
-              <div className="bg-gradient-to-br from-red-600 to-red-700 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+              <div className="bg-gradient-to-br from-neutral-700 to-neutral-800 text-white w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                 <Building2 size={32} />
               </div>
               <h2 className="text-2xl font-bold mb-3 text-gray-900">Dealership</h2>
@@ -36,7 +36,7 @@ export function Landing() {
               <div className="space-y-3">
                 <button
                   onClick={() => navigate('/register-dealer')}
-                  className="touch-target w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="touch-target w-full bg-gradient-to-r from-neutral-700 to-neutral-800 text-white py-3.5 rounded-xl font-bold hover:from-neutral-800 hover:to-neutral-900 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                   data-testid="button-register-dealer"
                 >
                   Register Dealership
@@ -63,7 +63,7 @@ export function Landing() {
               <div className="space-y-3">
                 <button
                   onClick={() => navigate('/signup-sales')}
-                  className="touch-target w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="touch-target w-full bg-gradient-to-r from-neutral-700 to-neutral-800 text-white py-3.5 rounded-xl font-bold hover:from-neutral-800 hover:to-neutral-900 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                   data-testid="button-sales-signup"
                 >
                   Sign Up as Sales
@@ -90,7 +90,7 @@ export function Landing() {
               <div className="space-y-3">
                 <button
                   onClick={() => navigate('/signup-driver')}
-                  className="touch-target w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="touch-target w-full bg-gradient-to-r from-neutral-700 to-neutral-800 text-white py-3.5 rounded-xl font-bold hover:from-neutral-800 hover:to-neutral-900 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                   data-testid="button-driver-signup"
                 >
                   Sign Up as Driver
@@ -118,7 +118,7 @@ export function Landing() {
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <button
               onClick={() => navigate('/register-dealer')}
-              className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-4 rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl md:transform md:hover:scale-105 inline-flex items-center justify-center text-lg touch-target"
+              className="w-full sm:w-auto bg-gradient-to-r from-neutral-600 to-neutral-700 text-white px-8 py-4 rounded-xl font-bold hover:from-neutral-700 hover:to-neutral-800 transition-all shadow-lg hover:shadow-xl md:transform md:hover:scale-105 inline-flex items-center justify-center text-lg touch-target"
               data-testid="button-cta-register-dealer"
             >
               Register Your Dealership

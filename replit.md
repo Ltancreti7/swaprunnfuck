@@ -144,6 +144,14 @@ All three dashboards refactored for cleaner, mobile-first experience:
 - **DealerDashboard**: 1111 lines (from 1771, 37% reduction), 3 tabs (Overview, Deliveries, Team) instead of 7
 - **SalesDashboard**: Profile tab with centered card layout, 2 tabs (Profile, Deliveries), compact red header
 - **DriverDashboard**: Profile tab with centered card layout, 4 tabs (Profile, Jobs, History, Dealerships), compact dark header
+
+### Consistent Dark Theme (January 2026)
+Applied consistent dark charcoal theme (`bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900`) across all pages:
+- All dashboard headers use dark charcoal background with white text and red-400/600 accents
+- Authentication pages (Login, registration flows) use dark background with white content cards
+- Utility pages (Calendar, Chat, Conversations, Profile) use dark headers with light content areas
+- Back navigation buttons styled with gray-300 text and red-400 hover states on dark backgrounds
+- Design pattern: Dark page backgrounds with white content cards for intentional contrast and readability
 - Added OnboardingChecklist to all dashboards for guided user setup
 - Unread message indicator added to Driver dashboard header with badge
 - Profile tab features: Large circular avatar with camera overlay, centered name, "Tap photo to update" hint, role badges, contact info with icons, stats cards, settings link

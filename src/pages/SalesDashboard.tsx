@@ -465,22 +465,22 @@ export function SalesDashboard() {
               </div>
               
               {/* Dealership */}
-              <div className="mt-6 pt-6 border-t border-neutral-700 text-center">
-                <div className="flex items-center justify-center gap-2 text-gray-300">
-                  <Building2 size={18} className="text-gray-500" />
-                  <span className="font-medium">{dealer?.name || 'Dealership'}</span>
+              <div className="mt-6 pt-6 border-t border-neutral-600 text-center">
+                <div className="flex items-center justify-center gap-2 text-white">
+                  <Building2 size={18} className="text-gray-400" />
+                  <span className="font-semibold">{dealer?.name || 'Dealership'}</span>
                 </div>
               </div>
               
               {/* Contact Info */}
               <div className="mt-4 space-y-3">
-                <div className="flex items-center gap-3 text-gray-300">
-                  <Phone size={18} className="text-gray-500" />
-                  <span>{sales.phone || 'No phone added'}</span>
+                <div className="flex items-center gap-3 text-white">
+                  <Phone size={18} className="text-gray-400" />
+                  <span className="font-medium">{sales.phone || 'No phone added'}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-300">
-                  <Mail size={18} className="text-gray-500" />
-                  <span>{sales.email}</span>
+                <div className="flex items-center gap-3 text-white">
+                  <Mail size={18} className="text-gray-400" />
+                  <span className="font-medium">{sales.email}</span>
                 </div>
               </div>
               

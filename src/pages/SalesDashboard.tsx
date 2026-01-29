@@ -434,7 +434,7 @@ export function SalesDashboard() {
               <div className="flex flex-col items-center">
                 {/* Avatar with Camera */}
                 <div className="relative mb-4">
-                  <div className="w-28 h-28 rounded-full bg-red-900/50 flex items-center justify-center text-red-400 text-3xl font-bold border-4 border-neutral-700 shadow-lg">
+                  <div className="w-28 h-28 rounded-full bg-neutral-700 flex items-center justify-center text-gray-300 text-3xl font-bold border-4 border-neutral-600 shadow-lg">
                     {initials}
                   </div>
                   <button 
@@ -506,34 +506,34 @@ export function SalesDashboard() {
             
             {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-3">
-              <Card className="p-4 text-center">
-                <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold">{stats.pending}</p>
-                <p className="text-xs text-gray-600">Pending</p>
+              <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
+                <Clock className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-white">{stats.pending}</p>
+                <p className="text-xs text-gray-500">Pending</p>
               </Card>
-              <Card className="p-4 text-center">
-                <Truck className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold">{stats.active}</p>
-                <p className="text-xs text-gray-600">Active</p>
+              <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
+                <Truck className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-white">{stats.active}</p>
+                <p className="text-xs text-gray-500">Active</p>
               </Card>
-              <Card className="p-4 text-center">
-                <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold">{stats.completed}</p>
-                <p className="text-xs text-gray-600">Completed</p>
+              <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
+                <CheckCircle className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-white">{stats.completed}</p>
+                <p className="text-xs text-gray-500">Completed</p>
               </Card>
             </div>
             
             {/* Settings Link */}
             <button
               onClick={() => navigate('/profile')}
-              className="w-full flex items-center justify-between p-4 bg-white rounded-xl border hover:bg-gray-50 transition"
+              className="w-full flex items-center justify-between p-4 bg-neutral-800 rounded-xl border border-neutral-700 hover:bg-neutral-700 transition"
               data-testid="button-settings"
             >
               <div className="flex items-center gap-3">
-                <Settings size={20} className="text-gray-500" />
-                <span className="font-medium">Account Settings</span>
+                <Settings size={20} className="text-gray-400" />
+                <span className="font-medium text-white">Account Settings</span>
               </div>
-              <span className="text-gray-400">→</span>
+              <span className="text-gray-500">→</span>
             </button>
           </div>
         )}

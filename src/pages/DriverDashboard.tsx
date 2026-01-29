@@ -286,7 +286,7 @@ export function DriverDashboard() {
               { id: 'profile', label: 'Profile' },
               { id: 'action', label: 'Jobs', count: requestDeliveries.length + upcomingDeliveries.length },
               { id: 'history', label: 'History' },
-              { id: 'dealerships', label: 'Dealerships', count: approvedDealerships.length },
+              { id: 'dealerships', label: 'My Dealerships', count: approvedDealerships.length },
             ].map((tab) => (
               <button
                 key={tab.id}

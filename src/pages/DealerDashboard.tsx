@@ -535,15 +535,15 @@ export function DealerDashboard() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-6 py-4 font-medium transition border-b-2 flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? "text-red-400 border-red-400"
-                    : "text-gray-400 border-transparent hover:text-white"
+                    ? "text-stone-400 border-stone-400"
+                    : "text-gray-500 border-transparent hover:text-white"
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
                 {tab.label}
                 {tab.badge > 0 && (
                   <span 
-                    className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center"
+                    className="bg-stone-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center"
                     data-testid={`badge-${tab.id}-pending`}
                   >
                     {tab.badge}
@@ -674,7 +674,7 @@ export function DealerDashboard() {
             <div className="grid md:grid-cols-2 gap-4">
               <button
                 onClick={() => setShowNewDeliveryModal(true)}
-                className="flex items-center justify-between p-4 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition border border-neutral-600"
+                className="flex items-center justify-between p-4 bg-stone-600 text-white rounded-lg hover:bg-stone-700 transition shadow-md"
                 data-testid="button-new-delivery"
               >
                 <div className="flex items-center gap-3">
@@ -685,7 +685,7 @@ export function DealerDashboard() {
               </button>
               <button
                 onClick={() => { setAddTeamType("sales"); setShowAddTeamModal(true); }}
-                className="flex items-center justify-between p-4 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition border border-neutral-600"
+                className="flex items-center justify-between p-4 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition border border-neutral-500"
                 data-testid="button-add-team"
               >
                 <div className="flex items-center gap-3">
@@ -892,7 +892,7 @@ export function DealerDashboard() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleApproveManager(manager.id)}
-                              className="px-3 py-1 bg-neutral-600 text-white text-sm rounded-lg hover:bg-neutral-500 transition"
+                              className="px-3 py-1 bg-stone-600 text-white text-sm rounded-lg hover:bg-stone-700 transition"
                               data-testid={`button-approve-manager-${manager.id}`}
                             >
                               Approve
@@ -953,7 +953,7 @@ export function DealerDashboard() {
                                 <>
                                   <button
                                     onClick={() => handleApproveSales(member.id)}
-                                    className="px-3 py-1 bg-neutral-600 text-white text-sm rounded-lg hover:bg-neutral-500 transition"
+                                    className="px-3 py-1 bg-stone-600 text-white text-sm rounded-lg hover:bg-stone-700 transition"
                                     data-testid={`button-approve-sales-${member.id}`}
                                   >
                                     Approve
@@ -1021,8 +1021,8 @@ export function DealerDashboard() {
                               onClick={() => handleVerificationToggle(driver.id, isVerified)}
                               className={`px-3 py-1 text-sm rounded-lg transition ${
                                 isVerified
-                                  ? "border border-neutral-600 text-white hover:bg-neutral-700"
-                                  : "bg-neutral-600 text-white hover:bg-neutral-500"
+                                  ? "border border-neutral-500 text-gray-300 hover:bg-neutral-700"
+                                  : "bg-stone-600 text-white hover:bg-stone-700"
                               }`}
                             >
                               {isVerified ? "Unverify" : "Verify"}

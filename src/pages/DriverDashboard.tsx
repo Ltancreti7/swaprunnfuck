@@ -293,14 +293,14 @@ export function DriverDashboard() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-4 font-medium transition border-b-2 flex items-center gap-2 whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'text-red-400 border-red-400'
-                    : 'text-gray-400 border-transparent hover:text-white'
+                    ? 'text-stone-400 border-stone-400'
+                    : 'text-gray-500 border-transparent hover:text-white'
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-red-900/50 text-red-400 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
+                  <span className="bg-stone-700/50 text-stone-300 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
                 )}
               </button>
             ))}
@@ -405,8 +405,8 @@ export function DriverDashboard() {
               onClick={toggleAvailability}
               className={`w-full py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2 shadow-lg ${
                 driver.isAvailable
-                  ? 'bg-neutral-700 text-gray-300 hover:bg-neutral-600 border border-neutral-600'
-                  : 'bg-neutral-600 text-white hover:bg-neutral-500 border border-neutral-500'
+                  ? 'bg-neutral-700 text-gray-300 hover:bg-neutral-600 border border-neutral-500'
+                  : 'bg-stone-600 text-white hover:bg-stone-700'
               }`}
               data-testid="button-toggle-availability"
             >
@@ -520,7 +520,7 @@ export function DriverDashboard() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleAcceptDelivery(delivery.id)}
-                          className="flex-1 py-2 bg-neutral-600 text-white rounded-lg font-medium hover:bg-neutral-500 transition"
+                          className="flex-1 py-2 bg-stone-600 text-white rounded-lg font-medium hover:bg-stone-700 transition"
                           data-testid={`button-accept-${delivery.id}`}
                         >
                           Accept

@@ -369,9 +369,9 @@ export function SalesDashboard() {
   const initials = sales.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'S';
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 pb-12">
       {/* Compact Header */}
-      <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900">
+      <div className="bg-neutral-900/50 border-b border-neutral-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-white">Sales Dashboard</h1>
@@ -396,7 +396,7 @@ export function SalesDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-neutral-800/50 border-b border-neutral-700 sticky top-0 z-10">
         <div className="container mx-auto px-4">
           <div className="flex gap-1">
             {[
@@ -410,14 +410,14 @@ export function SalesDashboard() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-4 font-medium transition border-b-2 flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'text-red-600 border-red-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                    ? 'text-red-400 border-red-400'
+                    : 'text-gray-400 border-transparent hover:text-white'
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
+                  <span className="bg-red-900/50 text-red-400 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
                 )}
               </button>
             ))}
@@ -430,11 +430,11 @@ export function SalesDashboard() {
         {activeTab === 'profile' && (
           <div className="space-y-6">
             {/* Profile Card */}
-            <Card className="p-6 relative">
+            <Card className="p-6 relative bg-neutral-800 border-neutral-700">
               <div className="flex flex-col items-center">
                 {/* Avatar with Camera */}
                 <div className="relative mb-4">
-                  <div className="w-28 h-28 rounded-full bg-red-100 flex items-center justify-center text-red-700 text-3xl font-bold border-4 border-white shadow-lg">
+                  <div className="w-28 h-28 rounded-full bg-red-900/50 flex items-center justify-center text-red-400 text-3xl font-bold border-4 border-neutral-700 shadow-lg">
                     {initials}
                   </div>
                   <button 
@@ -447,17 +447,17 @@ export function SalesDashboard() {
                 </div>
                 
                 {/* Name */}
-                <h2 className="text-2xl font-bold text-gray-900">{sales.name}</h2>
+                <h2 className="text-2xl font-bold text-white">{sales.name}</h2>
                 <p className="text-sm text-gray-500 mt-1">Tap photo to update</p>
                 
                 {/* Role Badge */}
                 <div className="flex items-center gap-2 mt-3">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-900/50 text-red-400 rounded-full text-sm font-medium">
                     <Package size={14} />
                     Sales
                   </span>
                   {sales.role && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-gray-300 rounded-full text-sm font-medium">
                       {sales.role}
                     </span>
                   )}
@@ -465,21 +465,21 @@ export function SalesDashboard() {
               </div>
               
               {/* Dealership */}
-              <div className="mt-6 pt-6 border-t text-center">
-                <div className="flex items-center justify-center gap-2 text-gray-700">
-                  <Building2 size={18} className="text-gray-400" />
+              <div className="mt-6 pt-6 border-t border-neutral-700 text-center">
+                <div className="flex items-center justify-center gap-2 text-gray-300">
+                  <Building2 size={18} className="text-gray-500" />
                   <span className="font-medium">{dealer?.name || 'Dealership'}</span>
                 </div>
               </div>
               
               {/* Contact Info */}
               <div className="mt-4 space-y-3">
-                <div className="flex items-center gap-3 text-gray-700">
-                  <Phone size={18} className="text-gray-400" />
+                <div className="flex items-center gap-3 text-gray-300">
+                  <Phone size={18} className="text-gray-500" />
                   <span>{sales.phone || 'No phone added'}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-700">
-                  <Mail size={18} className="text-gray-400" />
+                <div className="flex items-center gap-3 text-gray-300">
+                  <Mail size={18} className="text-gray-500" />
                   <span>{sales.email}</span>
                 </div>
               </div>
@@ -487,10 +487,10 @@ export function SalesDashboard() {
               {/* Message Button */}
               <button
                 onClick={() => navigate('/conversations')}
-                className="absolute top-6 right-6 p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition"
+                className="absolute top-6 right-6 p-3 bg-neutral-700 rounded-full hover:bg-neutral-600 transition"
                 data-testid="button-messages-profile"
               >
-                <MessageCircle size={20} className="text-gray-600" />
+                <MessageCircle size={20} className="text-gray-300" />
               </button>
             </Card>
             

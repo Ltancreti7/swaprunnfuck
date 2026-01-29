@@ -489,14 +489,14 @@ export function DealerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 pb-12">
       {/* Header */}
-      <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 sticky top-0 z-40">
+      <div className="bg-neutral-900/50 sticky top-0 z-40 border-b border-neutral-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white">{dealer.name}</h1>
-              <p className="text-sm text-gray-300">{dealer.address}</p>
+              <p className="text-sm text-gray-400">{dealer.address}</p>
             </div>
             <div className="flex items-center gap-3">
               {pendingApplicationsCount > 0 && (
@@ -522,7 +522,7 @@ export function DealerDashboard() {
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="bg-white border-b">
+      <div className="bg-neutral-800/50 border-b border-neutral-700">
         <div className="container mx-auto px-4">
           <div className="flex gap-1">
             {[
@@ -535,8 +535,8 @@ export function DealerDashboard() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-6 py-4 font-medium transition border-b-2 flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? "text-red-600 border-red-600"
-                    : "text-gray-600 border-transparent hover:text-gray-900"
+                    ? "text-red-400 border-red-400"
+                    : "text-gray-400 border-transparent hover:text-white"
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
@@ -648,25 +648,25 @@ export function DealerDashboard() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4 text-center">
-                <Truck className="w-8 h-8 text-red-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold">{activeDeliveries.length}</p>
-                <p className="text-sm text-gray-600">Active Deliveries</p>
+              <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
+                <Truck className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{activeDeliveries.length}</p>
+                <p className="text-sm text-gray-400">Active Deliveries</p>
               </Card>
-              <Card className="p-4 text-center">
-                <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold">{salesTeam.length}</p>
-                <p className="text-sm text-gray-600">Sales Staff</p>
+              <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
+                <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{salesTeam.length}</p>
+                <p className="text-sm text-gray-400">Sales Staff</p>
               </Card>
-              <Card className="p-4 text-center">
-                <UserCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold">{drivers.length}</p>
-                <p className="text-sm text-gray-600">Drivers</p>
+              <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
+                <UserCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{drivers.length}</p>
+                <p className="text-sm text-gray-400">Drivers</p>
               </Card>
-              <Card className="p-4 text-center">
-                <FileCheck className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold">{pendingApplicationsCount}</p>
-                <p className="text-sm text-gray-600">Pending Apps</p>
+              <Card className="p-4 text-center bg-neutral-800 border-neutral-700">
+                <FileCheck className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{pendingApplicationsCount}</p>
+                <p className="text-sm text-gray-400">Pending Apps</p>
               </Card>
             </div>
 
@@ -699,18 +699,18 @@ export function DealerDashboard() {
             {/* Action Items */}
             {(pendingApps.length > 0 || activeDeliveries.length > 0) && (
               <div>
-                <h2 className="text-lg font-semibold mb-4">Needs Your Attention</h2>
+                <h2 className="text-lg font-semibold mb-4 text-white">Needs Your Attention</h2>
                 <div className="space-y-3">
                   {pendingApps.slice(0, 3).map((app) => (
-                    <Card key={app.id} className="p-4">
+                    <Card key={app.id} className="p-4 bg-neutral-800 border-neutral-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                            <UserCircle className="w-6 h-6 text-orange-600" />
+                          <div className="w-10 h-10 bg-orange-900/50 rounded-full flex items-center justify-center">
+                            <UserCircle className="w-6 h-6 text-orange-400" />
                           </div>
                           <div>
-                            <p className="font-medium">{app.driver?.name} wants to drive for you</p>
-                            <p className="text-sm text-gray-600">Applied {new Date(app.appliedAt).toLocaleDateString()}</p>
+                            <p className="font-medium text-white">{app.driver?.name} wants to drive for you</p>
+                            <p className="text-sm text-gray-400">Applied {new Date(app.appliedAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <button
@@ -723,15 +723,15 @@ export function DealerDashboard() {
                     </Card>
                   ))}
                   {activeDeliveries.filter(d => d.status === 'pending').slice(0, 3).map((delivery) => (
-                    <Card key={delivery.id} className="p-4">
+                    <Card key={delivery.id} className="p-4 bg-neutral-800 border-neutral-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <Clock className="w-6 h-6 text-yellow-600" />
+                          <div className="w-10 h-10 bg-yellow-900/50 rounded-full flex items-center justify-center">
+                            <Clock className="w-6 h-6 text-yellow-400" />
                           </div>
                           <div>
-                            <p className="font-medium">Delivery needs a driver</p>
-                            <p className="text-sm text-gray-600">VIN: {delivery.vin}</p>
+                            <p className="font-medium text-white">Delivery needs a driver</p>
+                            <p className="text-sm text-gray-400">VIN: {delivery.vin}</p>
                           </div>
                         </div>
                         <StatusBadge status={(delivery.status || "pending") as "pending" | "completed" | "cancelled" | "pending_driver_acceptance" | "assigned" | "in_transit"} />
@@ -744,9 +744,9 @@ export function DealerDashboard() {
 
             {/* Empty State for New Dealers */}
             {salesTeam.length === 0 && drivers.length === 0 && activeDeliveries.length === 0 && (
-              <Card className="p-8 text-center">
-                <h3 className="text-xl font-semibold mb-2">Welcome to SwapRunn!</h3>
-                <p className="text-gray-600 mb-6">Get started by adding your first team member or creating a delivery.</p>
+              <Card className="p-8 text-center bg-neutral-800 border-neutral-700">
+                <h3 className="text-xl font-semibold mb-2 text-white">Welcome to SwapRunn!</h3>
+                <p className="text-gray-400 mb-6">Get started by adding your first team member or creating a delivery.</p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button
                     onClick={() => { setAddTeamType("sales"); setShowAddTeamModal(true); }}
@@ -756,7 +756,7 @@ export function DealerDashboard() {
                   </button>
                   <button
                     onClick={() => setShowNewDeliveryModal(true)}
-                    className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition"
+                    className="px-6 py-3 border border-neutral-600 text-white rounded-lg font-semibold hover:bg-neutral-700 transition"
                   >
                     Create Delivery
                   </button>
@@ -772,13 +772,13 @@ export function DealerDashboard() {
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <div className="flex-1 w-full sm:max-w-md">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
                   <input
                     type="text"
                     placeholder="Search by VIN or address..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-600 text-white placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent"
                     data-testid="input-delivery-search"
                   />
                 </div>
@@ -787,7 +787,7 @@ export function DealerDashboard() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600"
+                  className="px-4 py-2 bg-neutral-800 border border-neutral-600 text-white rounded-lg focus:ring-2 focus:ring-red-600"
                   data-testid="select-status-filter"
                 >
                   <option value="all">All Status</option>
@@ -817,19 +817,19 @@ export function DealerDashboard() {
             ) : (
               <div className="space-y-3">
                 {filteredDeliveries.map((delivery) => (
-                  <Card key={delivery.id} className="p-4">
+                  <Card key={delivery.id} className="p-4 bg-neutral-800 border-neutral-700">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <p className="font-semibold">VIN: {delivery.vin}</p>
+                          <p className="font-semibold text-white">VIN: {delivery.vin}</p>
                           <StatusBadge status={(delivery.status || "pending") as "pending" | "completed" | "cancelled" | "pending_driver_acceptance" | "assigned" | "in_transit"} />
                         </div>
-                        <p className="text-sm text-gray-600">From: {delivery.pickup}</p>
-                        <p className="text-sm text-gray-600">To: {delivery.dropoff}</p>
+                        <p className="text-sm text-gray-400">From: {delivery.pickup}</p>
+                        <p className="text-sm text-gray-400">To: {delivery.dropoff}</p>
                       </div>
                       <button
                         onClick={() => navigate(`/delivery/${delivery.id}`)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+                        className="px-4 py-2 border border-neutral-600 text-white rounded-lg text-sm font-medium hover:bg-neutral-700 transition"
                         data-testid={`button-view-delivery-${delivery.id}`}
                       >
                         View Details
@@ -846,7 +846,7 @@ export function DealerDashboard() {
         {activeTab === "team" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Your Team</h2>
+              <h2 className="text-lg font-semibold text-white">Your Team</h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => { setAddTeamType("sales"); setShowAddTeamModal(true); }}
@@ -858,7 +858,7 @@ export function DealerDashboard() {
                 </button>
                 <button
                   onClick={() => setShowAdminPanel(true)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition flex items-center gap-2"
+                  className="px-4 py-2 border border-neutral-600 text-white rounded-lg font-medium hover:bg-neutral-700 transition flex items-center gap-2"
                   data-testid="button-manage-admins"
                 >
                   <Shield size={18} />
@@ -870,22 +870,22 @@ export function DealerDashboard() {
             {/* Pending Managers */}
             {pendingManagers.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-yellow-600 uppercase tracking-wide mb-3">
+                <h3 className="text-sm font-semibold text-yellow-400 uppercase tracking-wide mb-3">
                   Pending Manager Requests ({pendingManagers.length})
                 </h3>
                 <div className="grid md:grid-cols-2 gap-3">
                   {pendingManagers.map((manager) => (
-                    <Card key={manager.id} className="p-4 border-yellow-300 bg-yellow-50">
+                    <Card key={manager.id} className="p-4 border-yellow-600/50 bg-yellow-900/20">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <Shield size={16} className="text-yellow-600" />
-                            <p className="font-medium">{manager.name || manager.email.split('@')[0]}</p>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-800">
+                            <Shield size={16} className="text-yellow-400" />
+                            <p className="font-medium text-white">{manager.name || manager.email.split('@')[0]}</p>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-600/30 text-yellow-300">
                               Needs Approval
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{manager.email}</p>
+                          <p className="text-sm text-gray-400">{manager.email}</p>
                           <p className="text-xs text-gray-500">{manager.role}</p>
                         </div>
                         {currentUserRole !== "viewer" && (
@@ -915,14 +915,14 @@ export function DealerDashboard() {
 
             {/* Sales Team */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Sales Staff ({salesTeam.length + pendingSales.length})</h3>
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Sales Staff ({salesTeam.length + pendingSales.length})</h3>
               {salesTeam.length === 0 && pendingSales.length === 0 ? (
-                <Card className="p-6 text-center">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">No sales staff yet</p>
+                <Card className="p-6 text-center bg-neutral-800 border-neutral-700">
+                  <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400">No sales staff yet</p>
                   <button
                     onClick={() => { setAddTeamType("sales"); setShowAddTeamModal(true); }}
-                    className="mt-3 text-red-600 font-medium hover:underline"
+                    className="mt-3 text-red-400 font-medium hover:underline"
                   >
                     Add your first salesperson
                   </button>
@@ -933,22 +933,22 @@ export function DealerDashboard() {
                     const isPending = member.status === "pending" || member.status === "pending_signup";
                     const isNewSignup = member.status === "pending";
                     return (
-                      <Card key={member.id} className={`p-4 ${isNewSignup ? 'border-yellow-300 bg-yellow-50' : ''}`}>
+                      <Card key={member.id} className={`p-4 bg-neutral-800 border-neutral-700 ${isNewSignup ? 'border-yellow-600/50' : ''}`}>
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-medium">{member.name}</p>
+                              <p className="font-medium text-white">{member.name}</p>
                               {isPending && (
                                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                                   isNewSignup 
-                                    ? 'bg-yellow-200 text-yellow-800' 
-                                    : 'bg-yellow-100 text-yellow-700'
+                                    ? 'bg-yellow-600/30 text-yellow-300' 
+                                    : 'bg-yellow-900/50 text-yellow-400'
                                 }`}>
                                   {isNewSignup ? 'Needs Approval' : 'Invited'}
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600">{member.email}</p>
+                            <p className="text-sm text-gray-400">{member.email}</p>
                             {member.role && <p className="text-xs text-gray-500">{member.role}</p>}
                           </div>
                           {currentUserRole !== "viewer" && (
@@ -990,11 +990,11 @@ export function DealerDashboard() {
 
             {/* Drivers */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Approved Drivers ({drivers.length})</h3>
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Approved Drivers ({drivers.length})</h3>
               {drivers.length === 0 ? (
-                <Card className="p-6 text-center">
-                  <UserCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">No approved drivers yet</p>
+                <Card className="p-6 text-center bg-neutral-800 border-neutral-700">
+                  <UserCircle className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400">No approved drivers yet</p>
                   <p className="text-sm text-gray-500 mt-1">Drivers will appear here after you approve their applications</p>
                 </Card>
               ) : (
@@ -1003,21 +1003,21 @@ export function DealerDashboard() {
                     const approval = approvedDriverDealers.find(a => a.driverId === driver.id);
                     const isVerified = approval?.isVerified || false;
                     return (
-                      <Card key={driver.id} className="p-4">
+                      <Card key={driver.id} className="p-4 bg-neutral-800 border-neutral-700">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-medium">{driver.name}</p>
+                              <p className="font-medium text-white">{driver.name}</p>
                               {isVerified ? (
-                                <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                <span className="inline-flex items-center gap-1 text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full">
                                   <Shield size={12} />
                                   Verified
                                 </span>
                               ) : (
-                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Needs Verification</span>
+                                <span className="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-0.5 rounded-full">Needs Verification</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600">{driver.email}</p>
+                            <p className="text-sm text-gray-400">{driver.email}</p>
                             <p className="text-xs text-gray-500">{driver.radius} mi radius</p>
                           </div>
                           {currentUserRole !== "viewer" && (
@@ -1025,7 +1025,7 @@ export function DealerDashboard() {
                               onClick={() => handleVerificationToggle(driver.id, isVerified)}
                               className={`px-3 py-1 text-sm rounded-lg transition ${
                                 isVerified
-                                  ? "border border-gray-300 hover:bg-gray-50"
+                                  ? "border border-neutral-600 text-white hover:bg-neutral-700"
                                   : "bg-green-600 text-white hover:bg-green-700"
                               }`}
                             >

@@ -247,9 +247,9 @@ export function DriverDashboard() {
   const verifiedCount = approvedDealerships.filter(d => d.isVerified).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 pb-12">
       {/* Compact Header */}
-      <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900">
+      <div className="bg-neutral-900/50 border-b border-neutral-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-white">Driver Dashboard</h1>
@@ -279,7 +279,7 @@ export function DriverDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-neutral-800/50 border-b border-neutral-700 sticky top-0 z-10">
         <div className="container mx-auto px-4">
           <div className="flex gap-1 overflow-x-auto">
             {[
@@ -293,14 +293,14 @@ export function DriverDashboard() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-4 font-medium transition border-b-2 flex items-center gap-2 whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'text-red-600 border-red-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                    ? 'text-red-400 border-red-400'
+                    : 'text-gray-400 border-transparent hover:text-white'
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
+                  <span className="bg-red-900/50 text-red-400 text-xs px-2 py-0.5 rounded-full">{tab.count}</span>
                 )}
               </button>
             ))}
@@ -313,7 +313,7 @@ export function DriverDashboard() {
         {activeTab === 'profile' && (
           <div className="space-y-6">
             {/* Profile Card */}
-            <Card className="p-6 relative">
+            <Card className="p-6 relative bg-neutral-800 border-neutral-700">
               <div className="flex flex-col items-center">
                 {/* Avatar with Camera */}
                 <div className="relative mb-4">
@@ -321,10 +321,10 @@ export function DriverDashboard() {
                     <img
                       src={driver.profileImage}
                       alt={driver.name}
-                      className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-lg"
+                      className="w-28 h-28 rounded-full object-cover border-4 border-neutral-700 shadow-lg"
                     />
                   ) : (
-                    <div className="w-28 h-28 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-3xl font-bold border-4 border-white shadow-lg">
+                    <div className="w-28 h-28 rounded-full bg-neutral-700 flex items-center justify-center text-gray-300 text-3xl font-bold border-4 border-neutral-600 shadow-lg">
                       {initials}
                     </div>
                   )}
@@ -339,7 +339,7 @@ export function DriverDashboard() {
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploadingPhoto}
-                    className="absolute bottom-0 right-0 w-9 h-9 bg-gray-700 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-gray-800 transition disabled:opacity-50"
+                    className="absolute bottom-0 right-0 w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-red-700 transition disabled:opacity-50"
                     data-testid="button-edit-photo"
                   >
                     {isUploadingPhoto ? (
@@ -351,17 +351,17 @@ export function DriverDashboard() {
                 </div>
                 
                 {/* Name */}
-                <h2 className="text-2xl font-bold text-gray-900">{driver.name}</h2>
+                <h2 className="text-2xl font-bold text-white">{driver.name}</h2>
                 <p className="text-sm text-gray-500 mt-1">Tap photo to update</p>
                 
                 {/* Role Badge */}
                 <div className="flex items-center gap-2 mt-3">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-gray-300 rounded-full text-sm font-medium">
                     <Truck size={14} />
                     Driver
                   </span>
                   {driver.canDriveManual && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-900/50 text-blue-400 rounded-full text-sm font-medium">
                       Manual Trans
                     </span>
                   )}
@@ -370,21 +370,21 @@ export function DriverDashboard() {
                 {/* Rating */}
                 <div className="flex items-center gap-1 mt-3">
                   <Star size={20} className="text-yellow-500 fill-yellow-500" />
-                  <span className="font-semibold">New Driver</span>
+                  <span className="font-semibold text-white">New Driver</span>
                 </div>
               </div>
               
               {/* Contact Info */}
-              <div className="mt-6 pt-6 border-t space-y-3">
-                <div className="flex items-center gap-3 text-gray-700">
-                  <Phone size={18} className="text-gray-400" />
+              <div className="mt-6 pt-6 border-t border-neutral-700 space-y-3">
+                <div className="flex items-center gap-3 text-gray-300">
+                  <Phone size={18} className="text-gray-500" />
                   <span>{driver.phone || 'No phone added'}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-700">
-                  <Mail size={18} className="text-gray-400" />
+                <div className="flex items-center gap-3 text-gray-300">
+                  <Mail size={18} className="text-gray-500" />
                   <span>{driver.email}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-700">
+                <div className="flex items-center gap-3 text-gray-300">
                   <MapPinned size={18} className="text-gray-400" />
                   <span>{driver.radius || 50} mile service radius</span>
                 </div>

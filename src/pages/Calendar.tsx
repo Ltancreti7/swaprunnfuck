@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Truck, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Truck, User, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { api } from '../lib/api';
 import { Card } from '../components/ui/Card';
 import { StatusBadge } from '../components/ui/Badge';
+import { ScheduleDeliveryModal } from '../components/calendar/ScheduleDeliveryModal';
 import type { Delivery, Dealer, Driver, Sales } from '../../shared/schema';
 
 interface DeliveryWithRelations extends Delivery {
@@ -19,14 +21,40 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 export function Calendar() {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const { showToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [deliveries, setDeliveries] = useState<DeliveryWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [salesData, setSalesData] = useState<Sales | null>(null);
+  const [dealerId, setDealerId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) loadScheduledDeliveries();
+    if (user) {
+      loadScheduledDeliveries();
+      loadUserData();
+    }
   }, [user, currentDate]);
+
+  const loadUserData = async () => {
+    try {
+      if (role === 'sales') {
+        const sales = await api.sales.current();
+        if (sales) {
+          setSalesData(sales);
+          setDealerId(sales.dealerId || null);
+        }
+      } else if (role === 'dealer') {
+        const result = await api.dealers.current();
+        if (result?.dealer) {
+          setDealerId(result.dealer.id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load user data:', err);
+    }
+  };
 
   const loadScheduledDeliveries = async () => {
     setLoading(true);
@@ -217,14 +245,35 @@ export function Calendar() {
 
         {selectedDate && (
           <div>
-            <h3 className="text-lg font-semibold mb-3">
-              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">
+                {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </h3>
+              {(role === 'sales' || role === 'dealer') && dealerId && (
+                <button
+                  onClick={() => setShowScheduleModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition"
+                  data-testid="button-schedule-delivery"
+                >
+                  <Plus size={18} />
+                  Schedule Delivery
+                </button>
+              )}
+            </div>
             
             {selectedDateDeliveries.length === 0 ? (
               <Card className="p-6 text-center">
                 <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600">No deliveries scheduled</p>
+                {(role === 'sales' || role === 'dealer') && dealerId && (
+                  <button
+                    onClick={() => setShowScheduleModal(true)}
+                    className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition"
+                    data-testid="button-schedule-delivery-empty"
+                  >
+                    Schedule a Delivery
+                  </button>
+                )}
               </Card>
             ) : (
               <div className="space-y-3">
@@ -324,6 +373,24 @@ export function Calendar() {
           </div>
         )}
       </div>
+
+      {selectedDate && dealerId && (role === 'sales' || role === 'dealer') && (
+        <ScheduleDeliveryModal
+          isOpen={showScheduleModal}
+          onClose={() => setShowScheduleModal(false)}
+          selectedDate={selectedDate}
+          dealerId={dealerId}
+          salesId={salesData?.id || ''}
+          defaultPickupAddress={salesData ? {
+            street: salesData.defaultPickupStreet || '',
+            city: salesData.defaultPickupCity || '',
+            state: salesData.defaultPickupState || '',
+            zip: salesData.defaultPickupZip || '',
+          } : undefined}
+          onSuccess={() => loadScheduledDeliveries()}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }

@@ -94,6 +94,7 @@ export const deliveries = pgTable("deliveries", {
   completedAt: timestamp("completed_at"),
   cancelledAt: timestamp("cancelled_at"),
   cancelledBy: uuid("cancelled_by"),
+  declinedDriverIds: text("declined_driver_ids").array().default([]),
   estimatedDistanceKm: numeric("estimated_distance_km", { precision: 10, scale: 2 }),
   estimatedDurationMinutes: integer("estimated_duration_minutes"),
   estimatedPayCents: integer("estimated_pay_cents"),

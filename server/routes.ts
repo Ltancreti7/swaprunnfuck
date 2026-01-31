@@ -1111,10 +1111,15 @@ export function registerRoutes(app: Express): void {
         dealerIds.map(dealerId => storage.getDeliveriesByDealerId(dealerId))
       );
       
-      const requests = allDeliveries.flat().filter(d => 
-        (d.status === "pending" && !d.driverId) ||
-        (d.status === "pending_driver_acceptance" && d.driverId === driverId)
-      );
+      const requests = allDeliveries.flat().filter(d => {
+        // Don't show deliveries this driver has already declined
+        const declinedList = d.declinedDriverIds || [];
+        if (declinedList.includes(driverId)) {
+          return false;
+        }
+        return (d.status === "pending" && !d.driverId) ||
+          (d.status === "pending_driver_acceptance" && d.driverId === driverId);
+      });
       
       const enrichedRequests = await Promise.all(
         requests.map(async (d) => {
@@ -1248,9 +1253,16 @@ export function registerRoutes(app: Express): void {
         return res.status(404).json({ error: "Delivery not found" });
       }
       
+      // Add driver to declined list so they don't see this delivery again
+      const currentDeclined = delivery.declinedDriverIds || [];
+      const newDeclinedList = currentDeclined.includes(driverId) 
+        ? currentDeclined 
+        : [...currentDeclined, driverId];
+      
       const updatedDelivery = await storage.updateDelivery(req.params.id, {
         driverId: null,
         status: "pending",
+        declinedDriverIds: newDeclinedList,
       });
       
       const driver = await storage.getDriver(driverId);

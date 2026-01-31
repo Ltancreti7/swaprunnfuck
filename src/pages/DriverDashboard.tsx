@@ -33,7 +33,7 @@ export function DriverDashboard() {
   const [recentDeliveries, setRecentDeliveries] = useState<DeliveryWithDealer[]>([]);
   const [approvedDealerships, setApprovedDealerships] = useState<DealershipWithStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'profile' | 'action' | 'history' | 'dealerships'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'action' | 'history' | 'dealerships' | 'find'>('profile');
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [showDealerSearch, setShowDealerSearch] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -287,6 +287,7 @@ export function DriverDashboard() {
               { id: 'action', label: 'Jobs', count: requestDeliveries.length + upcomingDeliveries.length },
               { id: 'history', label: 'History' },
               { id: 'dealerships', label: 'My Dealerships', count: approvedDealerships.length },
+              { id: 'find', label: 'Find Dealerships' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -644,6 +645,19 @@ export function DriverDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* FIND DEALERSHIPS TAB */}
+        {activeTab === 'find' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Find Dealerships</h2>
+            <Card className="p-6">
+              <DealershipSearch
+                driverId={driver.id}
+                showToast={showToast}
+              />
+            </Card>
           </div>
         )}
       </div>

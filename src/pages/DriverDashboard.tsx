@@ -652,12 +652,10 @@ export function DriverDashboard() {
         {activeTab === 'find' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">Find Dealerships</h2>
-            <Card className="p-6">
-              <DealershipSearch
-                driverId={driver.id}
-                showToast={showToast}
-              />
-            </Card>
+            <DealershipSearch
+              driverId={driver.id}
+              showToast={showToast}
+            />
           </div>
         )}
       </div>

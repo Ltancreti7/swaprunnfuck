@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { DealerAdmin, AdminRole } from '../../shared/schema';
 import { AddressInput } from '../components/ui/AddressInput';
 import { formatAddress, parseAddress } from '../lib/addressUtils';
@@ -19,6 +20,7 @@ interface AddressFields {
 export function Profile() {
   const navigate = useNavigate();
   const { user, role, logout } = useAuth();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -27,7 +29,6 @@ export function Profile() {
     defaultPickupAddress: { street: '', city: '', state: '', zip: '' } as AddressFields,
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
   const [adminRoles, setAdminRoles] = useState<DealerAdmin[]>([]);
   const [dealerNames, setDealerNames] = useState<Record<string, string>>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -119,7 +120,6 @@ export function Profile() {
     if (!user || !role) return;
 
     setLoading(true);
-    setMessage('');
 
     try {
       const updates: any = {
@@ -142,14 +142,10 @@ export function Profile() {
         await api.user.changePassword(formData.password);
       }
 
-      setMessage('Profile updated successfully!');
+      showToast('Profile updated successfully!', 'success');
       setFormData({ ...formData, password: '' });
-
-      if (role === 'sales' && formData.defaultPickupAddress.street) {
-        setTimeout(() => setMessage(''), 3000);
-      }
     } catch (err: any) {
-      setMessage(err.message || 'Failed to update profile');
+      showToast(err.message || 'Failed to update profile', 'error');
     } finally {
       setLoading(false);
     }
@@ -165,7 +161,7 @@ export function Profile() {
       await logout();
       navigate('/');
     } catch (err: any) {
-      setMessage(err.message || 'Failed to delete account');
+      showToast(err.message || 'Failed to delete account', 'error');
       setShowDeleteModal(false);
       setIsDeleting(false);
     }
@@ -215,12 +211,6 @@ export function Profile() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {message && (
-            <div className={`p-4 rounded mb-4 ${message.includes('success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {message}
             </div>
           )}
 

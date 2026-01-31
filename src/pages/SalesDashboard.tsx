@@ -11,6 +11,7 @@ import { Card } from '../components/ui/Card';
 import { StatusBadge } from '../components/ui/Badge';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { DriverSelectionModal } from '../components/sales/DriverSelectionModal';
+import { ScheduleDeliveryModal } from '../components/calendar/ScheduleDeliveryModal';
 import { AddressInput } from '../components/ui/AddressInput';
 import { getVehicleYears, VEHICLE_MAKES, getModelsForMake, TRANSMISSION_TYPES } from '../lib/vehicleData';
 import { formatAddress } from '../lib/addressUtils';
@@ -39,6 +40,7 @@ export function SalesDashboard() {
   const [scheduledDeliveries, setScheduledDeliveries] = useState<Delivery[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDriverSelection, setShowDriverSelection] = useState(false);
   const [deliveryToCancel, setDeliveryToCancel] = useState<string | null>(null);
@@ -709,22 +711,25 @@ export function SalesDashboard() {
                       const dateStr = day.date.toISOString().split('T')[0];
                       const dayDeliveries = deliveriesByDate[dateStr] || [];
                       const isToday = new Date().toDateString() === day.date.toDateString();
+                      const isSelected = selectedCalendarDate === dateStr;
                       
                       return (
                         <button
                           key={idx}
-                          onClick={() => dayDeliveries.length > 0 && setSelectedCalendarDate(dateStr)}
-                          className={`p-2 text-center rounded-lg min-h-[60px] relative ${
-                            !day.isCurrentMonth ? 'text-gray-300' :
-                            isToday ? 'bg-red-100 text-red-600 font-bold' :
-                            dayDeliveries.length > 0 ? 'bg-blue-50 hover:bg-blue-100 cursor-pointer' :
-                            'hover:bg-gray-50'
+                          onClick={() => setSelectedCalendarDate(dateStr)}
+                          className={`p-2 text-center rounded-lg min-h-[60px] relative cursor-pointer transition ${
+                            !day.isCurrentMonth ? 'text-gray-500' :
+                            isSelected ? 'bg-red-600 text-white' :
+                            isToday ? 'bg-red-900/30 text-red-400 font-bold' :
+                            dayDeliveries.length > 0 ? 'bg-neutral-700 hover:bg-neutral-600 text-gray-200' :
+                            'hover:bg-neutral-700 text-gray-300'
                           }`}
+                          data-testid={`calendar-day-${dateStr}`}
                         >
                           <span className="text-sm">{day.date.getDate()}</span>
                           {dayDeliveries.length > 0 && (
                             <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
-                              <span className="w-2 h-2 bg-blue-500 rounded-full block" />
+                              <span className={`w-2 h-2 rounded-full block ${isSelected ? 'bg-white' : 'bg-red-500'}`} />
                             </div>
                           )}
                         </button>
@@ -735,32 +740,46 @@ export function SalesDashboard() {
               )}
             </Card>
 
-            {/* Selected Date Deliveries */}
-            {selectedCalendarDate && deliveriesByDate[selectedCalendarDate] && (
+            {/* Selected Date Section */}
+            {selectedCalendarDate && (
               <Card className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium">
-                    Deliveries on {new Date(selectedCalendarDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  <h4 className="font-medium text-gray-200">
+                    {new Date(selectedCalendarDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                   </h4>
-                  <button onClick={() => setSelectedCalendarDate(null)} className="text-gray-500 hover:text-gray-700">
-                    <X size={20} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowScheduleModal(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
+                      data-testid="button-schedule-delivery"
+                    >
+                      <Plus size={16} />
+                      Schedule Delivery
+                    </button>
+                    <button onClick={() => setSelectedCalendarDate(null)} className="text-gray-400 hover:text-gray-200">
+                      <X size={20} />
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-3">
-                  {deliveriesByDate[selectedCalendarDate].map(delivery => (
-                    <div key={delivery.id} className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{delivery.year} {delivery.make} {delivery.model}</p>
-                          <p className="text-sm text-gray-500">
-                            {delivery.scheduledTime ? `Scheduled: ${delivery.scheduledTime}` : 'Time TBD'}
-                          </p>
+                {deliveriesByDate[selectedCalendarDate]?.length > 0 ? (
+                  <div className="space-y-3">
+                    {deliveriesByDate[selectedCalendarDate].map(delivery => (
+                      <div key={delivery.id} className="p-3 bg-neutral-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-200">{delivery.year} {delivery.make} {delivery.model}</p>
+                            <p className="text-sm text-gray-400">
+                              {delivery.scheduledTime ? `Scheduled: ${delivery.scheduledTime}` : 'Time TBD'}
+                            </p>
+                          </div>
+                          <StatusBadge status={(delivery.status || 'pending') as any} />
                         </div>
-                        <StatusBadge status={(delivery.status || 'pending') as any} />
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No deliveries scheduled for this date.</p>
+                )}
               </Card>
             )}
           </div>
@@ -978,6 +997,28 @@ export function SalesDashboard() {
           confirmText="Yes, Cancel"
           onConfirm={handleCancelDelivery}
           variant="danger"
+        />
+      )}
+
+      {/* Schedule Delivery Modal */}
+      {selectedCalendarDate && sales?.dealerId && (
+        <ScheduleDeliveryModal
+          isOpen={showScheduleModal}
+          onClose={() => setShowScheduleModal(false)}
+          selectedDate={selectedCalendarDate}
+          dealerId={sales.dealerId}
+          salesId={sales.id}
+          defaultPickupAddress={{
+            street: sales.defaultPickupStreet || '',
+            city: sales.defaultPickupCity || '',
+            state: sales.defaultPickupState || '',
+            zip: sales.defaultPickupZip || '',
+          }}
+          onSuccess={() => {
+            loadScheduledDeliveries();
+            if (sales?.id) loadDeliveries(sales.id);
+          }}
+          showToast={showToast}
         />
       )}
     </div>

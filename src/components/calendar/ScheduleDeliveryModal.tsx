@@ -46,6 +46,7 @@ export function ScheduleDeliveryModal({
     scheduledDate: selectedDate,
     scheduledTime: '09:00',
     driverId: '',
+    customerName: '',
     year: '',
     make: '',
     model: '',
@@ -101,6 +102,7 @@ export function ScheduleDeliveryModal({
         dealerId,
         salesId: salesId || null,
         driverId: formData.driverId || null,
+        customerName: formData.customerName || null,
         pickup: formatAddress(formData.pickupAddress),
         dropoff: formatAddress(formData.dropoffAddress),
         pickupStreet: formData.pickupAddress.street,
@@ -223,6 +225,21 @@ export function ScheduleDeliveryModal({
                 ))}
               </select>
             )}
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+              <User size={16} className="text-red-400" />
+              Customer Name
+            </label>
+            <input
+              type="text"
+              placeholder="Enter customer name"
+              value={formData.customerName}
+              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+              className="w-full px-4 py-3 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-red-600 focus:border-transparent"
+              data-testid="input-customer-name"
+            />
           </div>
 
           <div className="border-t border-neutral-700 pt-4">

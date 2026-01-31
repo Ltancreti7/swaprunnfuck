@@ -144,12 +144,19 @@ export function DriverDashboard() {
   };
 
   const handleDeclineDelivery = async (deliveryId: string) => {
-    if (!driver) return;
+    console.log('handleDeclineDelivery called with:', deliveryId, 'driver:', driver?.id);
+    if (!driver) {
+      console.log('No driver found, returning');
+      return;
+    }
     try {
+      console.log('Calling api.deliveries.decline');
       await api.deliveries.decline(deliveryId, driver.id);
+      console.log('Decline successful');
       showToast('Delivery declined', 'info');
       await loadRequestDeliveries(driver.id);
     } catch (err: any) {
+      console.error('Decline error:', err);
       showToast(err.message || 'Failed to decline', 'error');
     }
   };
@@ -224,7 +231,7 @@ export function DriverDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div className="min-h-screen bg-neutral-900 p-4">
         <DashboardSkeleton />
       </div>
     );
@@ -232,11 +239,11 @@ export function DriverDashboard() {
 
   if (!driver) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
         <Card className="max-w-md w-full text-center p-8">
-          <Truck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Driver Profile Not Found</h2>
-          <p className="text-gray-600">Please complete your registration.</p>
+          <Truck className="w-16 h-16 text-neutral-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2 text-white">Driver Profile Not Found</h2>
+          <p className="text-neutral-400">Please complete your registration.</p>
         </Card>
       </div>
     );
@@ -295,7 +302,7 @@ export function DriverDashboard() {
                 className={`px-4 py-4 font-medium transition border-b-2 flex items-center gap-2 whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'text-red-400 border-red-400'
-                    : 'text-gray-500 border-transparent hover:text-white'
+                    : 'text-neutral-400 border-transparent hover:text-white'
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
@@ -325,7 +332,7 @@ export function DriverDashboard() {
                       className="w-28 h-28 rounded-full object-cover border-4 border-neutral-700 shadow-lg"
                     />
                   ) : (
-                    <div className="w-28 h-28 rounded-full bg-neutral-700 flex items-center justify-center text-gray-300 text-3xl font-bold border-4 border-neutral-600 shadow-lg">
+                    <div className="w-28 h-28 rounded-full bg-neutral-700 flex items-center justify-center text-neutral-300 text-3xl font-bold border-4 border-neutral-600 shadow-lg">
                       {initials}
                     </div>
                   )}
@@ -353,16 +360,16 @@ export function DriverDashboard() {
                 
                 {/* Name */}
                 <h2 className="text-2xl font-bold text-white">{driver.name}</h2>
-                <p className="text-sm text-gray-500 mt-1">Tap photo to update</p>
+                <p className="text-sm text-neutral-500 mt-1">Tap photo to update</p>
                 
                 {/* Role Badge */}
                 <div className="flex items-center gap-2 mt-3">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-gray-300 rounded-full text-sm font-medium">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-neutral-300 rounded-full text-sm font-medium">
                     <Truck size={14} />
                     Driver
                   </span>
                   {driver.canDriveManual && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-gray-300 rounded-full text-sm font-medium">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-neutral-700 text-neutral-300 rounded-full text-sm font-medium">
                       Manual Trans
                     </span>
                   )}
@@ -377,16 +384,16 @@ export function DriverDashboard() {
               
               {/* Contact Info */}
               <div className="mt-6 pt-6 border-t border-neutral-700 space-y-3">
-                <div className="flex items-center gap-3 text-gray-300">
-                  <Phone size={18} className="text-gray-500" />
+                <div className="flex items-center gap-3 text-neutral-300">
+                  <Phone size={18} className="text-neutral-500" />
                   <span>{driver.phone || 'No phone added'}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-300">
-                  <Mail size={18} className="text-gray-500" />
+                <div className="flex items-center gap-3 text-neutral-300">
+                  <Mail size={18} className="text-neutral-500" />
                   <span>{driver.email}</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-300">
-                  <MapPinned size={18} className="text-gray-400" />
+                <div className="flex items-center gap-3 text-neutral-300">
+                  <MapPinned size={18} className="text-neutral-400" />
                   <span>{driver.radius || 50} mile service radius</span>
                 </div>
               </div>
@@ -394,10 +401,10 @@ export function DriverDashboard() {
               {/* Message Button */}
               <button
                 onClick={() => navigate('/conversations')}
-                className="absolute top-6 right-6 p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition"
+                className="absolute top-6 right-6 p-3 bg-neutral-700 rounded-full hover:bg-neutral-600 transition"
                 data-testid="button-messages-profile"
               >
-                <MessageCircle size={20} className="text-gray-600" />
+                <MessageCircle size={20} className="text-neutral-400" />
               </button>
             </Card>
             
@@ -406,7 +413,7 @@ export function DriverDashboard() {
               onClick={toggleAvailability}
               className={`w-full py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2 shadow-lg ${
                 driver.isAvailable
-                  ? 'bg-neutral-700 text-gray-300 hover:bg-neutral-600 border border-neutral-500'
+                  ? 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600 border border-neutral-500'
                   : 'bg-red-600 text-white hover:bg-red-700'
               }`}
               data-testid="button-toggle-availability"
@@ -418,19 +425,19 @@ export function DriverDashboard() {
             <div className="grid grid-cols-4 gap-2">
               <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
                 <p className="text-xl font-bold text-white">{requestDeliveries.length}</p>
-                <p className="text-xs text-gray-500">Requests</p>
+                <p className="text-xs text-neutral-400">Requests</p>
               </Card>
               <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
                 <p className="text-xl font-bold text-white">{upcomingDeliveries.length}</p>
-                <p className="text-xs text-gray-500">Active</p>
+                <p className="text-xs text-neutral-400">Active</p>
               </Card>
               <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
                 <p className="text-xl font-bold text-white">{recentDeliveries.length}</p>
-                <p className="text-xs text-gray-500">Completed</p>
+                <p className="text-xs text-neutral-400">Completed</p>
               </Card>
               <Card className="p-3 text-center bg-neutral-800 border-neutral-700">
                 <p className="text-xl font-bold text-white">{verifiedCount}</p>
-                <p className="text-xs text-gray-500">Verified</p>
+                <p className="text-xs text-neutral-400">Verified</p>
               </Card>
             </div>
             
@@ -441,10 +448,10 @@ export function DriverDashboard() {
               data-testid="button-settings"
             >
               <div className="flex items-center gap-3">
-                <Settings size={20} className="text-gray-400" />
+                <Settings size={20} className="text-neutral-400" />
                 <span className="font-medium text-white">Account Settings</span>
               </div>
-              <span className="text-gray-500">→</span>
+              <span className="text-neutral-400">→</span>
             </button>
           </div>
         )}
@@ -462,22 +469,22 @@ export function DriverDashboard() {
                       <p className="font-semibold text-lg">
                         {nextDelivery.year} {nextDelivery.make} {nextDelivery.model}
                       </p>
-                      <p className="text-sm text-gray-600">{nextDelivery.dealer?.name}</p>
+                      <p className="text-sm text-neutral-400">{nextDelivery.dealer?.name}</p>
                     </div>
                     <StatusBadge status={(nextDelivery.status || 'assigned') as any} />
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-start gap-2">
-                      <MapPin size={16} className="text-gray-400 mt-0.5" />
+                      <MapPin size={16} className="text-neutral-400 mt-0.5" />
                       <div>
-                        <p className="text-gray-600">Pickup</p>
+                        <p className="text-neutral-400">Pickup</p>
                         <p className="font-medium">{nextDelivery.pickup}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <MapPin size={16} className="text-red-500 mt-0.5" />
                       <div>
-                        <p className="text-gray-600">Dropoff</p>
+                        <p className="text-neutral-400">Dropoff</p>
                         <p className="font-medium">{nextDelivery.dropoff}</p>
                       </div>
                     </div>
@@ -501,9 +508,9 @@ export function DriverDashboard() {
               </h2>
               {requestDeliveries.length === 0 ? (
                 <Card className="p-6 text-center">
-                  <Inbox className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">No pending requests</p>
-                  <p className="text-sm text-gray-500 mt-1">New delivery requests will appear here</p>
+                  <Inbox className="w-12 h-12 text-neutral-500 mx-auto mb-3" />
+                  <p className="text-neutral-400">No pending requests</p>
+                  <p className="text-sm text-neutral-500 mt-1">New delivery requests will appear here</p>
                 </Card>
               ) : (
                 <div className="space-y-3">
@@ -512,12 +519,12 @@ export function DriverDashboard() {
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <p className="font-semibold">{delivery.year} {delivery.make} {delivery.model}</p>
-                          <p className="text-sm text-gray-600">{delivery.dealer?.name}</p>
+                          <p className="text-sm text-neutral-400">{delivery.dealer?.name}</p>
                         </div>
                         <StatusBadge status="pending" />
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">VIN: {delivery.vin}</p>
-                      <p className="text-sm text-gray-600 mb-3">To: {delivery.dropoff}</p>
+                      <p className="text-sm text-neutral-400 mb-1">VIN: {delivery.vin}</p>
+                      <p className="text-sm text-neutral-400 mb-3">To: {delivery.dropoff}</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleAcceptDelivery(delivery.id)}
@@ -528,7 +535,7 @@ export function DriverDashboard() {
                         </button>
                         <button
                           onClick={() => handleDeclineDelivery(delivery.id)}
-                          className="flex-1 py-2 border border-neutral-600 text-gray-300 rounded-lg font-medium hover:bg-neutral-700 transition"
+                          className="flex-1 py-2 border border-neutral-600 text-neutral-300 rounded-lg font-medium hover:bg-neutral-700 transition"
                           data-testid={`button-decline-${delivery.id}`}
                         >
                           Decline
@@ -550,11 +557,12 @@ export function DriverDashboard() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{delivery.year} {delivery.make} {delivery.model}</p>
-                          <p className="text-sm text-gray-600">{delivery.dealer?.name}</p>
+                          <p className="text-sm text-neutral-400">{delivery.dealer?.name}</p>
                         </div>
                         <button
                           onClick={() => navigate(`/delivery/${delivery.id}`)}
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                          className="px-4 py-2 border border-neutral-600 rounded-lg text-sm font-medium text-white hover:bg-neutral-700 transition"
+                          data-testid={`button-view-${delivery.id}`}
                         >
                           View
                         </button>
@@ -584,8 +592,8 @@ export function DriverDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{delivery.year} {delivery.make} {delivery.model}</p>
-                        <p className="text-sm text-gray-600">{delivery.dealer?.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-sm text-neutral-400">{delivery.dealer?.name}</p>
+                        <p className="text-xs text-neutral-500 mt-1">
                           {delivery.completedAt && new Date(delivery.completedAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -615,12 +623,13 @@ export function DriverDashboard() {
 
             {approvedDealerships.length === 0 ? (
               <Card className="p-8 text-center">
-                <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <Building2 className="w-16 h-16 text-neutral-500 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No Dealerships Yet</h3>
-                <p className="text-gray-600 mb-4">Apply to dealerships to start receiving delivery requests</p>
+                <p className="text-neutral-400 mb-4">Apply to dealerships to start receiving delivery requests</p>
                 <button
                   onClick={() => setShowDealerSearch(true)}
                   className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+                  data-testid="button-find-dealerships-empty"
                 >
                   Find Dealerships
                 </button>
@@ -632,9 +641,9 @@ export function DriverDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-semibold">{item.dealer?.name}</p>
-                        <p className="text-sm text-gray-600">{item.dealer?.address}</p>
+                        <p className="text-sm text-neutral-400">{item.dealer?.address}</p>
                         {item.isVerified && (
-                          <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full mt-2">
+                          <span className="inline-flex items-center gap-1 text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full mt-2">
                             <Star size={12} />
                             Verified
                           </span>
@@ -663,10 +672,10 @@ export function DriverDashboard() {
       {/* Dealership Search Modal */}
       {showDealerSearch && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
-          <div className="bg-white rounded-t-lg sm:rounded-lg w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Find Dealerships</h2>
-              <button onClick={() => setShowDealerSearch(false)} className="text-gray-500 hover:text-gray-700">
+          <div className="bg-neutral-800 rounded-t-lg sm:rounded-lg w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-neutral-700">
+            <div className="p-6 border-b border-neutral-700 sticky top-0 bg-neutral-800 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Find Dealerships</h2>
+              <button onClick={() => setShowDealerSearch(false)} className="text-neutral-400 hover:text-white transition" data-testid="button-close-modal">
                 <X size={24} />
               </button>
             </div>

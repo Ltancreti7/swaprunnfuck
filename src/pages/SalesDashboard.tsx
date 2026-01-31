@@ -624,6 +624,24 @@ export function SalesDashboard() {
         {/* CHAT TAB */}
         {activeTab === 'chat' && (
           <div className="space-y-4">
+            {/* Quick Schedule Button */}
+            {sales?.dealerId && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    setSelectedCalendarDate(today);
+                    setShowScheduleModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition"
+                  data-testid="button-quick-schedule-from-chat"
+                >
+                  <Plus size={18} />
+                  Schedule Delivery
+                </button>
+              </div>
+            )}
+
             {chatLoading && conversations.length === 0 ? (
               <div className="flex justify-center py-12">
                 <div className="animate-spin h-8 w-8 border-4 border-red-600 border-t-transparent rounded-full" />

@@ -7,6 +7,7 @@ import { StatusBadge } from '../components/ui/Badge';
 import { formatMessageDate, formatTime } from '../lib/dateUtils';
 import { retryWithBackoff, isNetworkError } from '../lib/retry';
 import { ScheduleConfirmationModal } from '../components/sales/ScheduleConfirmationModal';
+import { ScheduleDeliveryModal } from '../components/calendar/ScheduleDeliveryModal';
 import { getTimeframeDisplay } from '../lib/deliveryUtils';
 import api from '../lib/api';
 import type { Delivery, Message, Sales, Driver } from '../../shared/schema';
@@ -26,6 +27,7 @@ export function Chat() {
   const [salesPerson, setSalesPerson] = useState<Sales | null>(null);
   const [driver, setDriver] = useState<Driver | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showNewDeliveryModal, setShowNewDeliveryModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -297,6 +299,16 @@ export function Chat() {
                 Confirm Delivery Schedule
               </button>
             )}
+            {role === 'sales' && salesPerson?.dealerId && (
+              <button
+                onClick={() => setShowNewDeliveryModal(true)}
+                className="touch-target w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2.5 sm:py-3 rounded-lg font-semibold hover:from-red-700 hover:to-red-800 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-sm sm:text-base mt-2"
+                data-testid="button-schedule-new-delivery"
+              >
+                <Calendar size={18} />
+                Schedule New Delivery
+              </button>
+            )}
             {delivery.notes && (
               <p className="text-sm text-gray-600 mt-2">{delivery.notes}</p>
             )}
@@ -413,6 +425,27 @@ export function Chat() {
         requiredTimeframe={delivery.requiredTimeframe ?? undefined}
         customDate={delivery.customDate ?? undefined}
       />
+
+      {salesPerson?.dealerId && (
+        <ScheduleDeliveryModal
+          isOpen={showNewDeliveryModal}
+          onClose={() => setShowNewDeliveryModal(false)}
+          selectedDate={new Date().toISOString().split('T')[0]}
+          dealerId={salesPerson.dealerId}
+          salesId={salesPerson.id}
+          defaultPickupAddress={{
+            street: salesPerson.defaultPickupStreet || '',
+            city: salesPerson.defaultPickupCity || '',
+            state: salesPerson.defaultPickupState || '',
+            zip: salesPerson.defaultPickupZip || '',
+          }}
+          onSuccess={() => {
+            setShowNewDeliveryModal(false);
+            showToast('Delivery scheduled successfully!', 'success');
+          }}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }

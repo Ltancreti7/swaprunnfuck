@@ -68,6 +68,7 @@ Preferred communication style: Simple, everyday language.
 - **Simplified Sales Signup**: Self-registration with dealer approval workflow.
 - **Manager Admin Access Request**: In-app request and approval for existing dealership managers.
 - **Profile Picture Upload**: Drivers can upload profile pictures via Replit Object Storage.
+- **Delivery Photo Documentation**: Drivers and sales can upload categorized photos (pickup, dropoff, odometer, damage, other) with captions; dealers view-only. Integrated into DriverDashboard, SalesDashboard, Chat, and DeliveryDetailsModal.
 
 ### Project Structure
 - `/src`: React frontend (components, contexts, hooks, lib, pages)

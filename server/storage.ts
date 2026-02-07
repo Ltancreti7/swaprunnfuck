@@ -17,6 +17,7 @@ import type {
   PasswordResetToken,
   OnboardingProgress, InsertOnboardingProgress,
   PushToken, InsertPushToken,
+  DeliveryPhoto, InsertDeliveryPhoto,
 } from "../shared/schema";
 import crypto from "crypto";
 
@@ -113,6 +114,11 @@ export interface IStorage {
   createOrUpdatePushToken(token: InsertPushToken): Promise<PushToken>;
   deletePushToken(userId: string, token: string): Promise<void>;
   getPushTokensForUsers(userIds: string[]): Promise<PushToken[]>;
+  
+  getDeliveryPhotos(deliveryId: string): Promise<DeliveryPhoto[]>;
+  createDeliveryPhoto(photo: InsertDeliveryPhoto): Promise<DeliveryPhoto>;
+  deleteDeliveryPhoto(id: string): Promise<void>;
+  getDeliveryPhoto(id: string): Promise<DeliveryPhoto | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -671,6 +677,26 @@ export class DatabaseStorage implements IStorage {
   async getPushTokensForUsers(userIds: string[]): Promise<PushToken[]> {
     if (userIds.length === 0) return [];
     return db.select().from(schema.pushTokens).where(inArray(schema.pushTokens.userId, userIds));
+  }
+
+  async getDeliveryPhotos(deliveryId: string): Promise<DeliveryPhoto[]> {
+    return db.select().from(schema.deliveryPhotos)
+      .where(eq(schema.deliveryPhotos.deliveryId, deliveryId))
+      .orderBy(asc(schema.deliveryPhotos.createdAt));
+  }
+
+  async createDeliveryPhoto(photo: InsertDeliveryPhoto): Promise<DeliveryPhoto> {
+    const [created] = await db.insert(schema.deliveryPhotos).values(photo).returning();
+    return created;
+  }
+
+  async deleteDeliveryPhoto(id: string): Promise<void> {
+    await db.delete(schema.deliveryPhotos).where(eq(schema.deliveryPhotos.id, id));
+  }
+
+  async getDeliveryPhoto(id: string): Promise<DeliveryPhoto | undefined> {
+    const [photo] = await db.select().from(schema.deliveryPhotos).where(eq(schema.deliveryPhotos.id, id));
+    return photo;
   }
 }
 

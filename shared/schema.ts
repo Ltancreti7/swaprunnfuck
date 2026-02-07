@@ -102,6 +102,17 @@ export const deliveries = pgTable("deliveries", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const deliveryPhotos = pgTable("delivery_photos", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliveryId: uuid("delivery_id").references(() => deliveries.id, { onDelete: "cascade" }).notNull(),
+  uploaderId: uuid("uploader_id").notNull(),
+  uploaderRole: text("uploader_role").notNull(),
+  photoType: text("photo_type").notNull(),
+  objectPath: text("object_path").notNull(),
+  caption: text("caption").default(""),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const messages = pgTable("messages", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   deliveryId: uuid("delivery_id").references(() => deliveries.id, { onDelete: "cascade" }).notNull(),
@@ -268,8 +279,10 @@ export const insertDealerAdminSchema = createInsertSchema(dealerAdmins).omit({ i
 export const insertAdminInvitationSchema = createInsertSchema(adminInvitations).omit({ id: true, createdAt: true, token: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertOnboardingProgressSchema = createInsertSchema(onboardingProgress).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDeliveryPhotoSchema = createInsertSchema(deliveryPhotos).omit({ id: true, createdAt: true });
 export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({ id: true, createdAt: true, updatedAt: true });
 
+export type InsertDeliveryPhoto = z.infer<typeof insertDeliveryPhotoSchema>;
 export type InsertDealer = z.infer<typeof insertDealerSchema>;
 export type InsertSales = z.infer<typeof insertSalesSchema>;
 export type InsertDriver = z.infer<typeof insertDriverSchema>;
@@ -299,6 +312,7 @@ export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type DriverStatistics = typeof driverStatistics.$inferSelect;
 export type DriverPreference = typeof driverPreferences.$inferSelect;
 export type OnboardingProgress = typeof onboardingProgress.$inferSelect;
+export type DeliveryPhoto = typeof deliveryPhotos.$inferSelect;
 export type PushToken = typeof pushTokens.$inferSelect;
 
 export type AdminRole = 'owner' | 'manager' | 'viewer';

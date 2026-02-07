@@ -1244,6 +1244,79 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/deliveries/:id/photos", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const photos = await storage.getDeliveryPhotos(req.params.id);
+      res.json(photos);
+    } catch (error) {
+      console.error("Error fetching delivery photos:", error);
+      res.status(500).json({ error: "Failed to fetch photos" });
+    }
+  });
+
+  app.post("/api/deliveries/:id/photos", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { objectPath, photoType, caption, uploaderRole } = req.body;
+      
+      if (!objectPath || !photoType || !uploaderRole) {
+        return res.status(400).json({ error: "Missing required fields: objectPath, photoType, uploaderRole" });
+      }
+      
+      let uploaderId = userId;
+      if (uploaderRole === 'driver') {
+        const driver = await storage.getDriverByUserId(userId);
+        if (driver) uploaderId = driver.id;
+      } else if (uploaderRole === 'sales') {
+        const sales = await storage.getSalesByUserId(userId);
+        if (sales) uploaderId = sales.id;
+      }
+      
+      const photo = await storage.createDeliveryPhoto({
+        deliveryId: req.params.id,
+        uploaderId,
+        uploaderRole,
+        photoType,
+        objectPath,
+        caption: caption || "",
+      });
+      
+      res.json(photo);
+    } catch (error) {
+      console.error("Error saving delivery photo:", error);
+      res.status(500).json({ error: "Failed to save photo" });
+    }
+  });
+
+  app.delete("/api/delivery-photos/:id", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const photo = await storage.getDeliveryPhoto(req.params.id);
+      if (!photo) return res.status(404).json({ error: "Photo not found" });
+      
+      const driver = await storage.getDriverByUserId(userId);
+      const sales = await storage.getSalesByUserId(userId);
+      const isOwner = photo.uploaderId === userId || 
+        (driver && photo.uploaderId === driver.id) || 
+        (sales && photo.uploaderId === sales.id);
+      
+      if (!isOwner) return res.status(403).json({ error: "Not authorized to delete this photo" });
+      
+      await storage.deleteDeliveryPhoto(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting delivery photo:", error);
+      res.status(500).json({ error: "Failed to delete photo" });
+    }
+  });
+
   app.post("/api/deliveries/:id/decline", async (req, res) => {
     try {
       const { driverId } = req.body;

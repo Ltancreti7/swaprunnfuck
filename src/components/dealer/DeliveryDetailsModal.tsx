@@ -2,6 +2,7 @@ import { X, MapPin, Package, User, Calendar, MessageCircle } from 'lucide-react'
 import { Delivery, Driver, DeliveryStatus } from '../../../shared/schema';
 import { StatusBadge } from '../ui/Badge';
 import { formatDate } from '../../lib/dateUtils';
+import { DeliveryPhotoGallery } from '../delivery/DeliveryPhotoGallery';
 
 interface DeliveryDetailsModalProps {
   isOpen: boolean;
@@ -114,6 +115,13 @@ export function DeliveryDetailsModal({
                   </p>
                 </div>
               )}
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Delivery Photos</h3>
+              <DeliveryPhotoGallery
+                deliveryId={delivery.id}
+                currentUserRole="dealer"
+              />
+            </div>
             </div>
             </div>
           </div>

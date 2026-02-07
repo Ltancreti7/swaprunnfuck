@@ -12,6 +12,8 @@ import { DashboardSkeleton } from '../components/ui/LoadingSkeleton';
 import { DealershipSearch } from '../components/driver/DealershipSearch';
 import { EditProfileModal } from '../components/driver/EditProfileModal';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessagesCount';
+import { DeliveryPhotoUpload } from '../components/delivery/DeliveryPhotoUpload';
+import { DeliveryPhotoGallery } from '../components/delivery/DeliveryPhotoGallery';
 
 interface DeliveryWithDealer extends Delivery {
   dealer: Dealer;
@@ -37,6 +39,8 @@ export function DriverDashboard() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [showDealerSearch, setShowDealerSearch] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoRefreshTrigger, setPhotoRefreshTrigger] = useState(0);
+  const [showPhotos, setShowPhotos] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -497,6 +501,33 @@ export function DriverDashboard() {
                     <Play size={20} />
                     View Delivery
                   </button>
+                  <div className="mt-4 border-t border-neutral-700 pt-4">
+                    <button
+                      onClick={() => setShowPhotos(!showPhotos)}
+                      className="flex items-center justify-between w-full text-sm font-medium text-neutral-300"
+                      data-testid="button-toggle-photos"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Camera size={16} />
+                        Delivery Photos
+                      </span>
+                      <span className="text-neutral-500">{showPhotos ? '▲' : '▼'}</span>
+                    </button>
+                    {showPhotos && (
+                      <div className="mt-3 space-y-4">
+                        <DeliveryPhotoUpload
+                          deliveryId={nextDelivery.id}
+                          uploaderRole="driver"
+                          onPhotoUploaded={() => setPhotoRefreshTrigger(prev => prev + 1)}
+                        />
+                        <DeliveryPhotoGallery
+                          deliveryId={nextDelivery.id}
+                          currentUserRole="driver"
+                          refreshTrigger={photoRefreshTrigger}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </Card>
               </div>
             )}

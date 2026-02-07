@@ -16,6 +16,8 @@ import { AddressInput } from '../components/ui/AddressInput';
 import { getVehicleYears, VEHICLE_MAKES, getModelsForMake, TRANSMISSION_TYPES } from '../lib/vehicleData';
 import { formatAddress } from '../lib/addressUtils';
 import { validateVIN } from '../lib/validation';
+import { DeliveryPhotoUpload } from '../components/delivery/DeliveryPhotoUpload';
+import { DeliveryPhotoGallery } from '../components/delivery/DeliveryPhotoGallery';
 
 export function SalesDashboard() {
   const navigate = useNavigate();
@@ -45,6 +47,8 @@ export function SalesDashboard() {
   const [showDriverSelection, setShowDriverSelection] = useState(false);
   const [deliveryToCancel, setDeliveryToCancel] = useState<string | null>(null);
   const [vinError, setVinError] = useState('');
+  const [expandedPhotoDeliveryId, setExpandedPhotoDeliveryId] = useState<string | null>(null);
+  const [photoRefreshTrigger, setPhotoRefreshTrigger] = useState(0);
   const [formStep, setFormStep] = useState<1 | 2 | 3>(1);
   const [newDelivery, setNewDelivery] = useState({
     pickupAddress: { street: '', city: '', state: '', zip: '' } as AddressFields,
@@ -612,8 +616,30 @@ export function SalesDashboard() {
                             Cancel
                           </button>
                         )}
+                        <button
+                          onClick={() => setExpandedPhotoDeliveryId(expandedPhotoDeliveryId === delivery.id ? null : delivery.id)}
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-1"
+                          data-testid={`button-photos-${delivery.id}`}
+                        >
+                          <Camera size={16} />
+                          Photos
+                        </button>
                       </div>
                     </div>
+                    {expandedPhotoDeliveryId === delivery.id && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+                        <DeliveryPhotoUpload
+                          deliveryId={delivery.id}
+                          uploaderRole="sales"
+                          onPhotoUploaded={() => setPhotoRefreshTrigger(prev => prev + 1)}
+                        />
+                        <DeliveryPhotoGallery
+                          deliveryId={delivery.id}
+                          currentUserRole="sales"
+                          refreshTrigger={photoRefreshTrigger}
+                        />
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>

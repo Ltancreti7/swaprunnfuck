@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, MessageCircle, AlertCircle, RefreshCw, Calendar, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Send, MessageCircle, AlertCircle, RefreshCw, Calendar, CheckCircle2, Camera } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatusBadge } from '../components/ui/Badge';
@@ -8,6 +8,8 @@ import { formatMessageDate, formatTime } from '../lib/dateUtils';
 import { retryWithBackoff, isNetworkError } from '../lib/retry';
 import { ScheduleConfirmationModal } from '../components/sales/ScheduleConfirmationModal';
 import { ScheduleDeliveryModal } from '../components/calendar/ScheduleDeliveryModal';
+import { DeliveryPhotoUpload } from '../components/delivery/DeliveryPhotoUpload';
+import { DeliveryPhotoGallery } from '../components/delivery/DeliveryPhotoGallery';
 import { getTimeframeDisplay } from '../lib/deliveryUtils';
 import api from '../lib/api';
 import type { Delivery, Message, Sales, Driver } from '../../shared/schema';
@@ -28,6 +30,8 @@ export function Chat() {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showNewDeliveryModal, setShowNewDeliveryModal] = useState(false);
+  const [showPhotos, setShowPhotos] = useState(false);
+  const [photoRefreshTrigger, setPhotoRefreshTrigger] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -312,6 +316,35 @@ export function Chat() {
             {delivery.notes && (
               <p className="text-sm text-gray-600 mt-2">{delivery.notes}</p>
             )}
+            <div className="mt-3 border-t border-gray-200 pt-3">
+              <button
+                onClick={() => setShowPhotos(!showPhotos)}
+                className="flex items-center justify-between w-full text-sm font-medium text-gray-700"
+                data-testid="button-toggle-chat-photos"
+              >
+                <span className="flex items-center gap-2">
+                  <Camera size={16} />
+                  Delivery Photos
+                </span>
+                <span className="text-gray-400">{showPhotos ? '▲' : '▼'}</span>
+              </button>
+              {showPhotos && (
+                <div className="mt-3 space-y-4">
+                  {(role === 'driver' || role === 'sales') && (
+                    <DeliveryPhotoUpload
+                      deliveryId={deliveryId!}
+                      uploaderRole={role as 'driver' | 'sales'}
+                      onPhotoUploaded={() => setPhotoRefreshTrigger(prev => prev + 1)}
+                    />
+                  )}
+                  <DeliveryPhotoGallery
+                    deliveryId={deliveryId!}
+                    currentUserRole={role || undefined}
+                    refreshTrigger={photoRefreshTrigger}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

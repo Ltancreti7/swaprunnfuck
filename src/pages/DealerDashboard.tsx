@@ -53,6 +53,7 @@ export function DealerDashboard() {
     verificationNotes: string | null;
   }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -339,7 +340,8 @@ export function DealerDashboard() {
 
   const handleCreateDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dealer) return;
+    if (!dealer || isCreatingDelivery) return;
+    setIsCreatingDelivery(true);
     const dealershipId = dealer.id;
     const salesId = role === "sales" ? sales?.id || null : null;
     const pickupAddress = formatAddress(newDelivery.pickupAddress);
@@ -371,6 +373,8 @@ export function DealerDashboard() {
     } catch (error) {
       console.error(error);
       showToast("Failed to create delivery", "error");
+    } finally {
+      setIsCreatingDelivery(false);
     }
   };
 
@@ -1113,10 +1117,11 @@ export function DealerDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition"
+                  disabled={isCreatingDelivery}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid="button-submit-delivery"
                 >
-                  Create Delivery
+                  {isCreatingDelivery ? 'Creating...' : 'Create Delivery'}
                 </button>
               </div>
             </form>

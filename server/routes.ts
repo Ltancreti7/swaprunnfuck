@@ -11,7 +11,7 @@ import {
   sendAdminInvitationEmail, 
   isEmailConfigured
 } from "./email";
-import { pollingRateLimiter, sensitiveRateLimiter } from "./rateLimit";
+import { pollingRateLimiter, sensitiveRateLimiter, authRateLimiter } from "./rateLimit";
 import { 
   notifyDeliveryStatusChange, 
   notifyNewMessage, 
@@ -237,7 +237,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
       const normalizedEmail = email?.toLowerCase().trim();
@@ -369,7 +369,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/auth/email-configured", (req, res) => {
+  app.get("/api/auth/email-configured", (_req, res) => {
     res.json({ configured: isEmailConfigured() });
   });
 
@@ -396,7 +396,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/dealers", async (req, res) => {
+  app.get("/api/dealers", async (_req, res) => {
     try {
       const dealers = await storage.getDealers();
       res.json(dealers);
@@ -669,7 +669,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/drivers", async (req, res) => {
+  app.get("/api/drivers", async (_req, res) => {
     try {
       const drivers = await storage.getDrivers();
       res.json(drivers);
@@ -2003,7 +2003,7 @@ export function registerRoutes(app: Express): void {
   // Manager/Admin request access - creates user and pending dealer_admin record
   app.post("/api/auth/register-manager", async (req, res) => {
     try {
-      const { email, password, name, phone, dealerId, role } = req.body;
+      const { email, password, name, phone: _phone, dealerId, role } = req.body;
       
       if (!email || !password || !name || !dealerId || !role) {
         return res.status(400).json({ error: "Email, password, name, dealership, and role are required" });
@@ -2510,7 +2510,7 @@ export function registerRoutes(app: Express): void {
       }
       
       // Update status to approved
-      const updated = await storage.updateDealerAdmin(req.params.id, { 
+      await storage.updateDealerAdmin(req.params.id, { 
         status: "approved",
         acceptedAt: new Date()
       });

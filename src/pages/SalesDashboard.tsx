@@ -28,6 +28,7 @@ export function SalesDashboard() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [showNewDelivery, setShowNewDelivery] = useState(false);
+  const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [activeTab, setActiveTab] = useState<'profile' | 'deliveries' | 'chat' | 'calendar'>('profile');
@@ -230,7 +231,7 @@ export function SalesDashboard() {
 
   const handleCreateDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sales) return;
+    if (!sales || isCreatingDelivery) return;
 
     const vinValidation = validateVIN(newDelivery.vin);
     if (!vinValidation.isValid) {
@@ -239,6 +240,7 @@ export function SalesDashboard() {
       return;
     }
 
+    setIsCreatingDelivery(true);
     try {
       const createdDelivery = await api.deliveries.create({
         dealerId: sales.dealerId,
@@ -289,6 +291,8 @@ export function SalesDashboard() {
     } catch (err) {
       console.error('Error creating delivery:', err);
       showToast('Failed to create delivery', 'error');
+    } finally {
+      setIsCreatingDelivery(false);
     }
   };
 
@@ -1006,8 +1010,8 @@ export function SalesDashboard() {
                     <button type="button" onClick={() => setFormStep(2)} className="flex-1 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50">
                       Back
                     </button>
-                    <button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition" data-testid="button-submit-delivery">
-                      Submit Request
+                    <button type="submit" disabled={isCreatingDelivery} className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed" data-testid="button-submit-delivery">
+                      {isCreatingDelivery ? 'Submitting...' : 'Submit Request'}
                     </button>
                   </div>
                 </div>

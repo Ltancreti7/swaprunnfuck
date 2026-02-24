@@ -54,7 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **In-App Notifications**: NotificationCenter component with polling.
 - **Push Notifications**: Firebase Cloud Messaging for native mobile apps (new delivery alerts, driver acceptance, chat messages, application updates).
 - **Account Deletion**: Safe cascade deletion.
-- **Rate Limiting**: In-memory rate limiting for polling and sensitive operations.
+- **Rate Limiting**: In-memory rate limiting for login, polling, and sensitive operations (login: 10 req/min, polling: 20 req/10s, sensitive: 5 req/hour).
 - **Race Condition Handling**: Atomic delivery acceptance using conditional updates.
 - **Security Headers**: Comprehensive set of security headers.
 - **Authorization**: Role-based access control and ownership verification across all API endpoints.
@@ -69,11 +69,13 @@ Preferred communication style: Simple, everyday language.
 - **Manager Admin Access Request**: In-app request and approval for existing dealership managers.
 - **Profile Picture Upload**: Drivers can upload profile pictures via Replit Object Storage.
 - **Delivery Photo Documentation**: Drivers and sales can upload categorized photos (pickup, dropoff, odometer, damage, other) with captions; dealers view-only. Integrated into DriverDashboard, SalesDashboard, Chat, and DeliveryDetailsModal.
+- **Double-Submit Prevention**: Delivery creation forms disable submit button during API call.
 
 ### Project Structure
 - `/src`: React frontend (components, contexts, hooks, lib, pages)
 - `/server`: Express backend (index, routes, storage, db)
 - `/shared`: Shared TypeScript schemas
+- `/ios`: Capacitor iOS project (Xcode)
 
 ### UI/UX and Feature Specifications
 - **Dashboards**: Refactored for mobile-first experience with specific tab structures for Dealer, Sales, and Driver.
@@ -83,6 +85,20 @@ Preferred communication style: Simple, everyday language.
 - **Availability Toggle**: Integrated into driver profile.
 - **Calendar & Scheduling**: Month view calendar showing scheduled deliveries, delivery scheduling with driver availability checks.
 - **Native App Feel**: iOS-style overscroll, active-press feedback, skeleton loading, pull-to-refresh.
+
+### iOS App Configuration (Capacitor)
+- **Info.plist**: Privacy usage descriptions configured (camera, photo library, location).
+- **AppDelegate.swift**: Firebase initialization and APNs token forwarding configured.
+- **Podfile**: All Capacitor plugins registered.
+- **App Icons**: Complete set for iPhone, iPad, Watch, and Mac.
+
+### Remaining iOS Steps (Requires Xcode on Mac)
+1. Add `GoogleService-Info.plist` from Firebase Console to the Xcode project.
+2. Add `FirebaseCore` pod to Podfile and run `pod install`.
+3. Enable Push Notifications capability in Xcode (Signing & Capabilities).
+4. Enable Background Modes > Remote Notifications (already in Info.plist).
+5. Build and test on physical device or Simulator.
+6. Configure App Store Connect for TestFlight submission.
 
 ## External Dependencies
 

@@ -1,0 +1,74 @@
+You are performing a PRE–APP STORE LAUNCH AUDIT for this application.
+
+Do NOT change any code.
+Do NOT refactor.
+Report only.
+
+Goal:
+Determine how close this app is to being production-ready for App Store launch.
+
+Audit the entire repository including:
+- src/
+- server/
+- shared/
+- supabase/
+- ios/
+- capacitor.config.ts
+- package.json
+- privacy-policy.html
+- TEST_PLAN.md
+- DEPLOYMENT_CHECKLIST.md
+
+Output a structured report with the following sections:
+
+1) FUNCTIONAL COMPLETENESS
+- List all core user flows (Dealer, Driver, Sales).
+- Confirm whether each flow is fully implemented end-to-end.
+- Identify broken, partially implemented, or inconsistent logic.
+- Specifically verify job lifecycle (create → accept → decline → complete → cancel).
+- Confirm decline actually removes job from all relevant UI states.
+
+2) STATE MANAGEMENT & REALTIME
+- Identify how UI state updates after DB writes.
+- Flag any stale state risks, race conditions, or missing refetches.
+- Identify areas where realtime/subscription should exist but doesn’t.
+
+3) ERROR HANDLING & EDGE CASES
+- Identify functions without try/catch or error handling.
+- Identify missing loading states.
+- Identify areas vulnerable to double-submit or duplicate writes.
+- Identify failure scenarios (upload failure, network drop, refresh mid-action).
+
+4) SECURITY & AUTH
+- List all endpoints that mutate state.
+- Confirm role-based restrictions are enforced server-side.
+- Flag any client-side trust assumptions.
+- Confirm Supabase RLS assumptions.
+
+5) MOBILE / CAPACITOR READINESS
+- Verify ios/ configuration completeness.
+- Confirm required iOS permission strings exist (camera, photos, location).
+- Confirm app icon and splash config readiness.
+- Identify anything that would cause App Store rejection.
+
+6) PERFORMANCE
+- Flag large components, unnecessary re-renders, or heavy queries.
+- Identify opportunities for optimization before launch.
+
+7) POLISH GAPS
+- List UI/UX inconsistencies.
+- Missing confirmation toasts.
+- Missing empty states.
+- Native-feeling improvements needed.
+
+8) CRITICAL LAUNCH BLOCKERS
+- List items that would likely cause App Store rejection.
+- List items that would cause user trust issues.
+
+End with:
+- Launch Readiness Score (1–10)
+- Top 15 fixes ranked by ROI (Quick Win vs Structural)
+- What must be fixed BEFORE submitting to TestFlight
+
+Important:
+Be brutally honest. Assume real paying users will use this app.

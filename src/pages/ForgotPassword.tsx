@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { validateEmail } from '../lib/validation';
@@ -7,6 +7,7 @@ import { Input } from '../components/ui/Input';
 
 export function ForgotPassword() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,7 +69,7 @@ export function ForgotPassword() {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center px-4" data-testid="forgot-password-success">
+      <div className="flex-1 bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center px-4" data-testid="forgot-password-success">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -81,7 +82,7 @@ export function ForgotPassword() {
                 : "Your request has been received. However, email service is not currently configured. Please contact support for assistance."}
             </p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login' + location.search)}
               className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition"
               data-testid="button-back-to-login"
             >
@@ -94,10 +95,10 @@ export function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center px-4" data-testid="forgot-password-page">
+    <div className="flex-1 bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 flex items-center justify-center px-4" data-testid="forgot-password-page">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/login' + location.search)}
           className="flex items-center text-gray-600 hover:text-red-600 mb-6 transition"
           data-testid="link-back"
         >

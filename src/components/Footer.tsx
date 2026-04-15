@@ -23,7 +23,7 @@ export function Footer() {
             >
               Privacy Policy
             </button>
-            <a href="mailto:ltancreti7@gmail.com" className="hover:text-red-600 transition font-medium">Contact</a>
+            <a href="mailto:support@swaprunn.com" className="hover:text-red-600 transition font-medium">Contact</a>
           </div>
         </div>
         <div className="text-center mt-4 text-sm text-gray-400">

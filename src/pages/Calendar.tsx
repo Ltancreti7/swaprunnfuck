@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Truck, User, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Truck, User, Plus, MessageCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../lib/api';
@@ -15,6 +15,18 @@ interface DeliveryWithRelations extends Delivery {
   sales?: Sales | null;
 }
 
+interface CalendarEventItem {
+  id: string;
+  deliveryId: string;
+  createdByUserId: string;
+  title: string;
+  notes: string | null;
+  location: string | null;
+  startAt: string;
+  endAt: string;
+  participantUserIds: string[];
+}
+
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -24,6 +36,7 @@ export function Calendar() {
   const { showToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [deliveries, setDeliveries] = useState<DeliveryWithRelations[]>([]);
+  const [events, setEvents] = useState<CalendarEventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -33,9 +46,34 @@ export function Calendar() {
   useEffect(() => {
     if (user) {
       loadScheduledDeliveries();
+      loadCalendarEvents();
       loadUserData();
     }
   }, [user, currentDate]);
+
+  const loadCalendarEvents = async () => {
+    try {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const from = new Date(year, month, 1).toISOString();
+      const to = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+      const data = await api.calendarEvents.list(from, to);
+      setEvents(data || []);
+    } catch (err) {
+      console.error('Error loading calendar events:', err);
+    }
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm('Delete this calendar event?')) return;
+    try {
+      await api.calendarEvents.delete(id);
+      showToast('Event deleted', 'success');
+      loadCalendarEvents();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to delete event', 'error');
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -80,6 +118,20 @@ export function Calendar() {
     });
     return map;
   }, [deliveries]);
+
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, CalendarEventItem[]> = {};
+    events.forEach((e) => {
+      const d = new Date(e.startAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(e);
+    });
+    return map;
+  }, [events]);
+
+  const dayHasContent = (key: string) =>
+    (deliveriesByDate[key]?.length || 0) + (eventsByDate[key]?.length || 0) > 0;
 
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -144,6 +196,7 @@ export function Calendar() {
   };
 
   const selectedDateDeliveries = selectedDate ? deliveriesByDate[selectedDate] || [] : [];
+  const selectedDateEvents = selectedDate ? eventsByDate[selectedDate] || [] : [];
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -206,7 +259,9 @@ export function Calendar() {
               {calendarDays.map(({ date, isCurrentMonth }, i) => {
                 const dateKey = formatDateKey(date);
                 const dayDeliveries = deliveriesByDate[dateKey] || [];
-                const hasDeliveries = dayDeliveries.length > 0;
+                const dayEvents = eventsByDate[dateKey] || [];
+                const totalDots = Math.min(3, dayDeliveries.length + dayEvents.length);
+                const hasContent = dayHasContent(dateKey);
                 const isSelected = selectedDate === dateKey;
                 const isTodayDate = isToday(date);
 
@@ -223,15 +278,15 @@ export function Calendar() {
                     data-testid={`calendar-day-${dateKey}`}
                   >
                     <span className="block">{date.getDate()}</span>
-                    {hasDeliveries && (
+                    {hasContent && (
                       <div className={`absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5`}>
-                        {dayDeliveries.slice(0, 3).map((_, idx) => (
+                        {Array.from({ length: totalDots }).map((_, idx) => (
                           <span
                             key={idx}
                             className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-red-600'}`}
                           />
                         ))}
-                        {dayDeliveries.length > 3 && (
+                        {dayDeliveries.length + dayEvents.length > 3 && (
                           <span className={`text-[8px] ${isSelected ? 'text-white' : 'text-red-600'}`}>+</span>
                         )}
                       </div>
@@ -261,10 +316,68 @@ export function Calendar() {
               )}
             </div>
             
-            {selectedDateDeliveries.length === 0 ? (
+            {selectedDateEvents.length > 0 && (
+              <div className="space-y-3 mb-3">
+                {selectedDateEvents
+                  .sort((a, b) => a.startAt.localeCompare(b.startAt))
+                  .map((evt) => {
+                    const start = new Date(evt.startAt);
+                    const isOwner = evt.createdByUserId === user?.id;
+                    return (
+                      <Card key={evt.id} className="p-4 border-l-4 border-l-red-500">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="flex items-center gap-1 text-sm font-semibold text-red-600">
+                                <Clock size={14} />
+                                {start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                              </span>
+                              <span className="text-[10px] uppercase tracking-wide bg-red-100 text-red-700 px-2 py-0.5 rounded">
+                                Event
+                              </span>
+                            </div>
+                            <p className="font-semibold" data-testid={`text-event-title-${evt.id}`}>{evt.title}</p>
+                            {evt.notes && (
+                              <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{evt.notes}</p>
+                            )}
+                            {evt.location && (
+                              <div className="flex items-start gap-2 mt-2 text-sm">
+                                <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-gray-600">{evt.location}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => navigate(`/chat/${evt.deliveryId}`)}
+                              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                              title="Open chat"
+                              data-testid={`button-event-chat-${evt.id}`}
+                            >
+                              <MessageCircle size={16} />
+                            </button>
+                            {isOwner && (
+                              <button
+                                onClick={() => handleDeleteEvent(evt.id)}
+                                className="p-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition"
+                                title="Delete event"
+                                data-testid={`button-event-delete-${evt.id}`}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+              </div>
+            )}
+
+            {selectedDateDeliveries.length === 0 && selectedDateEvents.length === 0 ? (
               <Card className="p-6 text-center">
                 <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600">No deliveries scheduled</p>
+                <p className="text-gray-600">No deliveries or events scheduled</p>
                 {(role === 'sales' || role === 'dealer') && dealerId && (
                   <button
                     onClick={() => setShowScheduleModal(true)}

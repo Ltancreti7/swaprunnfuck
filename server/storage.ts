@@ -18,7 +18,9 @@ import type {
   OnboardingProgress, InsertOnboardingProgress,
   PushToken, InsertPushToken,
   DeliveryPhoto, InsertDeliveryPhoto,
+  InsertCalendarEvent,
 } from "../shared/schema";
+type CalendarEvent = typeof schema.calendarEvents.$inferSelect;
 import crypto from "crypto";
 
 export interface IStorage {
@@ -61,6 +63,11 @@ export interface IStorage {
   getNotifications(userId: string): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: string): Promise<void>;
+
+  createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  getCalendarEventsForUser(userId: string, fromDate?: Date, toDate?: Date): Promise<CalendarEvent[]>;
+  getCalendarEvent(id: string): Promise<CalendarEvent | undefined>;
+  deleteCalendarEvent(id: string): Promise<void>;
   
   getDriverApplications(driverId: string): Promise<DriverApplication[]>;
   getDriverApplicationsByDealerId(dealerId: string): Promise<DriverApplication[]>;
@@ -280,6 +287,33 @@ export class DatabaseStorage implements IStorage {
 
   async markNotificationAsRead(id: string): Promise<void> {
     await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
+  }
+
+  async createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    const [created] = await db.insert(schema.calendarEvents).values(event).returning();
+    return created;
+  }
+
+  async getCalendarEventsForUser(userId: string, fromDate?: Date, toDate?: Date): Promise<CalendarEvent[]> {
+    const conditions = [
+      sql`${schema.calendarEvents.participantUserIds} @> ARRAY[${userId}]::uuid[]`,
+    ];
+    if (fromDate) conditions.push(sql`${schema.calendarEvents.startAt} >= ${fromDate}`);
+    if (toDate) conditions.push(sql`${schema.calendarEvents.startAt} <= ${toDate}`);
+    return db
+      .select()
+      .from(schema.calendarEvents)
+      .where(and(...conditions))
+      .orderBy(asc(schema.calendarEvents.startAt));
+  }
+
+  async getCalendarEvent(id: string): Promise<CalendarEvent | undefined> {
+    const [event] = await db.select().from(schema.calendarEvents).where(eq(schema.calendarEvents.id, id));
+    return event;
+  }
+
+  async deleteCalendarEvent(id: string): Promise<void> {
+    await db.delete(schema.calendarEvents).where(eq(schema.calendarEvents.id, id));
   }
 
   async getDriverApplications(driverId: string): Promise<DriverApplication[]> {

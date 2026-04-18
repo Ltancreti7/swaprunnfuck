@@ -476,6 +476,8 @@ export function Chat() {
       <AddToCalendarModal
         isOpen={showAddToCalendar}
         onClose={() => setShowAddToCalendar(false)}
+        deliveryId={deliveryId}
+        onError={(msg) => showToast(msg, 'error')}
         defaultStart={
           delivery.scheduledDate && delivery.scheduledTime
             ? (() => {

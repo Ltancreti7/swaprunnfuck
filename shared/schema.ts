@@ -258,6 +258,19 @@ export const onboardingProgress = pgTable("onboarding_progress", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const calendarEvents = pgTable("calendar_events", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliveryId: uuid("delivery_id").references(() => deliveries.id, { onDelete: "cascade" }).notNull(),
+  createdByUserId: uuid("created_by_user_id").notNull(),
+  title: text("title").notNull(),
+  notes: text("notes").default(""),
+  location: text("location").default(""),
+  startAt: timestamp("start_at").notNull(),
+  endAt: timestamp("end_at").notNull(),
+  participantUserIds: uuid("participant_user_ids").array().notNull().default(sql`'{}'::uuid[]`),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const pushTokens = pgTable("push_tokens", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
@@ -281,6 +294,7 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, creat
 export const insertOnboardingProgressSchema = createInsertSchema(onboardingProgress).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDeliveryPhotoSchema = createInsertSchema(deliveryPhotos).omit({ id: true, createdAt: true });
 export const insertPushTokenSchema = createInsertSchema(pushTokens).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({ id: true, createdAt: true });
 
 export type InsertDeliveryPhoto = z.infer<typeof insertDeliveryPhotoSchema>;
 export type InsertDealer = z.infer<typeof insertDealerSchema>;
@@ -296,6 +310,7 @@ export type InsertAdminInvitation = z.infer<typeof insertAdminInvitationSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertOnboardingProgress = z.infer<typeof insertOnboardingProgressSchema>;
 export type InsertPushToken = z.infer<typeof insertPushTokenSchema>;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 
 export type Dealer = typeof dealers.$inferSelect;
 export type Sales = typeof sales.$inferSelect;

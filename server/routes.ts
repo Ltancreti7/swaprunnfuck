@@ -1504,6 +1504,119 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/calendar-events", pollingRateLimiter, async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const fromDate = req.query.from ? new Date(String(req.query.from)) : undefined;
+      const toDate = req.query.to ? new Date(String(req.query.to)) : undefined;
+      const events = await storage.getCalendarEventsForUser(userId, fromDate, toDate);
+      res.json(events);
+    } catch (error) {
+      console.error("Get calendar events error:", error);
+      res.status(500).json({ error: "Failed to get calendar events" });
+    }
+  });
+
+  app.post("/api/calendar-events", pollingRateLimiter, async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { deliveryId, title, notes, location, startAt, endAt } = req.body || {};
+      if (!deliveryId || !title || !startAt) {
+        return res.status(400).json({ error: "deliveryId, title, and startAt are required" });
+      }
+
+      const delivery = await storage.getDelivery(deliveryId);
+      if (!delivery) {
+        return res.status(404).json({ error: "Delivery not found" });
+      }
+
+      const isParticipant = await isDeliveryParticipant(userId, delivery);
+      if (!isParticipant) {
+        return res.status(403).json({ error: "Access denied - not a participant in this delivery" });
+      }
+
+      const start = new Date(startAt);
+      if (isNaN(start.getTime())) {
+        return res.status(400).json({ error: "Invalid startAt" });
+      }
+      const end = endAt ? new Date(endAt) : new Date(start.getTime() + 60 * 60 * 1000);
+      if (isNaN(end.getTime()) || end.getTime() <= start.getTime()) {
+        return res.status(400).json({ error: "Invalid endAt" });
+      }
+
+      const participantIds = new Set<string>();
+      participantIds.add(userId);
+      if (delivery.driverId) {
+        const driver = await storage.getDriver(delivery.driverId);
+        if (driver?.userId) participantIds.add(driver.userId);
+      }
+      if (delivery.salesId) {
+        const sales = await storage.getSales(delivery.salesId);
+        if (sales?.userId) participantIds.add(sales.userId);
+      }
+
+      const event = await storage.createCalendarEvent({
+        deliveryId,
+        createdByUserId: userId,
+        title: String(title).slice(0, 200),
+        notes: notes ? String(notes).slice(0, 1000) : "",
+        location: location ? String(location).slice(0, 300) : "",
+        startAt: start,
+        endAt: end,
+        participantUserIds: Array.from(participantIds),
+      });
+
+      try {
+        for (const participantId of participantIds) {
+          if (participantId === userId) continue;
+          await storage.createNotification({
+            userId: participantId,
+            deliveryId,
+            type: 'calendar_event_added',
+            title: 'New calendar event',
+            message: `${event.title} on ${start.toLocaleString()}`,
+            read: false,
+          });
+        }
+      } catch (notifyError) {
+        console.error("Calendar event notify error:", notifyError);
+      }
+
+      res.json(event);
+    } catch (error) {
+      console.error("Create calendar event error:", error);
+      res.status(500).json({ error: "Failed to create calendar event" });
+    }
+  });
+
+  app.delete("/api/calendar-events/:id", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const event = await storage.getCalendarEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      if (event.createdByUserId !== userId) {
+        return res.status(403).json({ error: "Only the creator can delete this event" });
+      }
+      await storage.deleteCalendarEvent(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete calendar event error:", error);
+      res.status(500).json({ error: "Failed to delete calendar event" });
+    }
+  });
+
   app.get("/api/messages/unread/count", pollingRateLimiter, async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;

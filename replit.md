@@ -83,7 +83,8 @@ Preferred communication style: Simple, everyday language.
 - **User Onboarding**: OnboardingChecklist for guided setup.
 - **Profile Management**: Detailed profile tab with avatar upload, statistics, and settings.
 - **Availability Toggle**: Integrated into driver profile.
-- **Calendar & Scheduling**: Month view calendar showing scheduled deliveries, delivery scheduling with driver availability checks.
+- **Calendar & Scheduling**: Month view calendar showing scheduled deliveries and shared calendar events, delivery scheduling with driver availability checks.
+- **Add to Calendar (Shared Events)**: Calendar icon in chat opens a bottom-sheet modal that smart-parses date/time from the conversation. Saving persists a shared event visible to both driver and sales (participant-scoped via `calendar_events` table with `participant_user_ids`), notifies the other party, and downloads an `.ics` file for the user's phone calendar. Only the event creator can delete.
 - **Native App Feel**: iOS-style overscroll, active-press feedback, skeleton loading, pull-to-refresh.
 
 ### iOS App Configuration (Capacitor)

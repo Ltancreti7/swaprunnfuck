@@ -7,32 +7,38 @@ import {
   toDateInputValue,
   toTimeInputValue,
 } from '../../lib/calendarUtils';
+import api from '../../lib/api';
 
 interface AddToCalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
+  deliveryId?: string;
   defaultStart?: Date | null;
   defaultTitle?: string;
   defaultNotes?: string;
   defaultLocation?: string;
   filenameHint?: string;
   onSaved?: () => void;
+  onError?: (msg: string) => void;
 }
 
 export function AddToCalendarModal({
   isOpen,
   onClose,
+  deliveryId,
   defaultStart,
   defaultTitle = '',
   defaultNotes = '',
   defaultLocation = '',
   filenameHint = 'swaprunn-event',
   onSaved,
+  onError,
 }: AddToCalendarModalProps) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,24 +51,44 @@ export function AddToCalendarModal({
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    if (!date || !time || !title.trim()) return;
+  const handleSave = async () => {
+    if (!date || !time || !title.trim() || saving) return;
     const [year, month, day] = date.split('-').map(Number);
     const [hours, minutes] = time.split(':').map(Number);
     const start = new Date(year, month - 1, day, hours, minutes, 0, 0);
-    const ics = buildIcsContent({
-      title: title.trim(),
-      description: notes.trim(),
-      location: defaultLocation,
-      start,
-    });
-    const safeName = filenameHint.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
-    downloadIcs(`${safeName}-${toDateInputValue(start)}.ics`, ics);
-    onSaved?.();
-    onClose();
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    setSaving(true);
+    try {
+      if (deliveryId) {
+        await api.calendarEvents.create({
+          deliveryId,
+          title: title.trim(),
+          notes: notes.trim(),
+          location: defaultLocation,
+          startAt: start.toISOString(),
+          endAt: end.toISOString(),
+        });
+      }
+      const ics = buildIcsContent({
+        title: title.trim(),
+        description: notes.trim(),
+        location: defaultLocation,
+        start,
+      });
+      const safeName = filenameHint.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
+      downloadIcs(`${safeName}-${toDateInputValue(start)}.ics`, ics);
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save event';
+      onError?.(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const canSave = Boolean(date && time && title.trim());
+  const canSave = Boolean(date && time && title.trim()) && !saving;
 
   return (
     <div

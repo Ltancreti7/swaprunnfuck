@@ -285,6 +285,19 @@ export const api = {
     updateProgress: (data: { completedSteps?: string[]; dismissed?: boolean }) =>
       apiRequestWithSnakeBody<{ success: boolean }>('/onboarding/progress', { method: 'PATCH', body: JSON.stringify(data) }),
   },
+  calendarEvents: {
+    list: (from?: string, to?: string) => {
+      const qp = new URLSearchParams();
+      if (from) qp.set('from', from);
+      if (to) qp.set('to', to);
+      const qs = qp.toString();
+      return apiRequest<any[]>(`/calendar-events${qs ? `?${qs}` : ''}`);
+    },
+    create: (data: { deliveryId: string; title: string; notes?: string; location?: string; startAt: string; endAt?: string }) =>
+      apiRequestWithSnakeBody<any>('/calendar-events', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      apiRequest<{ success: boolean }>(`/calendar-events/${id}`, { method: 'DELETE' }),
+  },
   pushTokens: {
     register: (token: string, platform: string) =>
       apiRequest<{ success: boolean }>('/push-tokens', { method: 'POST', body: JSON.stringify({ token, platform }) }),

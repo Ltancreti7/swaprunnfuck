@@ -260,13 +260,13 @@ export const onboardingProgress = pgTable("onboarding_progress", {
 
 export const calendarEvents = pgTable("calendar_events", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  deliveryId: uuid("delivery_id").references(() => deliveries.id, { onDelete: "cascade" }).notNull(),
+  deliveryId: uuid("delivery_id").references(() => deliveries.id, { onDelete: "cascade" }),
   createdByUserId: uuid("created_by_user_id").notNull(),
   title: text("title").notNull(),
   notes: text("notes").default(""),
   location: text("location").default(""),
   startAt: timestamp("start_at").notNull(),
-  endAt: timestamp("end_at").notNull(),
+  endAt: timestamp("end_at"),
   participantUserIds: uuid("participant_user_ids").array().notNull().default(sql`'{}'::uuid[]`),
   createdAt: timestamp("created_at").defaultNow(),
 });

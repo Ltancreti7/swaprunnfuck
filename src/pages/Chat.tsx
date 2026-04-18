@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, MessageCircle, AlertCircle, RefreshCw, Calendar, CheckCircle2, Camera } from 'lucide-react';
+import { ArrowLeft, Send, MessageCircle, AlertCircle, RefreshCw, Calendar, CheckCircle2, Camera, CalendarPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatusBadge } from '../components/ui/Badge';
@@ -8,9 +8,11 @@ import { formatMessageDate, formatTime } from '../lib/dateUtils';
 import { retryWithBackoff, isNetworkError } from '../lib/retry';
 import { ScheduleConfirmationModal } from '../components/sales/ScheduleConfirmationModal';
 import { ScheduleDeliveryModal } from '../components/calendar/ScheduleDeliveryModal';
+import { AddToCalendarModal } from '../components/calendar/AddToCalendarModal';
 import { DeliveryPhotoUpload } from '../components/delivery/DeliveryPhotoUpload';
 import { DeliveryPhotoGallery } from '../components/delivery/DeliveryPhotoGallery';
 import { getTimeframeDisplay } from '../lib/deliveryUtils';
+import { parseDateTimeFromMessages } from '../lib/calendarUtils';
 import api from '../lib/api';
 import type { Delivery, Message, Sales, Driver } from '../../shared/schema';
 
@@ -32,6 +34,7 @@ export function Chat() {
   const [showNewDeliveryModal, setShowNewDeliveryModal] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
   const [photoRefreshTrigger, setPhotoRefreshTrigger] = useState(0);
+  const [showAddToCalendar, setShowAddToCalendar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -280,7 +283,18 @@ export function Chat() {
                   </p>
                 )}
               </div>
-              <StatusBadge status={delivery.status} />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddToCalendar(true)}
+                  className="touch-target p-2 rounded-lg bg-neutral-800 border border-neutral-600 text-red-400 hover:bg-neutral-700 hover:text-red-300 transition"
+                  aria-label="Add to calendar"
+                  title="Add to calendar"
+                  data-testid="button-add-to-calendar"
+                >
+                  <CalendarPlus size={18} />
+                </button>
+                <StatusBadge status={delivery.status} />
+              </div>
             </div>
             {delivery.scheduledDate && delivery.scheduledTime && (
               <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 mb-3">
@@ -457,6 +471,27 @@ export function Chat() {
         driverId={delivery.driverId ?? undefined}
         requiredTimeframe={delivery.requiredTimeframe ?? undefined}
         customDate={delivery.customDate ?? undefined}
+      />
+
+      <AddToCalendarModal
+        isOpen={showAddToCalendar}
+        onClose={() => setShowAddToCalendar(false)}
+        defaultStart={
+          delivery.scheduledDate && delivery.scheduledTime
+            ? (() => {
+                const [y, m, d] = delivery.scheduledDate.split('-').map(Number);
+                const [hh, mm] = delivery.scheduledTime.split(':').map(Number);
+                return new Date(y, m - 1, d, hh || 0, mm || 0);
+              })()
+            : parseDateTimeFromMessages(messages)
+        }
+        defaultTitle={`SwapRunn Delivery: ${delivery.vin}`}
+        defaultNotes={`Pickup: ${delivery.pickup}\nDropoff: ${delivery.dropoff}${
+          delivery.notes ? `\n\nNotes: ${delivery.notes}` : ''
+        }`}
+        defaultLocation={delivery.pickup}
+        filenameHint={`delivery-${delivery.vin}`}
+        onSaved={() => showToast('Calendar event created', 'success')}
       />
 
       {salesPerson?.dealerId && (

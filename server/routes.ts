@@ -1589,6 +1589,29 @@ export function registerRoutes(app: Express): void {
         console.error("Calendar event notify error:", notifyError);
       }
 
+      try {
+        const formatted = start.toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        });
+        const systemContent = `📅 ${event.title} scheduled for ${formatted}`;
+        for (const participantId of participantIds) {
+          if (participantId === userId) continue;
+          await storage.createMessage({
+            deliveryId,
+            senderId: userId,
+            recipientId: participantId,
+            content: systemContent,
+            read: false,
+          });
+        }
+      } catch (msgError) {
+        console.error("Calendar event system message error:", msgError);
+      }
+
       res.json(event);
     } catch (error) {
       console.error("Create calendar event error:", error);

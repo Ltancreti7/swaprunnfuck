@@ -493,7 +493,10 @@ export function Chat() {
         }`}
         defaultLocation={delivery.pickup}
         filenameHint={`delivery-${delivery.vin}`}
-        onSaved={() => showToast('Calendar event created', 'success')}
+        onSaved={() => {
+          showToast('Calendar event created', 'success');
+          loadMessages();
+        }}
       />
 
       {salesPerson?.dealerId && (

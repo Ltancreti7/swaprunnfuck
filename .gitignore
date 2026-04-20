@@ -21,3 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Block accidentally pasted GCP/Firebase service account credentials
+attached_assets/Pasted--type-service-account-*

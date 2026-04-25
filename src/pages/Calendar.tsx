@@ -133,6 +133,20 @@ export function Calendar() {
   const dayHasContent = (key: string) =>
     (deliveriesByDate[key]?.length || 0) + (eventsByDate[key]?.length || 0) > 0;
 
+  const isConfirmedStatus = (status?: string | null) =>
+    !!status && status !== 'pending' && status !== 'pending_driver_acceptance' && status !== 'cancelled';
+
+  const dayHasConfirmed = (key: string) => {
+    const ds = deliveriesByDate[key] || [];
+    const es = eventsByDate[key] || [];
+    return ds.some((d) => isConfirmedStatus(d.status)) || es.length > 0;
+  };
+
+  const dayHasPending = (key: string) => {
+    const ds = deliveriesByDate[key] || [];
+    return ds.some((d) => !isConfirmedStatus(d.status));
+  };
+
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -242,7 +256,7 @@ export function Calendar() {
 
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS.map(day => (
-              <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
+              <div key={day} className="text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400 py-2">
                 {day}
               </div>
             ))}
@@ -258,36 +272,40 @@ export function Calendar() {
             <div className="grid grid-cols-7 gap-1">
               {calendarDays.map(({ date, isCurrentMonth }, i) => {
                 const dateKey = formatDateKey(date);
-                const dayDeliveries = deliveriesByDate[dateKey] || [];
-                const dayEvents = eventsByDate[dateKey] || [];
-                const totalDots = Math.min(3, dayDeliveries.length + dayEvents.length);
-                const hasContent = dayHasContent(dateKey);
                 const isSelected = selectedDate === dateKey;
                 const isTodayDate = isToday(date);
+                const hasConfirmed = dayHasConfirmed(dateKey);
+                const hasPending = dayHasPending(dateKey);
+
+                const baseText = !isCurrentMonth
+                  ? 'text-gray-300'
+                  : isSelected
+                  ? 'text-white'
+                  : isTodayDate
+                  ? 'text-red-600 font-bold'
+                  : 'text-gray-900';
+
+                const baseBg = isSelected
+                  ? 'bg-red-600 shadow-sm'
+                  : 'hover:bg-gray-100';
+
+                const ring = !isSelected && isTodayDate ? 'ring-1 ring-red-500' : '';
 
                 return (
                   <button
                     key={i}
                     onClick={() => setSelectedDate(dateKey)}
-                    className={`aspect-square p-1 rounded-lg text-sm transition relative ${
-                      !isCurrentMonth ? 'text-gray-300' : 
-                      isSelected ? 'bg-red-600 text-white' :
-                      isTodayDate ? 'bg-red-100 text-red-600 font-bold' :
-                      'hover:bg-gray-100'
-                    }`}
+                    className={`aspect-square rounded-lg text-sm transition relative flex flex-col items-center justify-center ${baseBg} ${ring}`}
                     data-testid={`calendar-day-${dateKey}`}
                   >
-                    <span className="block">{date.getDate()}</span>
-                    {hasContent && (
-                      <div className={`absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5`}>
-                        {Array.from({ length: totalDots }).map((_, idx) => (
-                          <span
-                            key={idx}
-                            className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-red-600'}`}
-                          />
-                        ))}
-                        {dayDeliveries.length + dayEvents.length > 3 && (
-                          <span className={`text-[8px] ${isSelected ? 'text-white' : 'text-red-600'}`}>+</span>
+                    <span className={`text-[15px] leading-none ${baseText}`}>{date.getDate()}</span>
+                    {(hasConfirmed || hasPending) && (
+                      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+                        {hasConfirmed && (
+                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-red-600'}`} />
+                        )}
+                        {hasPending && (
+                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/60' : 'bg-gray-400'}`} />
                         )}
                       </div>
                     )}
@@ -296,6 +314,21 @@ export function Calendar() {
               })}
             </div>
           )}
+
+          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100 text-[11px] text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+              Confirmed
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+              Pending
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full ring-1 ring-red-500" />
+              Today
+            </div>
+          </div>
         </Card>
 
         {selectedDate && (
@@ -324,19 +357,17 @@ export function Calendar() {
                     const start = new Date(evt.startAt);
                     const isOwner = evt.createdByUserId === user?.id;
                     return (
-                      <Card key={evt.id} className="p-4 border-l-4 border-l-red-500">
+                      <Card key={evt.id} className="p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="flex items-center gap-1 text-sm font-semibold text-red-600">
-                                <Clock size={14} />
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                              <span className="flex items-center gap-1 text-xs font-medium text-gray-500">
+                                <Clock size={12} />
                                 {start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                               </span>
-                              <span className="text-[10px] uppercase tracking-wide bg-red-100 text-red-700 px-2 py-0.5 rounded">
-                                Event
-                              </span>
                             </div>
-                            <p className="font-semibold" data-testid={`text-event-title-${evt.id}`}>{evt.title}</p>
+                            <p className="font-semibold text-gray-900 text-base leading-snug" data-testid={`text-event-title-${evt.id}`}>{evt.title}</p>
                             {evt.notes && (
                               <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{evt.notes}</p>
                             )}
@@ -390,23 +421,26 @@ export function Calendar() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {selectedDateDeliveries.sort((a, b) => (a.scheduledTime || '').localeCompare(b.scheduledTime || '')).map((delivery) => (
+                {selectedDateDeliveries.sort((a, b) => (a.scheduledTime || '').localeCompare(b.scheduledTime || '')).map((delivery) => {
+                  const confirmed = isConfirmedStatus(delivery.status);
+                  return (
                   <Card key={delivery.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
+                          <span className={`w-1.5 h-1.5 rounded-full ${confirmed ? 'bg-red-600' : 'bg-gray-400'}`} />
                           {delivery.scheduledTime && (
-                            <span className="flex items-center gap-1 text-sm font-semibold text-red-600">
-                              <Clock size={14} />
+                            <span className="flex items-center gap-1 text-xs font-medium text-gray-500">
+                              <Clock size={12} />
                               {formatTime(delivery.scheduledTime)}
                             </span>
                           )}
-                          <StatusBadge status={(delivery.status || 'pending') as any} />
+                          <StatusBadge status={(delivery.status || 'pending') as any} size="sm" />
                         </div>
-                        <p className="font-semibold">
+                        <p className="font-semibold text-gray-900 text-base leading-snug">
                           {delivery.year} {delivery.make} {delivery.model}
                         </p>
-                        <p className="text-sm text-gray-600">VIN: {delivery.vin}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">VIN: {delivery.vin}</p>
                         
                         <div className="mt-3 space-y-1 text-sm">
                           <div className="flex items-start gap-2">
@@ -436,7 +470,8 @@ export function Calendar() {
                       </button>
                     </div>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

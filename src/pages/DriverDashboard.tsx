@@ -14,6 +14,7 @@ import { EditProfileModal } from '../components/driver/EditProfileModal';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessagesCount';
 import { DeliveryPhotoUpload } from '../components/delivery/DeliveryPhotoUpload';
 import { DeliveryPhotoGallery } from '../components/delivery/DeliveryPhotoGallery';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 
 interface DeliveryWithDealer extends Delivery {
   dealer: Dealer;
@@ -78,6 +79,8 @@ export function DriverDashboard() {
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
   }, [user, driver?.id]);
+
+  const { isRefreshing: isPullRefreshing, indicatorRef: pullIndicatorRef } = usePullToRefresh(loadDriverData);
 
   const loadDriverData = async () => {
     if (!user) return;
@@ -259,6 +262,14 @@ export function DriverDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 pb-12">
+      {/* Pull-to-refresh indicator */}
+      <div
+        ref={pullIndicatorRef}
+        style={{ position: 'fixed', top: 0, left: '50%', marginLeft: -20, zIndex: 50, transform: 'translateY(-60px)', opacity: 0, width: 40, height: 40, borderRadius: '50%', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-hidden="true"
+      >
+        <div style={{ width: 20, height: 20, border: '2.5px solid #DC2626', borderTopColor: 'transparent', borderRadius: '50%' }} className={isPullRefreshing ? 'animate-spin' : ''} />
+      </div>
       {/* Compact Header */}
       <div className="bg-neutral-900/50 border-b border-neutral-700">
         <div className="container mx-auto px-4 py-4">

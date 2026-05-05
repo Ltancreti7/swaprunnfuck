@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../lib/api';
 
 export function PushNotificationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -32,23 +33,9 @@ export function PushNotificationProvider({ children }: { children: React.ReactNo
 
         PushNotifications.addListener('registration', async (token) => {
           console.log('Push registration success, token:', token.value);
-          
           try {
-            const response = await fetch('/api/push-tokens', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                token: token.value,
-                platform: Capacitor.getPlatform(),
-              }),
-            });
-            
-            if (response.ok) {
-              console.log('Push token registered with server');
-            } else {
-              console.error('Failed to register push token:', await response.text());
-            }
+            await api.pushTokens.register(token.value, Capacitor.getPlatform());
+            console.log('Push token registered with server');
           } catch (error) {
             console.error('Error registering push token:', error);
           }

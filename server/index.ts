@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
@@ -12,6 +13,25 @@ const app = express();
 if (process.env.NODE_ENV === "production") {
   app.set('trust proxy', 1);
 }
+
+// CORS — allow the web app origin and the Capacitor iOS app (capacitor://localhost)
+const allowedOrigins = [
+  process.env.APP_URL || 'https://swaprunn.com',
+  'capacitor://localhost',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  },
+  credentials: true,
+}));
 
 // Security headers
 app.use((req, res, next) => {
@@ -27,13 +47,15 @@ app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=()');
   // Content Security Policy - strict policy for production
   if (process.env.NODE_ENV === 'production') {
+    const backendUrl = process.env.APP_URL || 'https://swaprunn.com';
     res.setHeader('Content-Security-Policy',
       "default-src 'self'; " +
       "script-src 'self'; " +
       "style-src 'self'; " +
       "img-src 'self' data: https:; " +
       "font-src 'self' data:; " +
-      "connect-src 'self'; " +
+      // Allow Capacitor iOS (capacitor://localhost) to reach the backend
+      `connect-src 'self' ${backendUrl}; ` +
       "frame-src 'self' https://app.termly.io; " +
       "frame-ancestors 'self'"
     );
@@ -111,7 +133,9 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    // 'none' allows the Capacitor iOS app (cross-origin from capacitor://localhost)
+    // to send the session cookie to the Railway backend. Requires secure:true.
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for persistent sessions
   }
 }));

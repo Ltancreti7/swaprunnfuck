@@ -1,4 +1,10 @@
-const API_BASE = '/api';
+import { Capacitor } from '@capacitor/core';
+
+// When running as a native Capacitor app the WebView origin is capacitor://localhost,
+// so relative URLs resolve locally instead of reaching the Railway backend.
+// Use the absolute backend URL for native builds; keep relative for the web deployment.
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://swaprunn.com';
+const API_BASE = Capacitor.isNativePlatform() ? `${BACKEND_URL}/api` : '/api';
 
 export interface ApiError {
   error: string;

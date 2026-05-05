@@ -5,12 +5,6 @@ const config: CapacitorConfig = {
   appName: 'SwapRunn',
   webDir: 'dist',
   
-  server: {
-    url: process.env.CAPACITOR_SERVER_URL || 'https://swaprunn.com',
-    cleartext: false,
-    androidScheme: 'https',
-  },
-  
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',

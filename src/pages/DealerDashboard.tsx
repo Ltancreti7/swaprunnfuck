@@ -29,6 +29,7 @@ import { ApplicationActionModal } from "../components/dealer/ApplicationActionMo
 import { EditDealerProfileModal } from "../components/dealer/EditDealerProfileModal";
 import { AdminManagement } from "../components/dealer/AdminManagement";
 import { DriverSelectionModal } from "../components/dealer/DriverSelectionModal";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 
 export function DealerDashboard() {
   const navigate = useNavigate();
@@ -88,6 +89,8 @@ export function DealerDashboard() {
       loadDealerData();
     }
   }, [user]);
+
+  const { isRefreshing: isPullRefreshing, indicatorRef: pullIndicatorRef } = usePullToRefresh(loadDealerData);
 
   const loadDealerData = async () => {
     if (!user) return;
@@ -494,6 +497,14 @@ export function DealerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 pb-12">
+      {/* Pull-to-refresh indicator */}
+      <div
+        ref={pullIndicatorRef}
+        style={{ position: 'fixed', top: 0, left: '50%', marginLeft: -20, zIndex: 50, transform: 'translateY(-60px)', opacity: 0, width: 40, height: 40, borderRadius: '50%', background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-hidden="true"
+      >
+        <div style={{ width: 20, height: 20, border: '2.5px solid #DC2626', borderTopColor: 'transparent', borderRadius: '50%' }} className={isPullRefreshing ? 'animate-spin' : ''} />
+      </div>
       {/* Header */}
       <div className="bg-neutral-900/50 sticky top-0 z-40 border-b border-neutral-700">
         <div className="container mx-auto px-4 py-4">

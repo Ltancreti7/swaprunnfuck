@@ -17,6 +17,7 @@ const config: CapacitorConfig = {
     backgroundColor: '#ffffff',
     allowsLinkPreview: true,
     scrollEnabled: true,
+    bounce: true,
     limitsNavigationsToAppBoundDomains: true,
   },
   
@@ -39,6 +40,7 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'dark',
       backgroundColor: '#ffffff',
+      overlaysWebView: false,
     },
     SplashScreen: {
       launchShowDuration: 2000,

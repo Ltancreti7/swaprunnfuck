@@ -1,0 +1,8 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "npx tsx server/index.ts"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 60

@@ -1,0 +1,12 @@
+node_modules
+.git
+.gitignore
+dist
+ios
+android
+*.log
+.env
+.env.local
+.env.*.local
+SwapRunn-Claude
+drizzle

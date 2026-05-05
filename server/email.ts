@@ -1,7 +1,7 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const APP_URL = process.env.REPLIT_DEV_DOMAIN 
-  ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-  : process.env.APP_URL || 'http://localhost:5000';
+const APP_URL = process.env.APP_URL || (process.env.NODE_ENV === 'production'
+  ? (() => { throw new Error('APP_URL environment variable is required in production'); })()
+  : 'http://localhost:5000');
 
 interface EmailOptions {
   to: string;

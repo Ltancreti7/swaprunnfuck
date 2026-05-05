@@ -11,13 +11,12 @@
   }
 
   body {
-    overscroll-behavior-x: none;
     -webkit-overflow-scrolling: touch;
   }
 
   .scroll-container {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
+    overscroll-behavior-y: auto;
   }
 
   .bounce-scroll {

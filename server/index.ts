@@ -4,7 +4,7 @@ import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { registerObjectStorageRoutes } from "./storage/routes";
 
 const app = express();
 
@@ -27,13 +27,14 @@ app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=()');
   // Content Security Policy - strict policy for production
   if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Content-Security-Policy', 
+    res.setHeader('Content-Security-Policy',
       "default-src 'self'; " +
       "script-src 'self'; " +
       "style-src 'self'; " +
       "img-src 'self' data: https:; " +
       "font-src 'self' data:; " +
       "connect-src 'self'; " +
+      "frame-src 'self' https://app.termly.io; " +
       "frame-ancestors 'self'"
     );
   }
@@ -86,6 +87,11 @@ app.use((req, res, next) => {
   next();
 });
 
+if (!process.env.DATABASE_URL) {
+  console.error('FATAL: DATABASE_URL environment variable is not set. Add it in Railway → Variables.');
+  process.exit(1);
+}
+
 const PgSession = connectPgSimple(session);
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -97,7 +103,9 @@ app.use(session({
     tableName: 'session',
     createTableIfMissing: true,
   }),
-  secret: process.env.SESSION_SECRET || "swaprunn-secret-key-change-in-production",
+  secret: process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('SESSION_SECRET environment variable is required in production'); })()
+    : 'dev-only-secret'),
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -139,6 +147,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
   registerRoutes(app);
   registerObjectStorageRoutes(app);
 
@@ -156,8 +166,8 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  const port = 5000;
-  app.listen(port, "0.0.0.0", () => {
+  const port = parseInt(process.env.PORT || '5000', 10);
+  app.listen(port, '0.0.0.0', () => {
     log(`serving on port ${port}`);
   });
 })();

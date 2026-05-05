@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.swaprunn.app',
+  appId: 'com.swaprunn.delivery',
   appName: 'SwapRunn',
   webDir: 'dist',
   

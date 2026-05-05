@@ -167,6 +167,15 @@ function AppContent() {
           />
 
           <Route
+            path="/delivery/:deliveryId"
+            element={
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/profile"
             element={
               <ProtectedRoute>

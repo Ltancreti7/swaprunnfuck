@@ -27,6 +27,14 @@ export function DealershipSearch({ driverId, showToast }: DealershipSearchProps)
     loadData();
   }, [driverId]);
 
+  // Poll for application status changes so approved status reflects in real time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadApplications();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [driverId]);
+
   const loadData = async () => {
     setLoading(true);
     await Promise.all([loadMyDealerships(), loadDealerships(), loadApplications()]);

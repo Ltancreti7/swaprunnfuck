@@ -734,8 +734,10 @@ export function DealerDashboard() {
                             <Clock className="w-6 h-6 text-gray-400" />
                           </div>
                           <div>
-                            <p className="font-medium text-white">Delivery needs a driver</p>
-                            <p className="text-sm text-gray-400">VIN: {delivery.vin}</p>
+                            <p className="font-medium text-white">
+                              {[delivery.year, delivery.make, delivery.model].filter(Boolean).join(' ') || 'Delivery'} needs a driver
+                            </p>
+                            <p className="text-sm text-gray-400">{delivery.pickup} → {delivery.dropoff}</p>
                           </div>
                         </div>
                         <StatusBadge status={(delivery.status || "pending") as "pending" | "completed" | "cancelled" | "pending_driver_acceptance" | "assigned" | "in_transit"} />

@@ -545,17 +545,79 @@ export function DriverDashboard() {
                 </Card>
               ) : (
                 <div className="space-y-3">
-                  {requestDeliveries.map((delivery) => (
+                  {requestDeliveries.map((delivery) => {
+                    const durationMins = delivery.estimatedDurationMinutes;
+                    const distanceKm = delivery.estimatedDistanceKm ? parseFloat(delivery.estimatedDistanceKm.toString()) : null;
+                    const distanceMi = distanceKm ? (distanceKm * 0.621371).toFixed(1) : null;
+                    const driveTimeStr = durationMins
+                      ? durationMins >= 60
+                        ? `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
+                        : `${durationMins}m`
+                      : null;
+                    const estPay = delivery.estimatedPayCents
+                      ? (delivery.estimatedPayCents / 100).toFixed(2)
+                      : durationMins
+                      ? ((durationMins / 60) * 20).toFixed(2)
+                      : null;
+
+                    return (
                     <Card key={delivery.id} className="p-4">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-3">
                         <div>
                           <p className="font-semibold">{delivery.year} {delivery.make} {delivery.model}</p>
                           <p className="text-sm text-neutral-400">{delivery.dealer?.name}</p>
                         </div>
                         <StatusBadge status="pending" />
                       </div>
-                      <p className="text-sm text-neutral-400 mb-1">VIN: {delivery.vin}</p>
-                      <p className="text-sm text-neutral-400 mb-3">To: {delivery.dropoff}</p>
+
+                      {/* Route */}
+                      <div className="space-y-1 mb-3">
+                        <div className="flex items-start gap-2 text-sm">
+                          <MapPin size={14} className="text-neutral-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-neutral-400"><span className="text-neutral-300 font-medium">From:</span> {delivery.pickup}</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-sm">
+                          <MapPin size={14} className="text-red-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-neutral-400"><span className="text-neutral-300 font-medium">To:</span> {delivery.dropoff}</span>
+                        </div>
+                      </div>
+
+                      {/* Key Info Grid */}
+                      <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                        {estPay && (
+                          <div className="bg-green-900/30 border border-green-800 rounded-lg p-2 text-center">
+                            <p className="text-green-400 font-bold text-base">${estPay}</p>
+                            <p className="text-neutral-400">Est. Pay</p>
+                          </div>
+                        )}
+                        {(distanceMi || driveTimeStr) && (
+                          <div className="bg-neutral-700 rounded-lg p-2 text-center">
+                            {distanceMi && <p className="text-white font-semibold">{distanceMi} mi</p>}
+                            {driveTimeStr && <p className="text-neutral-400">{driveTimeStr} drive</p>}
+                            {!distanceMi && !driveTimeStr && <p className="text-neutral-400">Route TBD</p>}
+                          </div>
+                        )}
+                        <div className="bg-neutral-700 rounded-lg p-2 text-center">
+                          <p className="text-white font-semibold">{delivery.transmission || '—'}</p>
+                          <p className="text-neutral-400">Transmission</p>
+                        </div>
+                        <div className="bg-neutral-700 rounded-lg p-2 text-center">
+                          <p className="text-white font-semibold">{delivery.hasTrade ? 'Yes' : 'No'}</p>
+                          <p className="text-neutral-400">Trade-In</p>
+                        </div>
+                      </div>
+
+                      {/* Scheduled Date/Time */}
+                      {(delivery.scheduledDate || delivery.scheduledTime) && (
+                        <div className="flex items-center gap-2 text-sm text-neutral-300 bg-neutral-700/50 rounded-lg px-3 py-2 mb-3">
+                          <Calendar size={14} className="text-neutral-400 flex-shrink-0" />
+                          <span>
+                            {delivery.scheduledDate && new Date(delivery.scheduledDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            {delivery.scheduledTime && ` at ${delivery.scheduledTime.slice(0, 5)}`}
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleAcceptDelivery(delivery.id)}
@@ -573,7 +635,8 @@ export function DriverDashboard() {
                         </button>
                       </div>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

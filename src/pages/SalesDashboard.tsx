@@ -30,7 +30,7 @@ export function SalesDashboard() {
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [isCreatingDelivery, setIsCreatingDelivery] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed'>('active');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'pending' | 'completed'>('all');
   const [activeTab, setActiveTab] = useState<'profile' | 'deliveries' | 'chat' | 'calendar'>('profile');
   
   // Chat state
@@ -335,7 +335,9 @@ export function SalesDashboard() {
   const filteredDeliveries = useMemo(() => {
     let filtered = deliveries;
     if (activeFilter === 'active') {
-      filtered = filtered.filter(d => !['completed', 'cancelled'].includes(d.status || ''));
+      filtered = filtered.filter(d => ['accepted', 'assigned', 'in_transit', 'in_progress'].includes(d.status || ''));
+    } else if (activeFilter === 'pending') {
+      filtered = filtered.filter(d => ['pending', 'pending_driver_acceptance'].includes(d.status || ''));
     } else if (activeFilter === 'completed') {
       filtered = filtered.filter(d => d.status === 'completed');
     }
@@ -351,8 +353,8 @@ export function SalesDashboard() {
   }, [deliveries, activeFilter, searchQuery]);
 
   const stats = useMemo(() => ({
-    active: deliveries.filter(d => !['completed', 'cancelled'].includes(d.status || '')).length,
-    pending: deliveries.filter(d => d.status === 'pending' || d.status === 'pending_driver_acceptance').length,
+    active: deliveries.filter(d => ['accepted', 'assigned', 'in_transit', 'in_progress'].includes(d.status || '')).length,
+    pending: deliveries.filter(d => ['pending', 'pending_driver_acceptance'].includes(d.status || '')).length,
     completed: deliveries.filter(d => d.status === 'completed').length,
   }), [deliveries]);
 
@@ -554,7 +556,7 @@ export function SalesDashboard() {
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex gap-2">
-                {(['active', 'completed', 'all'] as const).map((filter) => (
+                {(['all', 'pending', 'active', 'completed'] as const).map((filter) => (
                   <button
                     key={filter}
                     onClick={() => setActiveFilter(filter)}
@@ -587,7 +589,7 @@ export function SalesDashboard() {
               <EmptyState
                 icon={Truck}
                 title="No deliveries"
-                description={activeFilter === 'active' ? "You don't have any active deliveries" : "No deliveries found"}
+                description={activeFilter === 'active' ? "No in-progress deliveries" : activeFilter === 'pending' ? "No pending deliveries" : "No deliveries found"}
               />
             ) : (
               <div className="space-y-3">

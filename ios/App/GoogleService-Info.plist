@@ -15,16 +15,16 @@
 	<key>STORAGE_BUCKET</key>
 	<string>swaprunn.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false></false>
+	<false/>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<false></false>
+	<false/>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true></true>
+	<true/>
 	<key>IS_GCM_ENABLED</key>
-	<true></true>
+	<true/>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true></true>
+	<true/>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:873726026433:ios:d5733c6852e26e0e29ea40</string>
+	<string>1:873726026433:ios:069600deab95380729ea40</string>
 </dict>
 </plist>

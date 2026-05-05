@@ -21,6 +21,7 @@ import { SignUpSales } from './pages/SignUpSales';
 import { SignUpDriver } from './pages/SignUpDriver';
 import { SignUpManager } from './pages/SignUpManager';
 import { CompleteProfile } from './pages/CompleteProfile';
+import { Privacy } from './pages/Privacy';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { Calendar } from './pages/Calendar';
@@ -100,6 +101,7 @@ function AppContent() {
           <Route path="/signup-sales" element={<SignUpSales />} />
           <Route path="/signup-driver" element={<SignUpDriver />} />
           <Route path="/signup-manager" element={<SignUpManager />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/how-it-works" element={<HowItWorks />} />

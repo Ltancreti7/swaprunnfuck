@@ -30,6 +30,7 @@ const allowedOrigins = [
   'capacitor://localhost',
   'http://localhost:5173',
   'http://localhost:3000',
+  'https://remarkable-charisma-production.up.railway.app',
 ];
 app.use(cors({
   origin: (origin, callback) => {

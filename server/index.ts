@@ -11,6 +11,14 @@ console.log("NODE_ENV:", process.env.NODE_ENV);
 
 const app = express();
 
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  if (host.includes('railway.app') || host.includes('swaprunn.com') || host.includes('localhost')) {
+    return next();
+  }
+  return next(); // allow all for now
+});
+
 // Trust proxy for production (required for secure cookies behind reverse proxy)
 if (process.env.NODE_ENV === "production") {
   app.set('trust proxy', 1);

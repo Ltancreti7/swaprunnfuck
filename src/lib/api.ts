@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 // When running as a native Capacitor app the WebView origin is capacitor://localhost,
 // so relative URLs resolve locally instead of reaching the Railway backend.
 // Use the absolute backend URL for native builds; keep relative for the web deployment.
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://swaprunn.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://remarkable-charisma-production.up.railway.app';
 const API_BASE = Capacitor.isNativePlatform() ? `${BACKEND_URL}/api` : '/api';
 
 export interface ApiError {
@@ -54,18 +54,31 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      credentials: 'include',
+    });
+  } catch (fetchError) {
+    // WKWebView (Capacitor iOS) throws {} instead of a TypeError on network failures
+    if (fetchError instanceof Error) throw fetchError;
+    throw new Error('Network request failed — check connection and server URL');
+  }
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Request failed');
+    let errorMsg = `Request failed (${response.status})`;
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.error || errorData.message || errorMsg;
+    } catch {
+      // Response body wasn't JSON (e.g. HTML error page from proxy)
+    }
+    throw new Error(errorMsg);
   }
 
   const data = await response.json();

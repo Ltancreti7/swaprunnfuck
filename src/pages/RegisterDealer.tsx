@@ -72,13 +72,15 @@ export function RegisterDealer() {
       showToast("Registration successful! Welcome to SwapRunn.", "success");
       navigate("/dealer");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to register. Please try again.";
+      const message = err instanceof Error
+        ? err.message
+        : (typeof err === 'string' ? err : "Failed to register. Please try again.");
+      console.error("Register dealer error:", err instanceof Error ? err.message : err);
       if (message.includes("already exists")) {
         setError("This email is already registered. Please use the login page to access your account.");
       } else {
         setError(message);
       }
-      console.error("Register dealer error:", err);
       showToast(message, "error");
     } finally {
       setLoading(false);

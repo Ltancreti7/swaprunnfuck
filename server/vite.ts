@@ -22,7 +22,7 @@ export function log(message: string, source = "express") {
 
 export async function setupVite(app: Express) {
   const vite = await createViteServer({
-    server: { middlewareMode: true },
+    server: { middlewareMode: true, allowedHosts: true },
     appType: "spa",
     customLogger: {
       ...viteLogger,

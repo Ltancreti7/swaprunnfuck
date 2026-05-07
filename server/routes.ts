@@ -223,17 +223,25 @@ export function registerRoutes(app: Express): void {
         return { user, dealer };
       });
       
-      // Set session
+      // Set session and wait for it to persist to the DB before responding,
+      // so a follow-up /api/auth/me from the client always finds the session.
       (req.session as any).userId = result.user.id;
       (req.session as any).role = result.user.role;
-      
-      res.json({ 
+
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      res.json({
         user: { id: result.user.id, email: result.user.email, role: result.user.role },
-        dealer: result.dealer 
+        dealer: result.dealer
       });
     } catch (error) {
-      console.error("Dealer registration error:", error);
-      res.status(500).json({ error: "Registration failed" });
+      console.error("Dealer registration error:", error instanceof Error ? error.stack : error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Registration failed" });
     }
   });
 
@@ -268,11 +276,18 @@ export function registerRoutes(app: Express): void {
       
       (req.session as any).userId = user.id;
       (req.session as any).role = user.role;
-      
+
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
       res.json({ user: { id: user.id, email: user.email, role: user.role } });
     } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ error: "Login failed" });
+      console.error("Login error:", error instanceof Error ? error.stack : error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Login failed" });
     }
   });
 

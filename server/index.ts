@@ -71,7 +71,7 @@ app.use((req, res, next) => {
       "img-src 'self' data: https:; " +
       "font-src 'self' data:; " +
       // Allow Capacitor iOS (capacitor://localhost) to reach the backend
-      `connect-src 'self' ${backendUrl}; ` +
+      `connect-src 'self' ${backendUrl} https://swaprunn.com https://remarkable-charisma-production.up.railway.app; ` +
       "frame-src 'self' https://app.termly.io; " +
       "frame-ancestors 'self'"
     );

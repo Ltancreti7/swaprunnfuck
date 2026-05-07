@@ -7,6 +7,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { registerObjectStorageRoutes } from "./storage/routes";
 
+console.log("NODE_ENV:", process.env.NODE_ENV);
+
 const app = express();
 
 // Trust proxy for production (required for secure cookies behind reverse proxy)
@@ -184,7 +186,7 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV !== "production") {
     await setupVite(app);
   } else {
     serveStatic(app);
